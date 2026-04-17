@@ -19,7 +19,8 @@
       "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); console.log\\(ts.substring\\(800,2000\\)\\)\")",
       "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); const idx = ts.indexOf\\('connectTimeout'\\); console.log\\(ts.substring\\(idx-20,idx+200\\)\\)\")",
       "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); const idx = ts.indexOf\\('Timeout'\\); console.log\\(ts.substring\\(idx-20,idx+300\\)\\)\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npx nest *)"
     ]
   }
 }

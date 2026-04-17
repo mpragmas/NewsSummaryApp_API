@@ -12,6 +12,9 @@ export default () => ({
   gemini: {
     apiKey: process.env.GEMINI_API_KEY ?? '',
   },
+  groq: {
+    apiKey: process.env.GROQ_API_KEY ?? '',
+  },
   throttle: {
     ttl: parseInt(process.env.THROTTLE_TTL ?? '60', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),

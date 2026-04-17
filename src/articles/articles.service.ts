@@ -2,15 +2,26 @@ import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
-import { RssService } from '../rss/rss.service';
+import { RssService, NormalizedArticle } from '../rss/rss.service';
 import { AiService } from '../ai/ai.service';
+import { fallbackSummary } from '../ai/fallback-summary.util';
 import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
 import { QueryArticlesDto } from './dto/query-articles.dto';
 import { PaginatedArticlesDto, ArticleResponseDto } from './dto/article-response.dto';
 
 const CACHE_PREFIX = 'articles';
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes in ms
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+export interface IngestResult {
+  processed: number;
+  saved: number;
+  summarized: number; // always equals processed (AI or fallback)
+  aiSummarized: number; // Groq or Gemini
+  fallbackUsed: number; // local deterministic fallback
+  failed: number; // DB write failures
+  durationMs: number;
+}
 
 @Injectable()
 export class ArticlesService {
@@ -27,8 +38,13 @@ export class ArticlesService {
 
   async findAll(query: QueryArticlesDto): Promise<PaginatedArticlesDto> {
     const cacheKey = `${CACHE_PREFIX}:${JSON.stringify(query)}`;
-    const cached = await this.cacheManager.get<PaginatedArticlesDto>(cacheKey);
-    if (cached) return cached;
+
+    try {
+      const cached = await this.cacheManager.get<PaginatedArticlesDto>(cacheKey);
+      if (cached) return cached;
+    } catch (err) {
+      this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
+    }
 
     const { page = 1, limit = 20, sortBy = 'publishedAt', order = 'desc', ...filters } = query;
     const skip = (page - 1) * limit;
@@ -59,19 +75,34 @@ export class ArticlesService {
       },
     };
 
-    await this.cacheManager.set(cacheKey, result, CACHE_TTL);
+    try {
+      await this.cacheManager.set(cacheKey, result, CACHE_TTL);
+    } catch (err) {
+      this.logger.warn(`Cache write failed (non-fatal): ${(err as Error).message}`);
+    }
+
     return result;
   }
 
   async findOne(id: string): Promise<ArticleResponseDto> {
     const cacheKey = `${CACHE_PREFIX}:${id}`;
-    const cached = await this.cacheManager.get<ArticleResponseDto>(cacheKey);
-    if (cached) return cached;
+
+    try {
+      const cached = await this.cacheManager.get<ArticleResponseDto>(cacheKey);
+      if (cached) return cached;
+    } catch (err) {
+      this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
+    }
 
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
-    await this.cacheManager.set(cacheKey, article, CACHE_TTL);
+    try {
+      await this.cacheManager.set(cacheKey, article, CACHE_TTL);
+    } catch (err) {
+      this.logger.warn(`Cache write failed (non-fatal): ${(err as Error).message}`);
+    }
+
     return article as ArticleResponseDto;
   }
 
@@ -79,7 +110,8 @@ export class ArticlesService {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
-    const summary = await this.aiService.summarizeArticle(
+    // summarizeArticle ALWAYS returns a non-empty summary (AI or fallback)
+    const result = await this.aiService.summarizeArticle(
       article.title,
       article.content,
       article.url,
@@ -87,33 +119,72 @@ export class ArticlesService {
 
     const updated = await this.prisma.article.update({
       where: { id },
-      data: { summary },
+      data: { summary: result.text },
     });
 
-    await this.cacheManager.del(`${CACHE_PREFIX}:${id}`);
+    this.logger.log(`🔁 Re-summarized ${id} via ${result.provider}`);
+
+    try {
+      await this.cacheManager.del(`${CACHE_PREFIX}:${id}`);
+    } catch (err) {
+      this.logger.warn(`Cache invalidation failed (non-fatal): ${(err as Error).message}`);
+    }
+
     return updated as ArticleResponseDto;
   }
 
-  async ingest(): Promise<{ processed: number; saved: number; summarized: number; summarizationErrors: number }> {
-    this.logger.log('Starting ingestion pipeline...');
+  /**
+   * Full ingestion pipeline. Never throws — external failures (RSS, AI, Redis)
+   * are logged and recovered from. Every persisted article is guaranteed to
+   * have a non-empty summary (AI-generated or local deterministic fallback).
+   */
+  async ingest(): Promise<IngestResult> {
+    const startedAt = Date.now();
+    this.logger.log('🔄 Ingestion pipeline started');
 
-    const rawArticles = await this.rssService.fetchAllFeeds();
-    const uniqueArticles = await this.deduplication.filterDuplicates(rawArticles);
-
-    if (uniqueArticles.length === 0) {
-      this.logger.log('No new articles to process');
-      return { processed: 0, saved: 0, summarized: 0, summarizationErrors: 0 };
+    // ── 1. Fetch (RSS failures never stop the pipeline) ───────────────────
+    let rawArticles: NormalizedArticle[] = [];
+    try {
+      rawArticles = await this.rssService.fetchAllFeeds();
+      this.logger.log(`📥 Fetched ${rawArticles.length} raw articles from RSS feeds`);
+    } catch (err) {
+      this.logger.error(
+        `❌ RSS fetch failed catastrophically: ${(err as Error).message} — continuing with 0 articles`,
+      );
     }
 
-    this.logger.log(`Processing ${uniqueArticles.length} new articles...`);
+    if (rawArticles.length === 0) {
+      this.logger.warn('⚠️  No articles fetched — pipeline complete with 0 results');
+      return this.emptyResult(startedAt);
+    }
 
-    // Categorize all articles
+    // ── 2. Deduplicate ────────────────────────────────────────────────────
+    let uniqueArticles: NormalizedArticle[] = rawArticles;
+    try {
+      uniqueArticles = await this.deduplication.filterDuplicates(rawArticles);
+      this.logger.log(
+        `🔍 Deduplication: ${uniqueArticles.length} unique (removed ${rawArticles.length - uniqueArticles.length} duplicates)`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `❌ Deduplication failed: ${(err as Error).message} — proceeding with raw articles`,
+      );
+    }
+
+    if (uniqueArticles.length === 0) {
+      this.logger.log('✅ No new articles to process (all duplicates) — pipeline complete');
+      return this.emptyResult(startedAt);
+    }
+
+    // ── 3. Categorize ─────────────────────────────────────────────────────
     const articlesWithCategory = uniqueArticles.map((a) => ({
       ...a,
-      category: this.categorizer.categorize(a.title, a.content),
+      category: this.safeCategorize(a.title, a.content),
     }));
+    this.logger.log(`🏷️  Categorized ${articlesWithCategory.length} articles`);
 
-    // Summarize in batches
+    // ── 4. Summarize (always succeeds — local fallback guarantees this) ───
+    this.logger.log(`🤖 Requesting summaries for ${articlesWithCategory.length} articles…`);
     const summaries = await this.aiService.summarizeBatch(
       articlesWithCategory.map((a) => ({
         title: a.title,
@@ -122,21 +193,38 @@ export class ArticlesService {
       })),
     );
 
-    const summarized = summaries.filter(Boolean).length;
-    const summarizationErrors = summaries.length - summarized;
+    // Belt-and-braces: if anything somehow returned empty, force local fallback
+    const guaranteedSummaries = summaries.map((s, idx) => {
+      const article = articlesWithCategory[idx];
+      if (!s?.text || s.text.trim().length === 0) {
+        this.logger.warn(
+          `⚠️  Empty summary slipped through for "${article.title.substring(0, 50)}" — forcing local fallback`,
+        );
+        return {
+          text: fallbackSummary(article.content, article.title, article.url),
+          provider: 'fallback' as const,
+        };
+      }
+      return s;
+    });
 
-    if (summarizationErrors > 0) {
+    const aiSummarized = guaranteedSummaries.filter(
+      (s) => s.provider === 'groq' || s.provider === 'gemini',
+    ).length;
+    const fallbackUsed = guaranteedSummaries.filter((s) => s.provider === 'fallback').length;
+    const summarized = guaranteedSummaries.length; // guaranteed non-empty
+
+    if (fallbackUsed > 0) {
       this.logger.warn(
-        `${summarizationErrors}/${summaries.length} articles could not be summarized — check GEMINI_API_KEY and server logs`,
+        `⚠️  ${fallbackUsed}/${summarized} articles used local fallback — AI providers degraded`,
       );
     }
 
-    // Persist to DB
-    let saved = 0;
+    // ── 5. Persist ────────────────────────────────────────────────────────
     const insertData = articlesWithCategory.map((article, idx) => ({
       title: article.title,
       content: article.content,
-      summary: summaries[idx] || null,
+      summary: guaranteedSummaries[idx].text,
       source: article.source,
       url: article.url,
       category: article.category,
@@ -146,25 +234,68 @@ export class ArticlesService {
       publishedAt: article.publishedAt,
     }));
 
-    // Use createMany with skipDuplicates for atomicity
-    const result = await this.prisma.article.createMany({
-      data: insertData,
-      skipDuplicates: true,
-    });
-    saved = result.count;
+    let saved = 0;
+    let failed = 0;
 
-    // Invalidate list caches
+    try {
+      const result = await this.prisma.article.createMany({
+        data: insertData,
+        skipDuplicates: true,
+      });
+      saved = result.count;
+    } catch (err) {
+      this.logger.error(
+        `❌ createMany failed: ${(err as Error).message} — falling back to individual upserts`,
+      );
+
+      for (const record of insertData) {
+        try {
+          await this.prisma.article.upsert({
+            where: { url: record.url },
+            update: {},
+            create: record,
+          });
+          saved++;
+        } catch (innerErr) {
+          this.logger.error(
+            `❌ Failed to save "${record.title.substring(0, 50)}": ${(innerErr as Error).message}`,
+          );
+          failed++;
+        }
+      }
+    }
+
+    // ── 6. Cache invalidation (non-fatal) ─────────────────────────────────
     await this.invalidateListCache();
 
-    this.logger.log(`Ingestion complete: ${saved} saved, ${summarized} summarized, ${summarizationErrors} summary errors`);
-    return { processed: uniqueArticles.length, saved, summarized, summarizationErrors };
+    const durationMs = Date.now() - startedAt;
+    this.logger.log(
+      `✅ Ingestion complete in ${durationMs}ms — processed: ${uniqueArticles.length}, ` +
+        `saved: ${saved}, summarized: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), db errors: ${failed}`,
+    );
+
+    return {
+      processed: uniqueArticles.length,
+      saved,
+      summarized,
+      aiSummarized,
+      fallbackUsed,
+      failed,
+      durationMs,
+    };
   }
 
   /**
-   * Re-summarize all articles that currently have a null summary.
-   * Useful after fixing API key or model issues to backfill missing summaries.
+   * Backfill summaries for articles still stored with a null summary from the
+   * pre-fallback era. Guaranteed to always produce a non-empty summary.
    */
-  async resummarizeUnsummarized(): Promise<{ total: number; summarized: number; errors: number }> {
+  async resummarizeUnsummarized(): Promise<{
+    total: number;
+    summarized: number;
+    aiSummarized: number;
+    fallbackUsed: number;
+    errors: number;
+  }> {
     const unsummarized = await this.prisma.article.findMany({
       where: { summary: null },
       select: { id: true, title: true, content: true, url: true },
@@ -172,40 +303,73 @@ export class ArticlesService {
 
     if (unsummarized.length === 0) {
       this.logger.log('All articles already have summaries');
-      return { total: 0, summarized: 0, errors: 0 };
+      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
     }
 
-    this.logger.log(`Found ${unsummarized.length} articles without summaries — starting re-summarization...`);
+    this.logger.log(`Found ${unsummarized.length} articles without summaries — backfilling…`);
 
     const summaries = await this.aiService.summarizeBatch(
       unsummarized.map((a) => ({ title: a.title, content: a.content, url: a.url })),
     );
 
     let summarized = 0;
+    let aiSummarized = 0;
+    let fallbackUsed = 0;
     let errors = 0;
 
     for (let i = 0; i < unsummarized.length; i++) {
-      const summary = summaries[i];
-      if (summary) {
-        try {
-          await this.prisma.article.update({
-            where: { id: unsummarized[i].id },
-            data: { summary },
-          });
-          summarized++;
-        } catch (err) {
-          this.logger.error(`Failed to update article ${unsummarized[i].id}: ${(err as Error).message}`);
-          errors++;
-        }
-      } else {
+      const article = unsummarized[i];
+      const result = summaries[i] ?? {
+        text: fallbackSummary(article.content, article.title, article.url),
+        provider: 'fallback' as const,
+      };
+
+      try {
+        await this.prisma.article.update({
+          where: { id: article.id },
+          data: { summary: result.text },
+        });
+        summarized++;
+        if (result.provider === 'fallback') fallbackUsed++;
+        else aiSummarized++;
+      } catch (err) {
+        this.logger.error(
+          `Failed to update article ${article.id}: ${(err as Error).message}`,
+        );
         errors++;
       }
     }
 
     await this.invalidateListCache();
 
-    this.logger.log(`Re-summarization complete: ${summarized} succeeded, ${errors} failed out of ${unsummarized.length}`);
-    return { total: unsummarized.length, summarized, errors };
+    this.logger.log(
+      `Re-summarization complete: ${summarized} summarized (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} db errors`,
+    );
+
+    return { total: unsummarized.length, summarized, aiSummarized, fallbackUsed, errors };
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────
+
+  private emptyResult(startedAt: number): IngestResult {
+    return {
+      processed: 0,
+      saved: 0,
+      summarized: 0,
+      aiSummarized: 0,
+      fallbackUsed: 0,
+      failed: 0,
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
+  private safeCategorize(title: string, content: string): string {
+    try {
+      return this.categorizer.categorize(title, content);
+    } catch (err) {
+      this.logger.warn(`Categorization failed for "${title.substring(0, 40)}": ${(err as Error).message}`);
+      return 'General';
+    }
   }
 
   private async invalidateListCache(): Promise<void> {
@@ -213,7 +377,7 @@ export class ArticlesService {
       // cache-manager v7 uses .clear() to flush all entries
       await (this.cacheManager as Cache & { clear: () => Promise<void> }).clear();
     } catch (error) {
-      this.logger.warn(`Cache invalidation failed: ${(error as Error).message}`);
+      this.logger.warn(`Cache invalidation failed (non-fatal): ${(error as Error).message}`);
     }
   }
 }
