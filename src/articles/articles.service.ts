@@ -160,6 +160,54 @@ export class ArticlesService {
     return { processed: uniqueArticles.length, saved, summarized, summarizationErrors };
   }
 
+  /**
+   * Re-summarize all articles that currently have a null summary.
+   * Useful after fixing API key or model issues to backfill missing summaries.
+   */
+  async resummarizeUnsummarized(): Promise<{ total: number; summarized: number; errors: number }> {
+    const unsummarized = await this.prisma.article.findMany({
+      where: { summary: null },
+      select: { id: true, title: true, content: true, url: true },
+    });
+
+    if (unsummarized.length === 0) {
+      this.logger.log('All articles already have summaries');
+      return { total: 0, summarized: 0, errors: 0 };
+    }
+
+    this.logger.log(`Found ${unsummarized.length} articles without summaries — starting re-summarization...`);
+
+    const summaries = await this.aiService.summarizeBatch(
+      unsummarized.map((a) => ({ title: a.title, content: a.content, url: a.url })),
+    );
+
+    let summarized = 0;
+    let errors = 0;
+
+    for (let i = 0; i < unsummarized.length; i++) {
+      const summary = summaries[i];
+      if (summary) {
+        try {
+          await this.prisma.article.update({
+            where: { id: unsummarized[i].id },
+            data: { summary },
+          });
+          summarized++;
+        } catch (err) {
+          this.logger.error(`Failed to update article ${unsummarized[i].id}: ${(err as Error).message}`);
+          errors++;
+        }
+      } else {
+        errors++;
+      }
+    }
+
+    await this.invalidateListCache();
+
+    this.logger.log(`Re-summarization complete: ${summarized} succeeded, ${errors} failed out of ${unsummarized.length}`);
+    return { total: unsummarized.length, summarized, errors };
+  }
+
   private async invalidateListCache(): Promise<void> {
     try {
       // cache-manager v7 uses .clear() to flush all entries

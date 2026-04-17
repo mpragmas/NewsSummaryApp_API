@@ -1,96 +1,128 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const BATCH_SIZE = 5;
-const RETRY_DELAY_MS = 1000;
-const MAX_RETRIES = 3;
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly genAI: GoogleGenerativeAI;
-  private readonly modelName = 'gemini-1.5-flash';
+  private readonly modelName = 'gemini-2.0-flash';
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('gemini.apiKey') ?? '';
-    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      this.logger.error('GEMINI_API_KEY is not configured — summaries will be null until it is set in .env');
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+
+    if (!apiKey) {
+      throw new Error('❌ GEMINI_API_KEY is missing in .env');
     }
+
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.logger.log(`✅ Gemini initialized with model: ${this.modelName}`);
   }
 
-  async summarizeArticle(title: string, content: string, url: string): Promise<string> {
-    const model = this.genAI.getGenerativeModel({ model: this.modelName });
-    const prompt = this.buildPrompt(title, content, url);
+  // 🔹 Single article summarization
+  async summarizeArticle(
+    title: string,
+    content: string,
+    url: string,
+  ): Promise<string | null> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.modelName,
+      });
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text().trim();
-        return text;
-      } catch (error) {
-        const isLast = attempt === MAX_RETRIES;
-        this.logger.warn(`Summarization attempt ${attempt}/${MAX_RETRIES} failed: ${(error as Error).message}`);
-        if (isLast) throw error;
-        await this.delay(RETRY_DELAY_MS * attempt);
+      const prompt = this.buildPrompt(title, content, url);
+
+      const result = await model.generateContent(prompt);
+
+      // 🔥 SAFE extraction
+      const text =
+        result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+      if (!text) {
+        this.logger.error(
+          '❌ Empty Gemini response:',
+          JSON.stringify(result, null, 2),
+        );
+        return null;
       }
-    }
 
-    throw new Error('All summarization attempts failed');
-  }
-
-  async summarizeBatch(
-    articles: Array<{ title: string; content: string; url: string }>,
-  ): Promise<string[]> {
-    const summaries: string[] = [];
-
-    for (let i = 0; i < articles.length; i += BATCH_SIZE) {
-      const batch = articles.slice(i, i + BATCH_SIZE);
-      const batchResults = await Promise.allSettled(
-        batch.map((a) => this.summarizeArticle(a.title, a.content, a.url)),
+      this.logger.log(`✅ Summary generated for: ${title.substring(0, 50)}...`);
+      return text;
+    } catch (error) {
+      this.logger.error(
+        `❌ Gemini error: ${
+          error instanceof Error ? error.message : JSON.stringify(error)
+        }`,
       );
 
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          summaries.push(result.value);
-        } else {
-          summaries.push('');
-          const reason = result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
-          this.logger.error(`Summarization failed for batch item: ${reason}`);
+      return null;
+    }
+  }
+
+  // 🔹 Batch summarization (SAFE VERSION)
+  async summarizeBatch(
+    articles: Array<{ title: string; content: string; url: string }>,
+  ): Promise<(string | null)[]> {
+    this.logger.log(`🚀 Summarizing ${articles.length} articles...`);
+
+    const results: (string | null)[] = [];
+
+    for (const article of articles) {
+      try {
+        const summary = await this.summarizeArticle(
+          article.title,
+          article.content,
+          article.url,
+        );
+
+        if (!summary) {
+          this.logger.warn(`⚠️ No summary for: ${article.title}`);
+          results.push(null);
+          continue;
         }
+
+        results.push(summary);
+      } catch (err) {
+        this.logger.error(
+          `❌ Failed article: ${article.title} → ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+        results.push(null);
       }
 
-      // Respect Gemini rate limits between batches
-      if (i + BATCH_SIZE < articles.length) {
-        await this.delay(500);
-      }
+      // ⏱️ Small delay to avoid rate limits
+      await this.delay(800);
     }
 
-    return summaries;
+    const success = results.filter(Boolean).length;
+    const fail = results.length - success;
+
+    this.logger.log(`✅ Done: ${success} success, ${fail} failed`);
+
+    return results;
   }
 
+  // 🔹 Prompt
   private buildPrompt(title: string, content: string, url: string): string {
-    return `You are a professional news summarizer. Summarize the following news article in EXACTLY 5 sentences.
+    return `Summarize the following news article into EXACTLY 5 sentences.
 
 Rules:
-- Write in a neutral, factual tone
-- Do not add opinions or commentary
-- Sentence 1: State the main event/topic
-- Sentences 2-4: Provide key details, context, and implications
+- Neutral tone
+- No opinions
+- Sentence 1: Main event
+- Sentence 2-4: Key details
 - Sentence 5: Must end with "Read the full story at: ${url}"
 
-Article Title: ${title}
+Title: ${title}
 
-Article Content:
-${content.substring(0, 3000)}
+Content:
+${content.substring(0, 2000)}
 
-Provide ONLY the 5-sentence summary, nothing else.`;
+Return ONLY the 5 sentences.`;
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  private delay(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
   }
 }

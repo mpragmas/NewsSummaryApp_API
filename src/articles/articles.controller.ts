@@ -44,6 +44,12 @@ export class ArticlesController {
     return this.articlesService.summarizeOne(id);
   }
 
+  @Post('resummarize')
+  @HttpCode(HttpStatus.OK)
+  resummarize() {
+    return this.articlesService.resummarizeUnsummarized();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.articlesService.findOne(id);
