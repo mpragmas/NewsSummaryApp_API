@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as RssParser from 'rss-parser';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import RssParser = require('rss-parser');
 import { RSS_FEEDS, RssFeedConfig } from './rss-feeds.config';
 
 export interface NormalizedArticle {
@@ -53,12 +54,18 @@ export class RssService {
   }
 
   private normalize(item: RssParser.Item, feed: RssFeedConfig): NormalizedArticle {
-    const content =
-      item.contentSnippet ??
+    // Prefer the richest text available; many feeds only expose a snippet
+    const rawContent =
+      item['content:encoded'] ??
       item.content ??
+      item.contentSnippet ??
       item.summary ??
-      item.title ??
       '';
+
+    const cleaned = this.stripHtml(rawContent).trim();
+
+    // Ensure Gemini always receives enough text — fall back to title when body is absent
+    const content = cleaned.length > 20 ? cleaned : (item.title ?? '');
 
     const url = item.link ?? item.guid ?? '';
 
@@ -70,7 +77,7 @@ export class RssService {
 
     return {
       title: (item.title ?? '').trim(),
-      content: this.stripHtml(content).trim(),
+      content,
       url,
       source: feed.name,
       publishedAt: isNaN(publishedAt.getTime()) ? new Date() : publishedAt,

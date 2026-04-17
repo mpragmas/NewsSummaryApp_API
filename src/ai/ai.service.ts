@@ -14,6 +14,9 @@ export class AiService {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('gemini.apiKey') ?? '';
+    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+      this.logger.error('GEMINI_API_KEY is not configured — summaries will be null until it is set in .env');
+    }
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
@@ -53,7 +56,10 @@ export class AiService {
           summaries.push(result.value);
         } else {
           summaries.push('');
-          this.logger.error(`Batch summarization failed: ${result.reason}`);
+          const reason = result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+          this.logger.error(`Summarization failed for batch item: ${reason}`);
         }
       }
 

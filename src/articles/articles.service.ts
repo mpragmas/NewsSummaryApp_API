@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { RssService } from '../rss/rss.service';
 import { AiService } from '../ai/ai.service';
@@ -75,7 +75,26 @@ export class ArticlesService {
     return article as ArticleResponseDto;
   }
 
-  async ingest(): Promise<{ processed: number; saved: number }> {
+  async summarizeOne(id: string): Promise<ArticleResponseDto> {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new NotFoundException(`Article ${id} not found`);
+
+    const summary = await this.aiService.summarizeArticle(
+      article.title,
+      article.content,
+      article.url,
+    );
+
+    const updated = await this.prisma.article.update({
+      where: { id },
+      data: { summary },
+    });
+
+    await this.cacheManager.del(`${CACHE_PREFIX}:${id}`);
+    return updated as ArticleResponseDto;
+  }
+
+  async ingest(): Promise<{ processed: number; saved: number; summarized: number; summarizationErrors: number }> {
     this.logger.log('Starting ingestion pipeline...');
 
     const rawArticles = await this.rssService.fetchAllFeeds();
@@ -83,7 +102,7 @@ export class ArticlesService {
 
     if (uniqueArticles.length === 0) {
       this.logger.log('No new articles to process');
-      return { processed: 0, saved: 0 };
+      return { processed: 0, saved: 0, summarized: 0, summarizationErrors: 0 };
     }
 
     this.logger.log(`Processing ${uniqueArticles.length} new articles...`);
@@ -102,6 +121,15 @@ export class ArticlesService {
         url: a.url,
       })),
     );
+
+    const summarized = summaries.filter(Boolean).length;
+    const summarizationErrors = summaries.length - summarized;
+
+    if (summarizationErrors > 0) {
+      this.logger.warn(
+        `${summarizationErrors}/${summaries.length} articles could not be summarized — check GEMINI_API_KEY and server logs`,
+      );
+    }
 
     // Persist to DB
     let saved = 0;
@@ -128,14 +156,14 @@ export class ArticlesService {
     // Invalidate list caches
     await this.invalidateListCache();
 
-    this.logger.log(`Ingestion complete: ${saved} articles saved`);
-    return { processed: uniqueArticles.length, saved };
+    this.logger.log(`Ingestion complete: ${saved} saved, ${summarized} summarized, ${summarizationErrors} summary errors`);
+    return { processed: uniqueArticles.length, saved, summarized, summarizationErrors };
   }
 
   private async invalidateListCache(): Promise<void> {
     try {
-      // Cache manager doesn't support pattern deletion natively; reset with a known key
-      await this.cacheManager.reset();
+      // cache-manager v7 uses .clear() to flush all entries
+      await (this.cacheManager as Cache & { clear: () => Promise<void> }).clear();
     } catch (error) {
       this.logger.warn(`Cache invalidation failed: ${(error as Error).message}`);
     }

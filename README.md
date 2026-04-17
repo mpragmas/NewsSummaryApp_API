@@ -1,98 +1,196 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Global News Summarizer — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + TypeScript + PostgreSQL + Redis + Gemini AI backend that ingests RSS feeds, deduplicates articles, AI-summarizes them in 5 sentences, and serves them via a paginated REST API.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Architecture
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+├── ai/                    # Gemini AI summarization (batched)
+│   ├── ai.module.ts
+│   └── ai.service.ts
+├── articles/              # Core domain: CRUD, ingest pipeline
+│   ├── dto/
+│   │   ├── article-response.dto.ts
+│   │   └── query-articles.dto.ts
+│   ├── articles.controller.ts
+│   ├── articles.module.ts
+│   ├── articles.service.ts
+│   ├── categorizer.service.ts    # Keyword-based category detection
+│   └── deduplication.service.ts  # URL + Levenshtein title dedup
+├── common/
+│   ├── filters/http-exception.filter.ts
+│   └── interceptors/response.interceptor.ts
+├── config/configuration.ts
+├── prisma/                # Global Prisma module
+│   ├── prisma.module.ts
+│   └── prisma.service.ts
+├── rss/                   # Feed fetching & normalization
+│   ├── rss-feeds.config.ts
+│   ├── rss.module.ts
+│   └── rss.service.ts
+├── scheduler/             # Every-30-min cron ingestion
+│   ├── scheduler.module.ts
+│   └── scheduler.service.ts
+├── app.module.ts
+└── main.ts
 ```
 
-## Compile and run the project
+---
+
+## Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | ≥ 20 |
+| PostgreSQL | ≥ 14 |
+| Redis | ≥ 7 |
+
+---
+
+## Setup
+
+### 1. Install dependencies
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+### 2. Configure environment
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
 ```
 
-## Deployment
+Edit `.env`:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/news_summarizer?schema=public"
+REDIS_HOST=localhost
+REDIS_PORT=6379
+GEMINI_API_KEY=your_key_from_aistudio.google.com
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Get a free Gemini API key at: https://aistudio.google.com/app/apikey
+
+### 3. Create the database
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+createdb news_summarizer   # or use pgAdmin / psql
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Run migrations
 
-## Resources
+```bash
+npm run db:migrate
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### 5. Start the server
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+# Development (hot-reload)
+npm run start:dev
 
-## Support
+# Production
+npm run build
+npm run start:prod
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+The API is available at `http://localhost:3000/api/v1`.
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## API Endpoints
 
-## License
+All responses are wrapped:
+```json
+{ "success": true, "data": ..., "timestamp": "..." }
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### GET /api/v1/articles
+
+List articles (paginated, filterable).
+
+| Query param | Type | Example |
+|-------------|------|---------|
+| `page` | number | `1` |
+| `limit` | number | `20` (max 100) |
+| `category` | string | `Technology` |
+| `country` | string | `Rwanda` |
+| `continent` | string | `Africa` |
+| `source` | string | `BBC News` |
+| `sortBy` | `publishedAt` \| `createdAt` | `publishedAt` |
+| `order` | `asc` \| `desc` | `desc` |
+
+```bash
+curl "http://localhost:3000/api/v1/articles?category=Technology&limit=5"
+curl "http://localhost:3000/api/v1/articles?country=Rwanda&page=1"
+```
+
+### GET /api/v1/articles/:id
+
+Fetch a single article by UUID.
+
+```bash
+curl "http://localhost:3000/api/v1/articles/uuid-here"
+```
+
+### POST /api/v1/articles/ingest
+
+Manually trigger the full ingestion pipeline (fetch → deduplicate → categorize → summarize → save).
+
+```bash
+curl -X POST "http://localhost:3000/api/v1/articles/ingest"
+```
+
+Response:
+```json
+{ "success": true, "data": { "processed": 87, "saved": 34 } }
+```
+
+---
+
+## Categories
+
+Auto-detected via keyword matching:
+`Politics`, `Business`, `Technology`, `Health`, `Sports`, `Entertainment`, `Science`, `Conflict`, `General`
+
+---
+
+## RSS Sources
+
+| Source | Region |
+|--------|--------|
+| BBC News | UK / Global |
+| BBC World | Global |
+| Al Jazeera | Middle East |
+| AllAfrica | Africa |
+| The East African | East Africa |
+| The New Times | Rwanda |
+| KT Press | Rwanda |
+| Reuters | Global / US |
+| TechCrunch | Tech / US |
+
+---
+
+## Useful Commands
+
+```bash
+npm run db:migrate    # Run new migrations
+npm run db:deploy     # Apply migrations in production
+npm run db:generate   # Regenerate Prisma client
+npm run db:studio     # Open Prisma Studio (GUI)
+npm run build         # Compile TypeScript
+npm run start:dev     # Dev with hot-reload
+```
+
+---
+
+## Notes
+
+- The scheduler triggers automatically every 30 minutes via `@Cron`.
+- Redis caches article list responses for 30 minutes; cache is cleared on each ingestion.
+- Summaries are generated in batches of 5 with retry logic (3 attempts, exponential backoff).
+- Deduplication uses exact URL matching + Levenshtein title similarity (≥75% = duplicate).

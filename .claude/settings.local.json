@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(npm list *)",
+      "Bash(node -e \"const r = require\\('@keyv/redis'\\); console.log\\(Object.keys\\(r\\)\\)\")",
+      "Bash(node -e \"const c = require\\('cacheable'\\); console.log\\(Object.keys\\(c\\)\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const {PrismaClient} = require\\('@prisma/client'\\); console.log\\(typeof PrismaClient\\)\")",
+      "Bash(node -e \"const p = require\\('@prisma/client'\\); const c = new p.PrismaClient\\(\\); console.log\\(typeof c.article\\)\")",
+      "Bash(node -e \"const p = require\\('@prisma/client'\\); const c = new p.PrismaClient\\({datasourceUrl: 'postgresql://postgres:password@localhost:5432/test'}\\); console.log\\(typeof c.article\\)\")",
+      "Bash(npm show *)",
+      "Bash(node -e \"const p = require\\('rss-parser'\\); console.log\\(typeof p, typeof p.default\\)\")",
+      "Bash(npm run *)",
+      "Bash(node -e \"const r = require\\('@keyv/redis'\\); const k = r.createKeyv; console.log\\(k.toString\\(\\).substring\\(0,200\\)\\)\")",
+      "Bash(node -e \"const {KeyvRedis} = require\\('@keyv/redis'\\); const k = new KeyvRedis\\('redis://localhost:6379'\\); console.log\\(Object.keys\\(k\\)\\)\")",
+      "Bash(node -e \"const r = require\\('@keyv/redis'\\); console.log\\(typeof r.createKeyv\\); const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); console.log\\(ts.substring\\(0,800\\)\\)\")",
+      "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); console.log\\(ts.substring\\(800,2000\\)\\)\")",
+      "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); const idx = ts.indexOf\\('connectTimeout'\\); console.log\\(ts.substring\\(idx-20,idx+200\\)\\)\")",
+      "Bash(node -e \"const ts = require\\('fs'\\).readFileSync\\('./node_modules/@keyv/redis/dist/index.d.ts','utf8'\\); const idx = ts.indexOf\\('Timeout'\\); console.log\\(ts.substring\\(idx-20,idx+300\\)\\)\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

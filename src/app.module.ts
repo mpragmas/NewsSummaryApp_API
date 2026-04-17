@@ -1,11 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { createKeyv } from '@keyv/redis';
-import { CacheableMemory } from 'cacheable';
-import { Keyv } from 'keyv';
+import { Cacheable, CacheableMemory } from 'cacheable';
 
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,6 +11,8 @@ import { ArticlesModule } from './articles/articles.module';
 import { RssModule } from './rss/rss.module';
 import { AiModule } from './ai/ai.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+
+const cacheLogger = new Logger('CacheModule');
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => [
         {
-          ttl: config.get<number>('throttle.ttl') ?? 60,
+          ttl: (config.get<number>('throttle.ttl') ?? 60) * 1000,
           limit: config.get<number>('throttle.limit') ?? 100,
         },
       ],
@@ -34,20 +34,45 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const redisHost = config.get<string>('redis.host') ?? 'localhost';
-        const redisPort = config.get<number>('redis.port') ?? 6379;
-        const ttl = config.get<number>('redis.ttl') ?? 1800;
+      useFactory: async (config: ConfigService) => {
+        const ttl = (config.get<number>('redis.ttl') ?? 1800) * 1000;
+        const primary = new CacheableMemory({ ttl, lruSize: 5000 });
 
-        return {
-          stores: [
-            new Keyv({
-              store: new CacheableMemory({ ttl: 60000, lruSize: 5000 }),
-            }),
-            createKeyv(`redis://${redisHost}:${redisPort}`),
-          ],
-          ttl,
+        // Try to attach Redis as a secondary tier; fall back gracefully if unavailable
+        let secondary: unknown = undefined;
+        try {
+          const { createKeyv } = await import('@keyv/redis');
+          const redisHost = config.get<string>('redis.host') ?? 'localhost';
+          const redisPort = config.get<number>('redis.port') ?? 6379;
+
+          const redisStore = createKeyv(`redis://${redisHost}:${redisPort}`, {
+            connectionTimeout: 3000,
+            throwOnConnectError: false,
+            throwOnErrors: false,
+          });
+
+          redisStore.on?.('error', (err: Error) =>
+            cacheLogger.warn(`Redis error — operating with memory cache only: ${err.message}`),
+          );
+
+          secondary = redisStore;
+          cacheLogger.log(`Redis secondary cache: ${redisHost}:${redisPort}`);
+        } catch (err) {
+          cacheLogger.warn(`Redis unavailable, memory-only cache active: ${(err as Error).message}`);
+        }
+
+        // Cacheable passes the isCacheable() guard in @nestjs/cache-manager
+        // and is returned directly, bypassing the broken instanceof Keyv check
+        const cacheableOptions: Record<string, unknown> = {
+          primary,
+          nonBlocking: true,
         };
+        if (secondary) cacheableOptions.secondary = secondary;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const store = new Cacheable(cacheableOptions as any);
+
+        return { stores: store, ttl };
       },
     }),
     PrismaModule,
