@@ -1,3 +1,8 @@
+const URL_SUFFIX: Record<'en' | 'fr', string> = {
+  en: 'Read the full story at:',
+  fr: 'Lire l\'article complet sur :',
+};
+
 /**
  * Deterministic local summarizer — the final safety net.
  * Guaranteed to return a non-empty string regardless of input.
@@ -7,10 +12,11 @@ export function fallbackSummary(
   content: string,
   title: string,
   url: string,
+  language: 'en' | 'fr' = 'en',
 ): string {
   const cleaned = (content ?? '').replace(/\s+/g, ' ').trim();
   const safeTitle = (title ?? '').trim() || 'Article';
-  const urlSuffix = ` Read the full story at: ${url}`;
+  const urlSuffix = ` ${URL_SUFFIX[language]} ${url}`;
 
   if (!cleaned) {
     return `${safeTitle}.${urlSuffix}`;
@@ -24,7 +30,6 @@ export function fallbackSummary(
   let body: string;
 
   if (sentences.length === 0) {
-    // Text has no sentence terminators — take first 300 chars
     body = cleaned.substring(0, 300).trim();
     if (body.length < cleaned.length) body += '…';
   } else if (sentences.length <= 3) {
@@ -33,7 +38,6 @@ export function fallbackSummary(
     body = sentences.slice(0, 3).join(' ');
   }
 
-  // Ensure terminal punctuation before appending the URL sentence
   if (!/[.!?]$/.test(body)) body += '.';
 
   return body + urlSuffix;

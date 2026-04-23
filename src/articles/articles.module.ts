@@ -1,13 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ArticlesController } from './articles.controller';
 import { ArticlesService } from './articles.service';
 import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
 import { RssModule } from '../rss/rss.module';
 import { AiModule } from '../ai/ai.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [RssModule, AiModule],
+  imports: [RssModule, AiModule, forwardRef(() => UsersModule)],
   controllers: [ArticlesController],
   providers: [ArticlesService, CategorizerService, DeduplicationService],
   exports: [ArticlesService],

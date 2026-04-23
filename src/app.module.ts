@@ -11,6 +11,8 @@ import { ArticlesModule } from './articles/articles.module';
 import { RssModule } from './rss/rss.module';
 import { AiModule } from './ai/ai.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 const cacheLogger = new Logger('CacheModule');
 
@@ -80,6 +82,8 @@ const cacheLogger = new Logger('CacheModule');
     AiModule,
     ArticlesModule,
     SchedulerModule,
+    AuthModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

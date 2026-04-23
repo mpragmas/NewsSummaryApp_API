@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import RssParser = require('rss-parser');
-import { RSS_FEEDS, RssFeedConfig } from './rss-feeds.config';
+import { RSS_FEEDS, RssFeedConfig, SupportedLanguage } from './rss-feeds.config';
 
 export interface NormalizedArticle {
   title: string;
   content: string;
   url: string;
   source: string;
+  originalLanguage: SupportedLanguage;
   publishedAt: Date;
   continent: string;
   region: string;
@@ -80,6 +81,7 @@ export class RssService {
       content,
       url,
       source: feed.name,
+      originalLanguage: feed.language,
       publishedAt: isNaN(publishedAt.getTime()) ? new Date() : publishedAt,
       continent: feed.continent,
       region: feed.region,

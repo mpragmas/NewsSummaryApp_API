@@ -3,6 +3,10 @@ import { Type } from 'class-transformer';
 
 export class QueryArticlesDto {
   @IsOptional()
+  @IsIn(['en', 'fr'])
+  lang?: 'en' | 'fr';
+
+  @IsOptional()
   @IsString()
   category?: string;
 

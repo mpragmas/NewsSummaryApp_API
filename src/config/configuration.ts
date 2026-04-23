@@ -19,4 +19,8 @@ export default () => ({
     ttl: parseInt(process.env.THROTTLE_TTL ?? '60', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
   },
+  jwt: {
+    secret: process.env.JWT_SECRET ?? 'changeme-in-production',
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+  },
 });

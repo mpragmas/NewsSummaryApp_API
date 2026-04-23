@@ -1,0 +1,180 @@
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
+@Injectable()
+export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        preferredLanguage: true,
+        favoriteTopics: true,
+        dailyDigest: true,
+        breakingNews: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    await this.ensureExists(userId);
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: dto,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        preferredLanguage: true,
+        favoriteTopics: true,
+        dailyDigest: true,
+        breakingNews: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async saveArticle(userId: string, articleId: string) {
+    await this.ensureArticleExists(articleId);
+    try {
+      await this.prisma.savedArticle.create({ data: { userId, articleId } });
+    } catch {
+      // unique constraint → already saved
+      throw new ConflictException('Article already saved');
+    }
+    return { saved: true, articleId };
+  }
+
+  async unsaveArticle(userId: string, articleId: string) {
+    const record = await this.prisma.savedArticle.findUnique({
+      where: { userId_articleId: { userId, articleId } },
+    });
+    if (!record) throw new NotFoundException('Saved article not found');
+    await this.prisma.savedArticle.delete({
+      where: { userId_articleId: { userId, articleId } },
+    });
+    return { saved: false, articleId };
+  }
+
+  async getSavedArticles(userId: string, lang?: 'en' | 'fr') {
+    const rows = await this.prisma.savedArticle.findMany({
+      where: { userId },
+      orderBy: { savedAt: 'desc' },
+      include: {
+        article: {
+          select: {
+            id: true,
+            title: true,
+            summary: true,
+            summaryFr: true,
+            originalLanguage: true,
+            source: true,
+            url: true,
+            category: true,
+            country: true,
+            publishedAt: true,
+          },
+        },
+      },
+    });
+
+    return rows.map(({ savedAt, article }) => ({
+      savedAt,
+      ...this.applyLangView(article, lang),
+    }));
+  }
+
+  async recordRead(userId: string, articleId: string) {
+    await this.prisma.readingHistory.upsert({
+      where: { userId_articleId: { userId, articleId } },
+      create: { userId, articleId },
+      // On re-read, bump the timestamp by replacing the row
+      update: { readAt: new Date() },
+    });
+  }
+
+  async getReadingHistory(userId: string, lang?: 'en' | 'fr') {
+    const rows = await this.prisma.readingHistory.findMany({
+      where: { userId },
+      orderBy: { readAt: 'desc' },
+      take: 100,
+      include: {
+        article: {
+          select: {
+            id: true,
+            title: true,
+            summary: true,
+            summaryFr: true,
+            originalLanguage: true,
+            source: true,
+            url: true,
+            category: true,
+            country: true,
+            publishedAt: true,
+          },
+        },
+      },
+    });
+
+    return rows.map(({ readAt, article }) => ({
+      readAt,
+      ...this.applyLangView(article, lang),
+    }));
+  }
+
+  // ─── Private helpers ─────────────────────────────────────────────────────
+
+  private applyLangView(
+    article: {
+      id: string;
+      title: string;
+      summary: string | null;
+      summaryFr: string | null;
+      originalLanguage: string;
+      source: string;
+      url: string;
+      category: string | null;
+      country: string | null;
+      publishedAt: Date;
+    },
+    lang?: 'en' | 'fr',
+  ) {
+    const summary = lang === 'fr'
+      ? (article.summaryFr ?? article.summary)
+      : lang === 'en'
+        ? (article.summary ?? article.summaryFr)
+        : article.summary;
+
+    const { summaryFr: _dropped, ...rest } = article;
+    void _dropped;
+    return { ...rest, summary };
+  }
+
+  private async ensureExists(userId: string) {
+    const exists = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('User not found');
+  }
+
+  private async ensureArticleExists(articleId: string) {
+    const exists = await this.prisma.article.findUnique({ where: { id: articleId }, select: { id: true } });
+    if (!exists) throw new NotFoundException(`Article ${articleId} not found`);
+  }
+}

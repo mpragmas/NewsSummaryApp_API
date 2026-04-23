@@ -53,9 +53,10 @@ export class AiService {
     title: string,
     content: string,
     url: string,
+    language: 'en' | 'fr' = 'en',
   ): Promise<SummaryResult> {
     const shortTitle = title.substring(0, 60);
-    const prompt = this.buildPrompt(title, content, url);
+    const prompt = this.buildPrompt(title, content, url, language);
 
     this.logger.log(`📤 Summarizing: "${shortTitle}"`);
 
@@ -74,7 +75,7 @@ export class AiService {
     }
 
     // 3. Local fallback — guaranteed non-empty
-    const text = fallbackSummary(content, title, url);
+    const text = fallbackSummary(content, title, url, language);
     this.logger.log(`🔧 Local fallback used for: "${shortTitle}"`);
     return { text, provider: 'fallback' };
   }
@@ -82,9 +83,10 @@ export class AiService {
   /**
    * Summarize a batch sequentially. Returns a same-length array where every
    * entry has a non-empty summary (AI-generated or deterministic fallback).
+   * Each article may carry its own `language` — defaults to 'en'.
    */
   async summarizeBatch(
-    articles: Array<{ title: string; content: string; url: string }>,
+    articles: Array<{ title: string; content: string; url: string; language?: 'en' | 'fr' }>,
   ): Promise<SummaryResult[]> {
     this.logger.log(`🚀 Batch summarization started: ${articles.length} articles`);
     const results: SummaryResult[] = [];
@@ -92,7 +94,7 @@ export class AiService {
     for (let i = 0; i < articles.length; i++) {
       const article = articles[i];
       this.logger.log(
-        `📄 [${i + 1}/${articles.length}] "${article.title.substring(0, 50)}"`,
+        `📄 [${i + 1}/${articles.length}] [${article.language ?? 'en'}] "${article.title.substring(0, 50)}"`,
       );
 
       try {
@@ -100,6 +102,7 @@ export class AiService {
           article.title,
           article.content,
           article.url,
+          article.language ?? 'en',
         );
         results.push(result);
       } catch (err) {
@@ -109,7 +112,7 @@ export class AiService {
           `❌ [${i + 1}/${articles.length}] Unexpected error: ${(err as Error).message} — using local fallback`,
         );
         results.push({
-          text: fallbackSummary(article.content, article.title, article.url),
+          text: fallbackSummary(article.content, article.title, article.url, article.language ?? 'en'),
           provider: 'fallback',
         });
       }
@@ -262,7 +265,25 @@ export class AiService {
 
   // ─── Prompt ───────────────────────────────────────────────────────────────
 
-  private buildPrompt(title: string, content: string, url: string): string {
+  private buildPrompt(title: string, content: string, url: string, language: 'en' | 'fr' = 'en'): string {
+    if (language === 'fr') {
+      return `Résumez l'article de presse suivant en EXACTEMENT 5 phrases. Rédigez en français.
+
+Règles :
+- Ton neutre et factuel
+- Aucune opinion personnelle
+- Phrase 1 : Événement principal
+- Phrases 2 à 4 : Détails clés
+- Phrase 5 : Doit se terminer par "Lire l'article complet sur : ${url}"
+
+Titre : ${title}
+
+Contenu :
+${content.substring(0, 2000)}
+
+Retournez UNIQUEMENT les 5 phrases. N'ajoutez pas de titres, de puces ou de texte supplémentaire.`;
+    }
+
     return `Summarize the following news article into EXACTLY 5 sentences.
 
 Rules:

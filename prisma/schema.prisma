@@ -6,24 +6,77 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  name              String?
+  avatarUrl         String?
+  preferredLanguage String   @default("en")
+  favoriteTopics    String[] @default([])
+  dailyDigest       Boolean  @default(false)
+  breakingNews      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  savedArticles  SavedArticle[]
+  readingHistory ReadingHistory[]
+
+  @@map("users")
+}
+
+model SavedArticle {
+  id        String   @id @default(uuid())
+  userId    String
+  articleId String
+  savedAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@map("saved_articles")
+}
+
+model ReadingHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  articleId String
+  readAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@map("reading_history")
+}
+
 model Article {
-  id          String   @id @default(uuid())
-  title       String
-  content     String   @db.Text
-  summary     String?  @db.Text
-  source      String
-  url         String   @unique
-  category    String?
-  continent   String?
-  region      String?
-  country     String?
-  publishedAt DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(uuid())
+  title            String
+  content          String   @db.Text
+  summary          String?  @db.Text
+  summaryFr        String?  @db.Text
+  originalLanguage String   @default("en")
+  source           String
+  url              String   @unique
+  category         String?
+  continent        String?
+  region           String?
+  country          String?
+  publishedAt      DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  savedBy        SavedArticle[]
+  readingHistory ReadingHistory[]
 
   @@index([category])
   @@index([country])
   @@index([continent])
   @@index([publishedAt])
+  @@index([originalLanguage])
   @@map("articles")
 }

@@ -16,11 +16,19 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 export interface IngestResult {
   processed: number;
   saved: number;
-  summarized: number; // always equals processed (AI or fallback)
-  aiSummarized: number; // Groq or Gemini
-  fallbackUsed: number; // local deterministic fallback
-  failed: number; // DB write failures
+  summarized: number;
+  aiSummarized: number;
+  fallbackUsed: number;
+  failed: number;
   durationMs: number;
+}
+
+export interface BackfillFrenchResult {
+  total: number;
+  summarized: number;
+  aiSummarized: number;
+  fallbackUsed: number;
+  errors: number;
 }
 
 @Injectable()
@@ -46,10 +54,11 @@ export class ArticlesService {
       this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
     }
 
-    const { page = 1, limit = 20, sortBy = 'publishedAt', order = 'desc', ...filters } = query;
+    const { page = 1, limit = 20, sortBy = 'publishedAt', order = 'desc', lang, ...filters } = query;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
+    if (lang) where.originalLanguage = lang;
     if (filters.category) where.category = filters.category;
     if (filters.country) where.country = filters.country;
     if (filters.continent) where.continent = filters.continent;
@@ -65,8 +74,10 @@ export class ArticlesService {
       this.prisma.article.count({ where }),
     ]);
 
+    const mappedData = articles.map((a) => this.applyLanguageView(a as ArticleResponseDto, lang));
+
     const result: PaginatedArticlesDto = {
-      data: articles as ArticleResponseDto[],
+      data: mappedData,
       meta: {
         total,
         page,
@@ -84,8 +95,8 @@ export class ArticlesService {
     return result;
   }
 
-  async findOne(id: string): Promise<ArticleResponseDto> {
-    const cacheKey = `${CACHE_PREFIX}:${id}`;
+  async findOne(id: string, lang?: 'en' | 'fr'): Promise<ArticleResponseDto> {
+    const cacheKey = `${CACHE_PREFIX}:${id}:${lang ?? 'default'}`;
 
     try {
       const cached = await this.cacheManager.get<ArticleResponseDto>(cacheKey);
@@ -97,52 +108,61 @@ export class ArticlesService {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
+    const result = this.applyLanguageView(article as ArticleResponseDto, lang);
+
     try {
-      await this.cacheManager.set(cacheKey, article, CACHE_TTL);
+      await this.cacheManager.set(cacheKey, result, CACHE_TTL);
     } catch (err) {
       this.logger.warn(`Cache write failed (non-fatal): ${(err as Error).message}`);
     }
 
-    return article as ArticleResponseDto;
+    return result;
   }
 
-  async summarizeOne(id: string): Promise<ArticleResponseDto> {
+  async summarizeOne(id: string, lang?: 'en' | 'fr'): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
-    // summarizeArticle ALWAYS returns a non-empty summary (AI or fallback)
+    const targetLang = lang ?? (article.originalLanguage as 'en' | 'fr') ?? 'en';
     const result = await this.aiService.summarizeArticle(
       article.title,
       article.content,
       article.url,
+      targetLang,
     );
+
+    const updateData = targetLang === 'fr'
+      ? { summaryFr: result.text }
+      : { summary: result.text };
 
     const updated = await this.prisma.article.update({
       where: { id },
-      data: { summary: result.text },
+      data: updateData,
     });
 
-    this.logger.log(`🔁 Re-summarized ${id} via ${result.provider}`);
+    this.logger.log(`🔁 Re-summarized ${id} [${targetLang}] via ${result.provider}`);
 
     try {
-      await this.cacheManager.del(`${CACHE_PREFIX}:${id}`);
+      await this.cacheManager.del(`${CACHE_PREFIX}:${id}:default`);
+      await this.cacheManager.del(`${CACHE_PREFIX}:${id}:en`);
+      await this.cacheManager.del(`${CACHE_PREFIX}:${id}:fr`);
     } catch (err) {
       this.logger.warn(`Cache invalidation failed (non-fatal): ${(err as Error).message}`);
     }
 
-    return updated as ArticleResponseDto;
+    return this.applyLanguageView(updated as ArticleResponseDto, targetLang);
   }
 
   /**
-   * Full ingestion pipeline. Never throws — external failures (RSS, AI, Redis)
-   * are logged and recovered from. Every persisted article is guaranteed to
-   * have a non-empty summary (AI-generated or local deterministic fallback).
+   * Full ingestion pipeline. Never throws — external failures are logged and
+   * recovered. Every persisted article is guaranteed to have a non-empty
+   * summary in its original language (AI or local fallback).
    */
   async ingest(): Promise<IngestResult> {
     const startedAt = Date.now();
     this.logger.log('🔄 Ingestion pipeline started');
 
-    // ── 1. Fetch (RSS failures never stop the pipeline) ───────────────────
+    // ── 1. Fetch ──────────────────────────────────────────────────────────
     let rawArticles: NormalizedArticle[] = [];
     try {
       rawArticles = await this.rssService.fetchAllFeeds();
@@ -183,17 +203,18 @@ export class ArticlesService {
     }));
     this.logger.log(`🏷️  Categorized ${articlesWithCategory.length} articles`);
 
-    // ── 4. Summarize (always succeeds — local fallback guarantees this) ───
+    // ── 4. Summarize in each article's original language ──────────────────
     this.logger.log(`🤖 Requesting summaries for ${articlesWithCategory.length} articles…`);
     const summaries = await this.aiService.summarizeBatch(
       articlesWithCategory.map((a) => ({
         title: a.title,
         content: a.content,
         url: a.url,
+        language: a.originalLanguage,
       })),
     );
 
-    // Belt-and-braces: if anything somehow returned empty, force local fallback
+    // Belt-and-braces: force local fallback on any empty result
     const guaranteedSummaries = summaries.map((s, idx) => {
       const article = articlesWithCategory[idx];
       if (!s?.text || s.text.trim().length === 0) {
@@ -201,7 +222,7 @@ export class ArticlesService {
           `⚠️  Empty summary slipped through for "${article.title.substring(0, 50)}" — forcing local fallback`,
         );
         return {
-          text: fallbackSummary(article.content, article.title, article.url),
+          text: fallbackSummary(article.content, article.title, article.url, article.originalLanguage),
           provider: 'fallback' as const,
         };
       }
@@ -212,7 +233,7 @@ export class ArticlesService {
       (s) => s.provider === 'groq' || s.provider === 'gemini',
     ).length;
     const fallbackUsed = guaranteedSummaries.filter((s) => s.provider === 'fallback').length;
-    const summarized = guaranteedSummaries.length; // guaranteed non-empty
+    const summarized = guaranteedSummaries.length;
 
     if (fallbackUsed > 0) {
       this.logger.warn(
@@ -220,19 +241,25 @@ export class ArticlesService {
       );
     }
 
-    // ── 5. Persist ────────────────────────────────────────────────────────
-    const insertData = articlesWithCategory.map((article, idx) => ({
-      title: article.title,
-      content: article.content,
-      summary: guaranteedSummaries[idx].text,
-      source: article.source,
-      url: article.url,
-      category: article.category,
-      continent: article.continent,
-      region: article.region,
-      country: article.country,
-      publishedAt: article.publishedAt,
-    }));
+    // ── 5. Persist — route summary to correct language column ─────────────
+    const insertData = articlesWithCategory.map((article, idx) => {
+      const isFrench = article.originalLanguage === 'fr';
+      return {
+        title: article.title,
+        content: article.content,
+        // English articles → summary (EN); French articles → summaryFr
+        summary: isFrench ? null : guaranteedSummaries[idx].text,
+        summaryFr: isFrench ? guaranteedSummaries[idx].text : null,
+        originalLanguage: article.originalLanguage,
+        source: article.source,
+        url: article.url,
+        category: article.category,
+        continent: article.continent,
+        region: article.region,
+        country: article.country,
+        publishedAt: article.publishedAt,
+      };
+    });
 
     let saved = 0;
     let failed = 0;
@@ -265,7 +292,7 @@ export class ArticlesService {
       }
     }
 
-    // ── 6. Cache invalidation (non-fatal) ─────────────────────────────────
+    // ── 6. Cache invalidation ─────────────────────────────────────────────
     await this.invalidateListCache();
 
     const durationMs = Date.now() - startedAt;
@@ -274,20 +301,12 @@ export class ArticlesService {
         `saved: ${saved}, summarized: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), db errors: ${failed}`,
     );
 
-    return {
-      processed: uniqueArticles.length,
-      saved,
-      summarized,
-      aiSummarized,
-      fallbackUsed,
-      failed,
-      durationMs,
-    };
+    return { processed: uniqueArticles.length, saved, summarized, aiSummarized, fallbackUsed, failed, durationMs };
   }
 
   /**
-   * Backfill summaries for articles still stored with a null summary from the
-   * pre-fallback era. Guaranteed to always produce a non-empty summary.
+   * Backfill EN summaries for articles that still have a null summary
+   * (pre-language-support era articles).
    */
   async resummarizeUnsummarized(): Promise<{
     total: number;
@@ -297,19 +316,19 @@ export class ArticlesService {
     errors: number;
   }> {
     const unsummarized = await this.prisma.article.findMany({
-      where: { summary: null },
+      where: { summary: null, originalLanguage: 'en' },
       select: { id: true, title: true, content: true, url: true },
     });
 
     if (unsummarized.length === 0) {
-      this.logger.log('All articles already have summaries');
+      this.logger.log('All English articles already have summaries');
       return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
     }
 
-    this.logger.log(`Found ${unsummarized.length} articles without summaries — backfilling…`);
+    this.logger.log(`Found ${unsummarized.length} English articles without summaries — backfilling…`);
 
     const summaries = await this.aiService.summarizeBatch(
-      unsummarized.map((a) => ({ title: a.title, content: a.content, url: a.url })),
+      unsummarized.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'en' as const })),
     );
 
     let summarized = 0;
@@ -320,36 +339,98 @@ export class ArticlesService {
     for (let i = 0; i < unsummarized.length; i++) {
       const article = unsummarized[i];
       const result = summaries[i] ?? {
-        text: fallbackSummary(article.content, article.title, article.url),
+        text: fallbackSummary(article.content, article.title, article.url, 'en'),
         provider: 'fallback' as const,
       };
 
       try {
-        await this.prisma.article.update({
-          where: { id: article.id },
-          data: { summary: result.text },
-        });
+        await this.prisma.article.update({ where: { id: article.id }, data: { summary: result.text } });
         summarized++;
         if (result.provider === 'fallback') fallbackUsed++;
         else aiSummarized++;
       } catch (err) {
-        this.logger.error(
-          `Failed to update article ${article.id}: ${(err as Error).message}`,
-        );
+        this.logger.error(`Failed to update article ${article.id}: ${(err as Error).message}`);
         errors++;
       }
     }
 
     await this.invalidateListCache();
-
     this.logger.log(
-      `Re-summarization complete: ${summarized} summarized (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} db errors`,
+      `Re-summarization complete: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
     );
 
     return { total: unsummarized.length, summarized, aiSummarized, fallbackUsed, errors };
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────────
+  /**
+   * Backfill French summaries for all articles that are missing summaryFr.
+   * Generates French summaries regardless of the article's original language.
+   * Runs sequentially to respect AI rate limits.
+   */
+  async backfillFrench(): Promise<BackfillFrenchResult> {
+    const missing = await this.prisma.article.findMany({
+      where: { summaryFr: null },
+      select: { id: true, title: true, content: true, url: true, originalLanguage: true },
+    });
+
+    if (missing.length === 0) {
+      this.logger.log('✅ All articles already have French summaries');
+      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
+    }
+
+    this.logger.log(`🇫🇷 Backfilling French summaries for ${missing.length} articles…`);
+
+    const summaries = await this.aiService.summarizeBatch(
+      missing.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'fr' as const })),
+    );
+
+    let summarized = 0;
+    let aiSummarized = 0;
+    let fallbackUsed = 0;
+    let errors = 0;
+
+    for (let i = 0; i < missing.length; i++) {
+      const article = missing[i];
+      const result = summaries[i] ?? {
+        text: fallbackSummary(article.content, article.title, article.url, 'fr'),
+        provider: 'fallback' as const,
+      };
+
+      try {
+        await this.prisma.article.update({ where: { id: article.id }, data: { summaryFr: result.text } });
+        summarized++;
+        if (result.provider === 'fallback') fallbackUsed++;
+        else aiSummarized++;
+      } catch (err) {
+        this.logger.error(`Failed to update French summary for ${article.id}: ${(err as Error).message}`);
+        errors++;
+      }
+    }
+
+    await this.invalidateListCache();
+    this.logger.log(
+      `🇫🇷 French backfill complete: ${summarized}/${missing.length} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
+    );
+
+    return { total: missing.length, summarized, aiSummarized, fallbackUsed, errors };
+  }
+
+  // ─── Private helpers ─────────────────────────────────────────────────────
+
+  /**
+   * Applies language view to an article: sets `summary` to the requested
+   * language version with fallback to the other language when missing.
+   * Never mixes languages within a single response.
+   */
+  private applyLanguageView(article: ArticleResponseDto, lang?: 'en' | 'fr'): ArticleResponseDto {
+    if (!lang) return article;
+
+    const requestedSummary = lang === 'fr'
+      ? (article.summaryFr ?? article.summary)
+      : (article.summary ?? article.summaryFr);
+
+    return { ...article, summary: requestedSummary };
+  }
 
   private emptyResult(startedAt: number): IngestResult {
     return {
@@ -374,7 +455,6 @@ export class ArticlesService {
 
   private async invalidateListCache(): Promise<void> {
     try {
-      // cache-manager v7 uses .clear() to flush all entries
       await (this.cacheManager as Cache & { clear: () => Promise<void> }).clear();
     } catch (error) {
       this.logger.warn(`Cache invalidation failed (non-fatal): ${(error as Error).message}`);
