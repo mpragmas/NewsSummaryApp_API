@@ -12,10 +12,18 @@ enum AppLocale {
   fr
 }
 
+enum OAuthProvider {
+  GOOGLE
+  APPLE
+  FACEBOOK
+}
+
 model User {
   id                String     @id @default(uuid())
-  email             String     @unique
-  passwordHash      String
+  /// Nullable for OAuth-only accounts; unique when set (multiple NULLs allowed in PostgreSQL).
+  email             String?    @unique
+  /// Null when the user only signs in via OAuth.
+  passwordHash      String?
   name              String?
   avatarUrl         String?
   preferredLanguage AppLocale  @default(en)
@@ -25,10 +33,25 @@ model User {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
-  savedArticles  SavedArticle[]
-  readingHistory ReadingHistory[]
+  savedArticles   SavedArticle[]
+  readingHistory  ReadingHistory[]
+  oauthAccounts   OAuthAccount[]
 
   @@map("users")
+}
+
+model OAuthAccount {
+  id             String        @id @default(uuid())
+  provider       OAuthProvider
+  providerUserId String
+  userId         String
+  createdAt      DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 /// Ephemeral session for guest bookmarks / reading history before signup (bonus merge on register).

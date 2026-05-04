@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { OptionalJwtGuard } from './guards/optional-jwt.guard';
+import { OAuthVerificationService } from './services/oauth-verification.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GuestModule } from '../guest/guest.module';
 
@@ -25,7 +26,7 @@ import { GuestModule } from '../guest/guest.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, OptionalJwtGuard],
+  providers: [AuthService, JwtStrategy, OptionalJwtGuard, OAuthVerificationService],
   exports: [JwtModule, PassportModule, OptionalJwtGuard],
 })
 export class AuthModule {}
