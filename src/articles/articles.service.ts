@@ -9,6 +9,7 @@ import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
 import { QueryArticlesDto } from './dto/query-articles.dto';
 import { PaginatedArticlesDto, ArticleResponseDto } from './dto/article-response.dto';
+import { UsersService } from '../users/users.service';
 
 const CACHE_PREFIX = 'articles';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -41,11 +42,12 @@ export class ArticlesService {
     private readonly aiService: AiService,
     private readonly categorizer: CategorizerService,
     private readonly deduplication: DeduplicationService,
+    private readonly usersService: UsersService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
-  async findAll(query: QueryArticlesDto): Promise<PaginatedArticlesDto> {
-    const cacheKey = `${CACHE_PREFIX}:${JSON.stringify(query)}`;
+  async findAll(query: QueryArticlesDto, userId?: string): Promise<PaginatedArticlesDto> {
+    const cacheKey = `${CACHE_PREFIX}:${JSON.stringify({ ...query, _u: userId ?? null })}`;
 
     try {
       const cached = await this.cacheManager.get<PaginatedArticlesDto>(cacheKey);
@@ -54,12 +56,19 @@ export class ArticlesService {
       this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
     }
 
+    const personal = userId ? await this.usersService.getPersonalizationForFeed(userId) : null;
     const { page = 1, limit = 20, sortBy = 'publishedAt', order = 'desc', lang, ...filters } = query;
     const skip = (page - 1) * limit;
+
+    /** Summary language: explicit query wins, else logged-in user preference. */
+    const effectiveLang = (lang ?? personal?.preferredLanguage) as 'en' | 'fr' | undefined;
 
     const where: Record<string, unknown> = {};
     if (lang) where.originalLanguage = lang;
     if (filters.category) where.category = filters.category;
+    else if (personal?.favoriteTopics?.length) {
+      where.category = { in: personal.favoriteTopics };
+    }
     if (filters.country) where.country = filters.country;
     if (filters.continent) where.continent = filters.continent;
     if (filters.source) where.source = filters.source;
@@ -74,7 +83,9 @@ export class ArticlesService {
       this.prisma.article.count({ where }),
     ]);
 
-    const mappedData = articles.map((a) => this.applyLanguageView(a as ArticleResponseDto, lang));
+    const mappedData = articles.map((a) =>
+      this.applyLanguageView(a as ArticleResponseDto, effectiveLang),
+    );
 
     const result: PaginatedArticlesDto = {
       data: mappedData,

@@ -11,12 +11,14 @@ import {
   MethodNotAllowedException,
   UseGuards,
   Request,
+  Headers,
 } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { QueryArticlesDto } from './dto/query-articles.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtGuard } from '../auth/guards/optional-jwt.guard';
 import { UsersService } from '../users/users.service';
+import { GuestService } from '../guest/guest.service';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 
 interface AuthRequest extends Request {
@@ -28,11 +30,13 @@ export class ArticlesController {
   constructor(
     private readonly articlesService: ArticlesService,
     private readonly usersService: UsersService,
+    private readonly guestService: GuestService,
   ) {}
 
   @Get()
-  findAll(@Query() query: QueryArticlesDto) {
-    return this.articlesService.findAll(query);
+  @UseGuards(OptionalJwtGuard)
+  findAll(@Query() query: QueryArticlesDto, @Request() req: AuthRequest) {
+    return this.articlesService.findAll(query, req.user?.userId);
   }
 
   // POST /articles/ingest — declared before @Get(':id') so static segment wins.
@@ -85,11 +89,14 @@ export class ArticlesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('lang') lang: 'en' | 'fr' | undefined,
     @Request() req: AuthRequest,
+    @Headers('x-guest-session-id') guestSessionId?: string,
   ) {
     const article = await this.articlesService.findOne(id, lang);
     if (req.user?.userId) {
       // Fire-and-forget — reading history must never block the response
       this.usersService.recordRead(req.user.userId, id).catch(() => undefined);
+    } else if (guestSessionId && /^[0-9a-f-]{36}$/i.test(guestSessionId)) {
+      this.guestService.recordRead(guestSessionId, id).catch(() => undefined);
     }
     return article;
   }

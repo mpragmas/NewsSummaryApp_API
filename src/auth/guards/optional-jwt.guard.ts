@@ -1,18 +1,42 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { AuthUser, JwtPayload } from '../strategies/jwt.strategy';
 
 /**
- * Soft JWT guard: sets req.user when a valid token is present,
- * but lets unauthenticated requests through (req.user will be undefined).
+ * Sets req.user when a valid Bearer token is present; otherwise leaves the
+ * request unauthenticated. Invalid/expired tokens are ignored (guest access).
  */
 @Injectable()
-export class OptionalJwtGuard extends AuthGuard('jwt') {
-  canActivate(context: ExecutionContext) {
-    return super.canActivate(context);
-  }
+export class OptionalJwtGuard implements CanActivate {
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {}
 
-  // Never throw — swallow auth errors so guests are allowed through
-  handleRequest<T>(_err: unknown, user: T): T {
-    return user;
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<{ headers?: { authorization?: string }; user?: AuthUser }>();
+    const authHeader = req.headers?.authorization;
+    const token =
+      authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+
+    if (!token) {
+      req.user = undefined;
+      return true;
+    }
+
+    try {
+      const secret = this.config.get<string>('jwt.secret') ?? 'changeme-in-production';
+      const payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret });
+      req.user = { userId: payload.sub, email: payload.email };
+    } catch {
+      req.user = undefined;
+    }
+
+    return true;
   }
 }

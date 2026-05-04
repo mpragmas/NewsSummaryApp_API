@@ -6,9 +6,17 @@ import { DeduplicationService } from './deduplication.service';
 import { RssModule } from '../rss/rss.module';
 import { AiModule } from '../ai/ai.module';
 import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
+import { GuestModule } from '../guest/guest.module';
 
 @Module({
-  imports: [RssModule, AiModule, forwardRef(() => UsersModule)],
+  imports: [
+    RssModule,
+    AiModule,
+    forwardRef(() => UsersModule),
+    AuthModule,
+    GuestModule,
+  ],
   controllers: [ArticlesController],
   providers: [ArticlesService, CategorizerService, DeduplicationService],
   exports: [ArticlesService],

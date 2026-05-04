@@ -29,12 +29,32 @@ export class UsersService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    const { dailyDigest, breakingNews, ...rest } = user;
+    return {
+      ...rest,
+      notificationPreferences: { dailyDigest, breakingNews },
+    };
+  }
+
+  /** Used by article list personalization (language view + optional category filter). */
+  async getPersonalizationForFeed(userId: string): Promise<{
+    preferredLanguage: 'en' | 'fr';
+    favoriteTopics: string[];
+  } | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true, favoriteTopics: true },
+    });
+    if (!row) return null;
+    return {
+      preferredLanguage: row.preferredLanguage as 'en' | 'fr',
+      favoriteTopics: row.favoriteTopics,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     await this.ensureExists(userId);
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: dto,
       select: {
@@ -50,6 +70,11 @@ export class UsersService {
         updatedAt: true,
       },
     });
+    const { dailyDigest, breakingNews, ...rest } = updated;
+    return {
+      ...rest,
+      notificationPreferences: { dailyDigest, breakingNews },
+    };
   }
 
   async saveArticle(userId: string, articleId: string) {

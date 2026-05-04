@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsIn } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsIn, IsUUID } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,4 +15,9 @@ export class RegisterDto {
   @IsOptional()
   @IsIn(['en', 'fr'])
   preferredLanguage?: 'en' | 'fr';
+
+  /** If set, guest bookmarks & reading history for this session are merged into the new account. */
+  @IsOptional()
+  @IsUUID('4')
+  mergeFromGuestSessionId?: string;
 }

@@ -6,23 +6,70 @@ datasource db {
   provider = "postgresql"
 }
 
+/// ISO-style locale codes supported in the app. Add new variants via migration when you add languages.
+enum AppLocale {
+  en
+  fr
+}
+
 model User {
-  id                String   @id @default(uuid())
-  email             String   @unique
+  id                String     @id @default(uuid())
+  email             String     @unique
   passwordHash      String
   name              String?
   avatarUrl         String?
-  preferredLanguage String   @default("en")
-  favoriteTopics    String[] @default([])
-  dailyDigest       Boolean  @default(false)
-  breakingNews      Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  preferredLanguage AppLocale  @default(en)
+  favoriteTopics    String[]   @default([])
+  dailyDigest       Boolean    @default(false)
+  breakingNews      Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   savedArticles  SavedArticle[]
   readingHistory ReadingHistory[]
 
   @@map("users")
+}
+
+/// Ephemeral session for guest bookmarks / reading history before signup (bonus merge on register).
+model GuestSession {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  savedArticles  GuestSavedArticle[]
+  readingHistory GuestReadingHistory[]
+
+  @@index([createdAt])
+  @@map("guest_sessions")
+}
+
+model GuestSavedArticle {
+  id             String   @id @default(uuid())
+  guestSessionId String
+  articleId      String
+  savedAt        DateTime @default(now())
+
+  session GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  article Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([guestSessionId, articleId])
+  @@index([guestSessionId])
+  @@map("guest_saved_articles")
+}
+
+model GuestReadingHistory {
+  id             String   @id @default(uuid())
+  guestSessionId String
+  articleId      String
+  readAt         DateTime @default(now())
+
+  session GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  article Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([guestSessionId, articleId])
+  @@index([guestSessionId])
+  @@map("guest_reading_history")
 }
 
 model SavedArticle {
@@ -70,8 +117,10 @@ model Article {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  savedBy        SavedArticle[]
-  readingHistory ReadingHistory[]
+  savedBy             SavedArticle[]
+  readingHistory      ReadingHistory[]
+  guestSaves          GuestSavedArticle[]
+  guestReadingHistory GuestReadingHistory[]
 
   @@index([category])
   @@index([country])

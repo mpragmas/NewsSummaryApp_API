@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GuestService } from '../guest/guest.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -20,6 +21,7 @@ export interface AuthTokenResponse {
     name: string | null;
     preferredLanguage: string;
   };
+  guestMerge?: { mergedSaves: number; mergedReads: number };
 }
 
 @Injectable()
@@ -29,6 +31,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly guestService: GuestService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokenResponse> {
@@ -46,8 +49,27 @@ export class AuthService {
       },
     });
 
+    let guestMerge: { mergedSaves: number; mergedReads: number } | undefined;
+    if (dto.mergeFromGuestSessionId) {
+      try {
+        guestMerge = await this.guestService.mergeGuestSessionIntoUser(
+          dto.mergeFromGuestSessionId,
+          user.id,
+        );
+        this.logger.log(
+          `Merged guest session ${dto.mergeFromGuestSessionId} into user ${user.id}: ` +
+            `${guestMerge.mergedSaves} saves, ${guestMerge.mergedReads} reads`,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Guest merge skipped for ${user.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+
     this.logger.log(`New user registered: ${user.id}`);
-    return this.buildTokenResponse(user);
+    const tokenResponse = this.buildTokenResponse(user);
+    return guestMerge ? { ...tokenResponse, guestMerge } : tokenResponse;
   }
 
   async login(dto: LoginDto): Promise<AuthTokenResponse> {
