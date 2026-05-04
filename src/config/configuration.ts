@@ -43,4 +43,7 @@ export default () => ({
       appSecret: process.env.FACEBOOK_APP_SECRET ?? '',
     },
   },
+  reviews: {
+    reviewDetails: process.env.REVIEW_DETAILS_ENABLED === 'true',
+  },
 });

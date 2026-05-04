@@ -10,9 +10,23 @@ const BATCH_DELAY_MS = 400;
 
 export type SummaryProvider = 'groq' | 'gemini' | 'fallback';
 
+export interface ProviderAttempt {
+  provider: SummaryProvider;
+  model: string;
+  durationMs: number;
+  success: boolean;
+}
+
+export interface ReviewDetails {
+  modelUsed: string;
+  providerAttempts: ProviderAttempt[];
+  totalDurationMs: number;
+}
+
 export interface SummaryResult {
   text: string;
   provider: SummaryProvider;
+  details?: ReviewDetails;
 }
 
 @Injectable()
@@ -22,6 +36,7 @@ export class AiService {
   private readonly geminiModel = 'gemini-2.0-flash';
   private readonly groqApiKey: string | null = null;
   private readonly groqModel = 'llama-3.1-8b-instant';
+  private readonly reviewDetailsEnabled: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const groqKey = this.configService.get<string>('GROQ_API_KEY');
@@ -42,6 +57,14 @@ export class AiService {
     }
 
     this.logger.log('🛟 Local fallback summarizer always available (final safety net)');
+
+    this.reviewDetailsEnabled =
+      this.configService.get<boolean>('reviews.reviewDetails') ?? false;
+    if (this.reviewDetailsEnabled) {
+      this.logger.log(
+        '📊 Review details enabled — model, timing, and provider metadata will be attached to results',
+      );
+    }
   }
 
   /**
@@ -57,27 +80,39 @@ export class AiService {
   ): Promise<SummaryResult> {
     const shortTitle = title.substring(0, 60);
     const prompt = this.buildPrompt(title, content, url, language);
+    const startTotal = Date.now();
+    const attempts: ProviderAttempt[] = [];
 
     this.logger.log(`📤 Summarizing: "${shortTitle}"`);
 
     // 1. Groq (primary) — single attempt
     if (this.groqApiKey) {
+      const t0 = Date.now();
       const groq = await this.tryGroq(prompt, shortTitle);
-      if (groq) return { text: groq, provider: 'groq' };
+      attempts.push({ provider: 'groq', model: this.groqModel, durationMs: Date.now() - t0, success: !!groq });
+      if (groq) {
+        return { text: groq, provider: 'groq', details: this.buildDetails(this.groqModel, attempts, startTotal) };
+      }
       this.logger.warn(`⚠️  Groq failed — trying Gemini for "${shortTitle}"`);
     }
 
     // 2. Gemini (secondary) — single attempt
     if (this.geminiClient) {
+      const t0 = Date.now();
       const gemini = await this.tryGemini(prompt, shortTitle);
-      if (gemini) return { text: gemini, provider: 'gemini' };
+      attempts.push({ provider: 'gemini', model: this.geminiModel, durationMs: Date.now() - t0, success: !!gemini });
+      if (gemini) {
+        return { text: gemini, provider: 'gemini', details: this.buildDetails(this.geminiModel, attempts, startTotal) };
+      }
       this.logger.warn(`⚠️  Gemini failed — using local fallback for "${shortTitle}"`);
     }
 
     // 3. Local fallback — guaranteed non-empty
+    const t0 = Date.now();
     const text = fallbackSummary(content, title, url, language);
+    attempts.push({ provider: 'fallback', model: 'local-fallback', durationMs: Date.now() - t0, success: true });
     this.logger.log(`🔧 Local fallback used for: "${shortTitle}"`);
-    return { text, provider: 'fallback' };
+    return { text, provider: 'fallback', details: this.buildDetails('local-fallback', attempts, startTotal) };
   }
 
   /**
@@ -299,6 +334,15 @@ Content:
 ${content.substring(0, 2000)}
 
 Return ONLY the 5 sentences. Do not add headings, bullet points, or extra text.`;
+  }
+
+  private buildDetails(
+    modelUsed: string,
+    attempts: ProviderAttempt[],
+    startTotal: number,
+  ): ReviewDetails | undefined {
+    if (!this.reviewDetailsEnabled) return undefined;
+    return { modelUsed, providerAttempts: attempts, totalDurationMs: Date.now() - startTotal };
   }
 
   private sleep(ms: number): Promise<void> {
