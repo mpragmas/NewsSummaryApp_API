@@ -8,6 +8,7 @@ import { AiModule } from '../ai/ai.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { GuestModule } from '../guest/guest.module';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { GuestModule } from '../guest/guest.module';
     GuestModule,
   ],
   controllers: [ArticlesController],
-  providers: [ArticlesService, CategorizerService, DeduplicationService],
+  providers: [ArticlesService, CategorizerService, DeduplicationService, AdminApiKeyGuard],
   exports: [ArticlesService],
 })
 export class ArticlesModule {}

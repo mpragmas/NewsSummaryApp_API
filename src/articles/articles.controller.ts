@@ -17,6 +17,7 @@ import { ArticlesService } from './articles.service';
 import { QueryArticlesDto } from './dto/query-articles.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtGuard } from '../auth/guards/optional-jwt.guard';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
 import { UsersService } from '../users/users.service';
 import { GuestService } from '../guest/guest.service';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
@@ -41,6 +42,7 @@ export class ArticlesController {
 
   // POST /articles/ingest — declared before @Get(':id') so static segment wins.
   @Post('ingest')
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   ingest() {
     return this.articlesService.ingest();
@@ -55,6 +57,7 @@ export class ArticlesController {
   }
 
   @Post('resummarize')
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   resummarize() {
     return this.articlesService.resummarizeUnsummarized();
@@ -62,6 +65,7 @@ export class ArticlesController {
 
   /** Generate missing French summaries for all articles (sequential, rate-limited). */
   @Post('backfill-french')
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   backfillFrench() {
     return this.articlesService.backfillFrench();
@@ -75,6 +79,7 @@ export class ArticlesController {
   }
 
   @Post(':id/summarize')
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   summarize(
     @Param('id', ParseUUIDPipe) id: string,

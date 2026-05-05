@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
-export class GoogleOAuthDto {
+export class FirebaseAuthDto {
   @IsString()
   @IsNotEmpty()
   idToken: string;

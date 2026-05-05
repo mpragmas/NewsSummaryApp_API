@@ -1,11 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import RssParser = require('rss-parser');
-import { RSS_FEEDS, RssFeedConfig, SupportedLanguage } from './rss-feeds.config';
+import {
+  RSS_FEEDS,
+  RssFeedConfig,
+  SupportedLanguage,
+} from './rss-feeds.config';
 
 export interface NormalizedArticle {
   title: string;
   content: string;
+  imageUrl: string | null;
   url: string;
   source: string;
   originalLanguage: SupportedLanguage;
@@ -35,7 +40,9 @@ export class RssService {
       }
     }
 
-    this.logger.log(`Fetched ${articles.length} total articles from ${RSS_FEEDS.length} feeds`);
+    this.logger.log(
+      `Fetched ${articles.length} total articles from ${RSS_FEEDS.length} feeds`,
+    );
     return articles;
   }
 
@@ -49,12 +56,17 @@ export class RssService {
       this.logger.debug(`${feed.name}: ${articles.length} articles fetched`);
       return articles;
     } catch (error) {
-      this.logger.warn(`Failed to fetch feed "${feed.name}": ${(error as Error).message}`);
+      this.logger.warn(
+        `Failed to fetch feed "${feed.name}": ${(error as Error).message}`,
+      );
       return [];
     }
   }
 
-  private normalize(item: RssParser.Item, feed: RssFeedConfig): NormalizedArticle {
+  private normalize(
+    item: RssParser.Item,
+    feed: RssFeedConfig,
+  ): NormalizedArticle {
     // Prefer the richest text available; many feeds only expose a snippet
     const rawContent =
       item['content:encoded'] ??
@@ -67,6 +79,13 @@ export class RssService {
 
     // Ensure Gemini always receives enough text — fall back to title when body is absent
     const content = cleaned.length > 20 ? cleaned : (item.title ?? '');
+    const mediaContent = this.readMediaContentUrl(item);
+    const imageUrl = this.normalizeImageUrl(
+      item.enclosure?.url ??
+        mediaContent ??
+        this.extractImageFromHtml(rawContent) ??
+        null,
+    );
 
     const url = item.link ?? item.guid ?? '';
 
@@ -79,6 +98,7 @@ export class RssService {
     return {
       title: (item.title ?? '').trim(),
       content,
+      imageUrl,
       url,
       source: feed.name,
       originalLanguage: feed.language,
@@ -90,6 +110,47 @@ export class RssService {
   }
 
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, '')
+      .replace(/&[a-z]+;/gi, ' ')
+      .trim();
+  }
+
+  private readMediaContentUrl(item: RssParser.Item): string | null {
+    const mediaContent = (item as unknown as Record<string, unknown>)['media:content'];
+    if (!mediaContent) return null;
+    if (
+      typeof mediaContent === 'object' &&
+      mediaContent !== null &&
+      'url' in mediaContent
+    ) {
+      const value = (mediaContent as { url?: unknown }).url;
+      return typeof value === 'string' ? value : null;
+    }
+    return null;
+  }
+
+  private extractImageFromHtml(html: string): string | null {
+    if (!html) return null;
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match?.[1] ?? null;
+  }
+
+  private normalizeImageUrl(url: string | null | undefined): string | null {
+    const trimmed = url?.trim();
+    if (!trimmed) return null;
+
+    // Support protocol-relative image URLs coming from some feeds.
+    const candidate = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return null;
+      }
+      return parsed.toString();
+    } catch {
+      return null;
+    }
   }
 }

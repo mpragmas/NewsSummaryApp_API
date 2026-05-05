@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -12,49 +13,28 @@ enum AppLocale {
   fr
 }
 
-enum OAuthProvider {
-  GOOGLE
-  APPLE
-  FACEBOOK
-}
-
 model User {
-  id                String     @id @default(uuid())
-  /// Nullable for OAuth-only accounts; unique when set (multiple NULLs allowed in PostgreSQL).
-  email             String?    @unique
-  /// Null when the user only signs in via OAuth.
-  passwordHash      String?
+  id                String    @id @default(uuid())
+  /// Unique Firebase UID — set on first Firebase sign-in.
+  firebaseUid       String?   @unique
+  /// Nullable — may be absent for anonymous-origin accounts.
+  email             String?   @unique
   name              String?
   avatarUrl         String?
-  preferredLanguage AppLocale  @default(en)
-  favoriteTopics    String[]   @default([])
-  dailyDigest       Boolean    @default(false)
-  breakingNews      Boolean    @default(false)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  preferredLanguage AppLocale @default(en)
+  favoriteTopics    String[]  @default([])
+  dailyDigest       Boolean   @default(false)
+  breakingNews      Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  savedArticles   SavedArticle[]
-  readingHistory  ReadingHistory[]
-  oauthAccounts   OAuthAccount[]
+  savedArticles  SavedArticle[]
+  readingHistory ReadingHistory[]
 
   @@map("users")
 }
 
-model OAuthAccount {
-  id             String        @id @default(uuid())
-  provider       OAuthProvider
-  providerUserId String
-  userId         String
-  createdAt      DateTime      @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerUserId])
-  @@index([userId])
-  @@map("oauth_accounts")
-}
-
-/// Ephemeral session for guest bookmarks / reading history before signup (bonus merge on register).
+/// Ephemeral session for guest bookmarks / reading history before signup (merged on register).
 model GuestSession {
   id        String    @id @default(uuid())
   createdAt DateTime  @default(now())
@@ -129,6 +109,7 @@ model Article {
   content          String   @db.Text
   summary          String?  @db.Text
   summaryFr        String?  @db.Text
+  imageUrl         String?
   originalLanguage String   @default("en")
   source           String
   url              String   @unique

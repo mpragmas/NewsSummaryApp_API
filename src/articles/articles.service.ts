@@ -7,8 +7,12 @@ import { AiService } from '../ai/ai.service';
 import { fallbackSummary } from '../ai/fallback-summary.util';
 import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
+import { Prisma } from '../generated/prisma';
 import { QueryArticlesDto } from './dto/query-articles.dto';
-import { PaginatedArticlesDto, ArticleResponseDto } from './dto/article-response.dto';
+import {
+  PaginatedArticlesDto,
+  ArticleResponseDto,
+} from './dto/article-response.dto';
 import { UsersService } from '../users/users.service';
 
 const CACHE_PREFIX = 'articles';
@@ -46,32 +50,74 @@ export class ArticlesService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
-  async findAll(query: QueryArticlesDto, userId?: string): Promise<PaginatedArticlesDto> {
+  async findAll(
+    query: QueryArticlesDto,
+    userId?: string,
+  ): Promise<PaginatedArticlesDto> {
     const cacheKey = `${CACHE_PREFIX}:${JSON.stringify({ ...query, _u: userId ?? null })}`;
 
     try {
-      const cached = await this.cacheManager.get<PaginatedArticlesDto>(cacheKey);
+      const cached =
+        await this.cacheManager.get<PaginatedArticlesDto>(cacheKey);
       if (cached) return cached;
     } catch (err) {
-      this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
+      this.logger.warn(
+        `Cache read failed (continuing without cache): ${(err as Error).message}`,
+      );
     }
 
-    const personal = userId ? await this.usersService.getPersonalizationForFeed(userId) : null;
-    const { page = 1, limit = 20, sortBy = 'publishedAt', order = 'desc', lang, ...filters } = query;
+    const personal = userId
+      ? await this.usersService.getPersonalizationForFeed(userId)
+      : null;
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'publishedAt',
+      order = 'desc',
+      lang,
+      query: searchText,
+      category,
+      country,
+      continent,
+      source,
+    } = query;
     const skip = (page - 1) * limit;
 
     /** Summary language: explicit query wins, else logged-in user preference. */
-    const effectiveLang = (lang ?? personal?.preferredLanguage) as 'en' | 'fr' | undefined;
+    const effectiveLang = (lang ?? personal?.preferredLanguage) as
+      | 'en'
+      | 'fr'
+      | undefined;
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.ArticleWhereInput = {};
     if (lang) where.originalLanguage = lang;
-    if (filters.category) where.category = filters.category;
-    else if (personal?.favoriteTopics?.length) {
-      where.category = { in: personal.favoriteTopics };
+
+    const andFilters: Prisma.ArticleWhereInput[] = [];
+
+    const q = searchText?.trim();
+    if (q) {
+      andFilters.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { summary: { contains: q, mode: 'insensitive' } },
+          { summaryFr: { contains: q, mode: 'insensitive' } },
+          { content: { contains: q, mode: 'insensitive' } },
+        ],
+      });
     }
-    if (filters.country) where.country = filters.country;
-    if (filters.continent) where.continent = filters.continent;
-    if (filters.source) where.source = filters.source;
+
+    if (category) {
+      andFilters.push({ category });
+    } else if (personal?.favoriteTopics?.length) {
+      andFilters.push({ category: { in: personal.favoriteTopics } });
+    }
+    if (country) andFilters.push({ country });
+    if (continent) andFilters.push({ continent });
+    if (source) andFilters.push({ source });
+
+    if (andFilters.length) {
+      where.AND = andFilters;
+    }
 
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
@@ -84,7 +130,9 @@ export class ArticlesService {
     ]);
 
     const mappedData = articles.map((a) =>
-      this.applyLanguageView(a as ArticleResponseDto, effectiveLang),
+      this.normalizeArticleResponse(
+        this.applyLanguageView(a as ArticleResponseDto, effectiveLang),
+      ),
     );
 
     const result: PaginatedArticlesDto = {
@@ -100,7 +148,9 @@ export class ArticlesService {
     try {
       await this.cacheManager.set(cacheKey, result, CACHE_TTL);
     } catch (err) {
-      this.logger.warn(`Cache write failed (non-fatal): ${(err as Error).message}`);
+      this.logger.warn(
+        `Cache write failed (non-fatal): ${(err as Error).message}`,
+      );
     }
 
     return result;
@@ -113,28 +163,38 @@ export class ArticlesService {
       const cached = await this.cacheManager.get<ArticleResponseDto>(cacheKey);
       if (cached) return cached;
     } catch (err) {
-      this.logger.warn(`Cache read failed (continuing without cache): ${(err as Error).message}`);
+      this.logger.warn(
+        `Cache read failed (continuing without cache): ${(err as Error).message}`,
+      );
     }
 
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
-    const result = this.applyLanguageView(article as ArticleResponseDto, lang);
+    const result = this.normalizeArticleResponse(
+      this.applyLanguageView(article as ArticleResponseDto, lang),
+    );
 
     try {
       await this.cacheManager.set(cacheKey, result, CACHE_TTL);
     } catch (err) {
-      this.logger.warn(`Cache write failed (non-fatal): ${(err as Error).message}`);
+      this.logger.warn(
+        `Cache write failed (non-fatal): ${(err as Error).message}`,
+      );
     }
 
     return result;
   }
 
-  async summarizeOne(id: string, lang?: 'en' | 'fr'): Promise<ArticleResponseDto> {
+  async summarizeOne(
+    id: string,
+    lang?: 'en' | 'fr',
+  ): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
-    const targetLang = lang ?? (article.originalLanguage as 'en' | 'fr') ?? 'en';
+    const targetLang =
+      lang ?? (article.originalLanguage as 'en' | 'fr') ?? 'en';
     const result = await this.aiService.summarizeArticle(
       article.title,
       article.content,
@@ -142,26 +202,33 @@ export class ArticlesService {
       targetLang,
     );
 
-    const updateData = targetLang === 'fr'
-      ? { summaryFr: result.text }
-      : { summary: result.text };
+    const updateData =
+      targetLang === 'fr'
+        ? { summaryFr: result.text }
+        : { summary: result.text };
 
     const updated = await this.prisma.article.update({
       where: { id },
       data: updateData,
     });
 
-    this.logger.log(`🔁 Re-summarized ${id} [${targetLang}] via ${result.provider}`);
+    this.logger.log(
+      `🔁 Re-summarized ${id} [${targetLang}] via ${result.provider}`,
+    );
 
     try {
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:default`);
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:en`);
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:fr`);
     } catch (err) {
-      this.logger.warn(`Cache invalidation failed (non-fatal): ${(err as Error).message}`);
+      this.logger.warn(
+        `Cache invalidation failed (non-fatal): ${(err as Error).message}`,
+      );
     }
 
-    return this.applyLanguageView(updated as ArticleResponseDto, targetLang);
+    return this.normalizeArticleResponse(
+      this.applyLanguageView(updated as ArticleResponseDto, targetLang),
+    );
   }
 
   /**
@@ -177,7 +244,9 @@ export class ArticlesService {
     let rawArticles: NormalizedArticle[] = [];
     try {
       rawArticles = await this.rssService.fetchAllFeeds();
-      this.logger.log(`📥 Fetched ${rawArticles.length} raw articles from RSS feeds`);
+      this.logger.log(
+        `📥 Fetched ${rawArticles.length} raw articles from RSS feeds`,
+      );
     } catch (err) {
       this.logger.error(
         `❌ RSS fetch failed catastrophically: ${(err as Error).message} — continuing with 0 articles`,
@@ -185,7 +254,9 @@ export class ArticlesService {
     }
 
     if (rawArticles.length === 0) {
-      this.logger.warn('⚠️  No articles fetched — pipeline complete with 0 results');
+      this.logger.warn(
+        '⚠️  No articles fetched — pipeline complete with 0 results',
+      );
       return this.emptyResult(startedAt);
     }
 
@@ -203,7 +274,9 @@ export class ArticlesService {
     }
 
     if (uniqueArticles.length === 0) {
-      this.logger.log('✅ No new articles to process (all duplicates) — pipeline complete');
+      this.logger.log(
+        '✅ No new articles to process (all duplicates) — pipeline complete',
+      );
       return this.emptyResult(startedAt);
     }
 
@@ -215,7 +288,9 @@ export class ArticlesService {
     this.logger.log(`🏷️  Categorized ${articlesWithCategory.length} articles`);
 
     // ── 4. Summarize in each article's original language ──────────────────
-    this.logger.log(`🤖 Requesting summaries for ${articlesWithCategory.length} articles…`);
+    this.logger.log(
+      `🤖 Requesting summaries for ${articlesWithCategory.length} articles…`,
+    );
     const summaries = await this.aiService.summarizeBatch(
       articlesWithCategory.map((a) => ({
         title: a.title,
@@ -233,7 +308,12 @@ export class ArticlesService {
           `⚠️  Empty summary slipped through for "${article.title.substring(0, 50)}" — forcing local fallback`,
         );
         return {
-          text: fallbackSummary(article.content, article.title, article.url, article.originalLanguage),
+          text: fallbackSummary(
+            article.content,
+            article.title,
+            article.url,
+            article.originalLanguage,
+          ),
           provider: 'fallback' as const,
         };
       }
@@ -243,7 +323,9 @@ export class ArticlesService {
     const aiSummarized = guaranteedSummaries.filter(
       (s) => s.provider === 'groq' || s.provider === 'gemini',
     ).length;
-    const fallbackUsed = guaranteedSummaries.filter((s) => s.provider === 'fallback').length;
+    const fallbackUsed = guaranteedSummaries.filter(
+      (s) => s.provider === 'fallback',
+    ).length;
     const summarized = guaranteedSummaries.length;
 
     if (fallbackUsed > 0) {
@@ -264,6 +346,7 @@ export class ArticlesService {
         originalLanguage: article.originalLanguage,
         source: article.source,
         url: article.url,
+        imageUrl: article.imageUrl,
         category: article.category,
         continent: article.continent,
         region: article.region,
@@ -312,7 +395,15 @@ export class ArticlesService {
         `saved: ${saved}, summarized: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), db errors: ${failed}`,
     );
 
-    return { processed: uniqueArticles.length, saved, summarized, aiSummarized, fallbackUsed, failed, durationMs };
+    return {
+      processed: uniqueArticles.length,
+      saved,
+      summarized,
+      aiSummarized,
+      fallbackUsed,
+      failed,
+      durationMs,
+    };
   }
 
   /**
@@ -333,13 +424,26 @@ export class ArticlesService {
 
     if (unsummarized.length === 0) {
       this.logger.log('All English articles already have summaries');
-      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
+      return {
+        total: 0,
+        summarized: 0,
+        aiSummarized: 0,
+        fallbackUsed: 0,
+        errors: 0,
+      };
     }
 
-    this.logger.log(`Found ${unsummarized.length} English articles without summaries — backfilling…`);
+    this.logger.log(
+      `Found ${unsummarized.length} English articles without summaries — backfilling…`,
+    );
 
     const summaries = await this.aiService.summarizeBatch(
-      unsummarized.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'en' as const })),
+      unsummarized.map((a) => ({
+        title: a.title,
+        content: a.content,
+        url: a.url,
+        language: 'en' as const,
+      })),
     );
 
     let summarized = 0;
@@ -350,17 +454,27 @@ export class ArticlesService {
     for (let i = 0; i < unsummarized.length; i++) {
       const article = unsummarized[i];
       const result = summaries[i] ?? {
-        text: fallbackSummary(article.content, article.title, article.url, 'en'),
+        text: fallbackSummary(
+          article.content,
+          article.title,
+          article.url,
+          'en',
+        ),
         provider: 'fallback' as const,
       };
 
       try {
-        await this.prisma.article.update({ where: { id: article.id }, data: { summary: result.text } });
+        await this.prisma.article.update({
+          where: { id: article.id },
+          data: { summary: result.text },
+        });
         summarized++;
         if (result.provider === 'fallback') fallbackUsed++;
         else aiSummarized++;
       } catch (err) {
-        this.logger.error(`Failed to update article ${article.id}: ${(err as Error).message}`);
+        this.logger.error(
+          `Failed to update article ${article.id}: ${(err as Error).message}`,
+        );
         errors++;
       }
     }
@@ -370,7 +484,13 @@ export class ArticlesService {
       `Re-summarization complete: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
     );
 
-    return { total: unsummarized.length, summarized, aiSummarized, fallbackUsed, errors };
+    return {
+      total: unsummarized.length,
+      summarized,
+      aiSummarized,
+      fallbackUsed,
+      errors,
+    };
   }
 
   /**
@@ -381,18 +501,37 @@ export class ArticlesService {
   async backfillFrench(): Promise<BackfillFrenchResult> {
     const missing = await this.prisma.article.findMany({
       where: { summaryFr: null },
-      select: { id: true, title: true, content: true, url: true, originalLanguage: true },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        url: true,
+        originalLanguage: true,
+      },
     });
 
     if (missing.length === 0) {
       this.logger.log('✅ All articles already have French summaries');
-      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
+      return {
+        total: 0,
+        summarized: 0,
+        aiSummarized: 0,
+        fallbackUsed: 0,
+        errors: 0,
+      };
     }
 
-    this.logger.log(`🇫🇷 Backfilling French summaries for ${missing.length} articles…`);
+    this.logger.log(
+      `🇫🇷 Backfilling French summaries for ${missing.length} articles…`,
+    );
 
     const summaries = await this.aiService.summarizeBatch(
-      missing.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'fr' as const })),
+      missing.map((a) => ({
+        title: a.title,
+        content: a.content,
+        url: a.url,
+        language: 'fr' as const,
+      })),
     );
 
     let summarized = 0;
@@ -403,17 +542,27 @@ export class ArticlesService {
     for (let i = 0; i < missing.length; i++) {
       const article = missing[i];
       const result = summaries[i] ?? {
-        text: fallbackSummary(article.content, article.title, article.url, 'fr'),
+        text: fallbackSummary(
+          article.content,
+          article.title,
+          article.url,
+          'fr',
+        ),
         provider: 'fallback' as const,
       };
 
       try {
-        await this.prisma.article.update({ where: { id: article.id }, data: { summaryFr: result.text } });
+        await this.prisma.article.update({
+          where: { id: article.id },
+          data: { summaryFr: result.text },
+        });
         summarized++;
         if (result.provider === 'fallback') fallbackUsed++;
         else aiSummarized++;
       } catch (err) {
-        this.logger.error(`Failed to update French summary for ${article.id}: ${(err as Error).message}`);
+        this.logger.error(
+          `Failed to update French summary for ${article.id}: ${(err as Error).message}`,
+        );
         errors++;
       }
     }
@@ -423,7 +572,13 @@ export class ArticlesService {
       `🇫🇷 French backfill complete: ${summarized}/${missing.length} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
     );
 
-    return { total: missing.length, summarized, aiSummarized, fallbackUsed, errors };
+    return {
+      total: missing.length,
+      summarized,
+      aiSummarized,
+      fallbackUsed,
+      errors,
+    };
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────
@@ -433,14 +588,41 @@ export class ArticlesService {
    * language version with fallback to the other language when missing.
    * Never mixes languages within a single response.
    */
-  private applyLanguageView(article: ArticleResponseDto, lang?: 'en' | 'fr'): ArticleResponseDto {
+  private applyLanguageView(
+    article: ArticleResponseDto,
+    lang?: 'en' | 'fr',
+  ): ArticleResponseDto {
     if (!lang) return article;
 
-    const requestedSummary = lang === 'fr'
-      ? (article.summaryFr ?? article.summary)
-      : (article.summary ?? article.summaryFr);
+    const requestedSummary =
+      lang === 'fr'
+        ? (article.summaryFr ?? article.summary)
+        : (article.summary ?? article.summaryFr);
 
     return { ...article, summary: requestedSummary };
+  }
+
+  private normalizeArticleResponse(
+    article: ArticleResponseDto,
+  ): ArticleResponseDto {
+    return {
+      ...article,
+      imageUrl: this.normalizeImageUrl(article.imageUrl),
+    };
+  }
+
+  private normalizeImageUrl(url: string | null | undefined): string | null {
+    const trimmed = url?.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return null;
+      }
+      return parsed.toString();
+    } catch {
+      return null;
+    }
   }
 
   private emptyResult(startedAt: number): IngestResult {
@@ -459,16 +641,22 @@ export class ArticlesService {
     try {
       return this.categorizer.categorize(title, content);
     } catch (err) {
-      this.logger.warn(`Categorization failed for "${title.substring(0, 40)}": ${(err as Error).message}`);
+      this.logger.warn(
+        `Categorization failed for "${title.substring(0, 40)}": ${(err as Error).message}`,
+      );
       return 'General';
     }
   }
 
   private async invalidateListCache(): Promise<void> {
     try {
-      await (this.cacheManager as Cache & { clear: () => Promise<void> }).clear();
+      await (
+        this.cacheManager as Cache & { clear: () => Promise<void> }
+      ).clear();
     } catch (error) {
-      this.logger.warn(`Cache invalidation failed (non-fatal): ${(error as Error).message}`);
+      this.logger.warn(
+        `Cache invalidation failed (non-fatal): ${(error as Error).message}`,
+      );
     }
   }
 }

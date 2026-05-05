@@ -7,12 +7,19 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error', 'debug'] });
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'warn', 'error', 'debug'],
+  });
 
   app.enableCors({
     origin: '*',
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Guest-Session-Id'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Guest-Session-Id',
+      'X-Admin-Key',
+    ],
   });
 
   app.useGlobalPipes(

@@ -113,6 +113,7 @@ export class UsersService {
             originalLanguage: true,
             source: true,
             url: true,
+            imageUrl: true,
             category: true,
             country: true,
             publishedAt: true,
@@ -151,6 +152,7 @@ export class UsersService {
             originalLanguage: true,
             source: true,
             url: true,
+            imageUrl: true,
             category: true,
             country: true,
             publishedAt: true,
@@ -176,6 +178,7 @@ export class UsersService {
       originalLanguage: string;
       source: string;
       url: string;
+      imageUrl: string | null;
       category: string | null;
       country: string | null;
       publishedAt: Date;
@@ -190,7 +193,21 @@ export class UsersService {
 
     const { summaryFr: _dropped, ...rest } = article;
     void _dropped;
-    return { ...rest, summary };
+    return { ...rest, summary, imageUrl: this.normalizeImageUrl(article.imageUrl) };
+  }
+
+  private normalizeImageUrl(url: string | null | undefined): string | null {
+    const trimmed = url?.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return null;
+      }
+      return parsed.toString();
+    } catch {
+      return null;
+    }
   }
 
   private async ensureExists(userId: string) {

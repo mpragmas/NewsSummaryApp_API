@@ -8,6 +8,7 @@ export class ArticleResponseDto {
   originalLanguage: string;
   source: string;
   url: string;
+  imageUrl: string | null;
   category: string | null;
   continent: string | null;
   region: string | null;

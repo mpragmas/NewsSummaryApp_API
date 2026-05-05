@@ -23,27 +23,15 @@ export default () => ({
     secret: process.env.JWT_SECRET ?? 'changeme-in-production',
     expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   },
-  oauth: {
-    google: {
-      /** Comma-separated Google OAuth client IDs (Web, iOS, Android). */
-      clientIds: (process.env.GOOGLE_CLIENT_IDS ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    apple: {
-      /** Comma-separated Services IDs / bundle IDs that appear as `aud` in the Apple ID token. */
-      clientIds: (process.env.APPLE_CLIENT_IDS ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    facebook: {
-      appId: process.env.FACEBOOK_APP_ID ?? '',
-      appSecret: process.env.FACEBOOK_APP_SECRET ?? '',
-    },
+  firebase: {
+    projectId: process.env.FIREBASE_PROJECT_ID ?? '',
+    /** Optional: full service account JSON as a string. Falls back to GOOGLE_APPLICATION_CREDENTIALS. */
+    serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT ?? '',
   },
   reviews: {
     reviewDetails: process.env.REVIEW_DETAILS_ENABLED === 'true',
+  },
+  admin: {
+    apiKey: (process.env.ADMIN_API_KEY ?? '').trim(),
   },
 });
