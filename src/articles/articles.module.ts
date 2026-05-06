@@ -10,6 +10,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { GuestModule } from '../guest/guest.module';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
     forwardRef(() => UsersModule),
     AuthModule,
     GuestModule,
+    QueueModule,
   ],
   controllers: [ArticlesController],
   providers: [ArticlesService, CategorizerService, DeduplicationService, AdminApiKeyGuard],

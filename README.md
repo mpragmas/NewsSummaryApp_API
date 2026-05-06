@@ -139,16 +139,100 @@ curl "http://localhost:3000/api/v1/articles/uuid-here"
 
 ### POST /api/v1/articles/ingest
 
-Manually trigger the full ingestion pipeline (fetch → deduplicate → categorize → summarize → save).
+Manually trigger the ingestion pipeline. Articles are fetched, deduplicated,
+categorized, and persisted SYNCHRONOUSLY. AI summarization is then **enqueued**
+on the BullMQ `summarization` queue and runs in the background — the HTTP
+request returns immediately even if the LLM providers are rate-limited.
 
 ```bash
-curl -X POST "http://localhost:3000/api/v1/articles/ingest"
+curl -X POST "http://localhost:3000/api/v1/articles/ingest" \
+  -H "X-Admin-Key: $ADMIN_API_KEY"
 ```
 
 Response:
 ```json
-{ "success": true, "data": { "processed": 87, "saved": 34 } }
+{ "success": true, "data": { "processed": 87, "saved": 34, "enqueued": 34 } }
 ```
+
+### GET /api/v1/articles/processing-status
+
+Live snapshot of the summarization queue and provider state. Useful for
+observability: queue depth, failed jobs, active provider cooldowns.
+
+```bash
+curl "http://localhost:3000/api/v1/articles/processing-status"
+```
+
+```json
+{
+  "queue": { "wait": 12, "active": 2, "delayed": 0, "failed": 0, "completed": 311 },
+  "providers": {
+    "groq":   { "enabled": true, "model": "llama-3.1-8b-instant", "cooldownActive": false, "cooldownUntil": null, "cooldownReason": null },
+    "gemini": { "enabled": true, "model": "gemini-2.0-flash",     "cooldownActive": false, "cooldownUntil": null, "cooldownReason": null },
+    "fallback": { "enabled": true, "model": "local-deterministic" }
+  }
+}
+```
+
+---
+
+## AI summarization — rate limiting & queue (production architecture)
+
+The system used to call Groq → Gemini → fallback **inline** during ingest.
+For 200–300 articles per run that produced 429 storms on both providers.
+
+The new pipeline:
+
+```
+ingest()
+  ├─ fetch (RSS + scrapers)         (parallel, fast)
+  ├─ deduplicate                    (in-memory + DB)
+  ├─ categorize                     (keyword matcher)
+  ├─ persist Article rows           (createMany, summary = NULL)
+  └─ enqueue 1 BullMQ job per row   ← returns to caller HERE
+
+[summarization-queue worker] (concurrency = SUMMARIZATION_CONCURRENCY)
+  ├─ SummaryCacheService.get(sha256(title+content+lang))    ← Redis hit ⇒ skip AI
+  ├─ AiOrchestratorService.summarize(input)
+  │     ├─ GroqProvider    (Bottleneck: GROQ_RPM + GROQ_TPM reservoir)
+  │     │     on 429 → start provider cooldown for `Retry-After` seconds
+  │     ├─ GeminiProvider  (Bottleneck: GEMINI_RPM + GEMINI_TPM reservoir)
+  │     │     on 429 → start provider cooldown
+  │     └─ FallbackProvider (deterministic local — never throws)
+  └─ Prisma.update({ summary | summaryFr | summaryRw })
+```
+
+Key guarantees:
+
+1. **Per-provider request + token reservoirs** (Bottleneck). Each call
+   pre-pays its estimated token cost before the request leaves the process,
+   so 200 jobs cannot blow past `GROQ_TPM` (default 5500/min).
+2. **Provider cooldown** — when a 429 (or quota) comes back, that provider
+   is parked for the `Retry-After` window the API gave us. The orchestrator
+   skips it and tries the next provider. No rapid ping-pong.
+3. **BullMQ exponential backoff** — failed jobs retry with exponential
+   delay (`SUMMARIZATION_ATTEMPTS`, `SUMMARIZATION_BACKOFF_MS`).
+4. **Content-hash cache** (`ai:summary:v1:<sha256>`, TTL 7 d) — re-running
+   ingest does NOT re-summarize the same headlines.
+5. **Idempotent jobs** — BullMQ `jobId = articleId:field`, so two ingests
+   queued back-to-back collapse to one job.
+6. **Always-non-NULL summaries** — when all retries are exhausted the
+   worker writes the local deterministic fallback rather than leaving the
+   row blank.
+
+### Environment knobs
+
+| Var | Default | Purpose |
+|---|---|---|
+| `GROQ_RPM` / `GROQ_TPM` | 25 / 5500 | Groq req+token per minute |
+| `GEMINI_RPM` / `GEMINI_TPM` | 12 / 800000 | Gemini req+token per minute |
+| `SUMMARIZATION_CONCURRENCY` | 2 | Parallel BullMQ workers |
+| `SUMMARIZATION_ATTEMPTS` | 5 | Max retries per article |
+| `SUMMARIZATION_BACKOFF_MS` | 4000 | Exponential backoff base |
+
+> Tune `*_RPM` / `*_TPM` to stay UNDER your plan ceiling. Free tiers as of
+> Apr 2026: Groq llama-3.1-8b-instant 30 RPM / 6000 TPM; Gemini 2.0 Flash
+> 15 RPM / ~1M TPM.
 
 ---
 
@@ -192,5 +276,6 @@ npm run start:dev     # Dev with hot-reload
 
 - The scheduler triggers automatically every 30 minutes via `@Cron`.
 - Redis caches article list responses for 30 minutes; cache is cleared on each ingestion.
-- Summaries are generated in batches of 5 with retry logic (3 attempts, exponential backoff).
+- AI summarization runs through a BullMQ queue with per-provider Bottleneck
+  rate limiting, content-hash cache, and exponential backoff retries.
 - Deduplication uses exact URL matching + Levenshtein title similarity (≥75% = duplicate).

@@ -26,6 +26,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@keyv/redis": "^5.1.6",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
@@ -39,6 +40,8 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@types/pg": "^8.20.0",
+    "bottleneck": "^2.19.5",
+    "bullmq": "^5.76.5",
     "cache-manager": "^7.2.8",
     "cache-manager-redis-yet": "^5.1.5",
     "cacheable": "^2.3.4",

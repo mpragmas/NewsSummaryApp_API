@@ -21,7 +21,9 @@ export class SchedulerService {
 
     try {
       const result = await this.articlesService.ingest();
-      this.logger.log(`Scheduled ingestion done: processed=${result.processed}, saved=${result.saved}`);
+      this.logger.log(
+        `Scheduled ingestion done: processed=${result.processed}, saved=${result.saved}, enqueued=${result.enqueued}`,
+      );
     } catch (error) {
       this.logger.error(`Scheduled ingestion failed: ${(error as Error).message}`, (error as Error).stack);
     } finally {

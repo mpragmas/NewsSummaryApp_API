@@ -56,6 +56,12 @@ export class ArticlesController {
     );
   }
 
+  /** Queue + provider observability — counts, cooldowns, and current model. */
+  @Get('processing-status')
+  processingStatus() {
+    return this.articlesService.getProcessingStatus();
+  }
+
   @Post('resummarize')
   @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
