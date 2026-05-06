@@ -1,6 +1,7 @@
-const URL_SUFFIX: Record<'en' | 'fr', string> = {
+const URL_SUFFIX: Record<'en' | 'fr' | 'rw', string> = {
   en: 'Read the full story at:',
-  fr: 'Lire l\'article complet sur :',
+  fr: "Lire l'article complet sur :",
+  rw: 'Soma inkuru yose hano:',
 };
 
 /**
@@ -12,7 +13,7 @@ export function fallbackSummary(
   content: string,
   title: string,
   url: string,
-  language: 'en' | 'fr' = 'en',
+  language: 'en' | 'fr' | 'rw' = 'en',
 ): string {
   const cleaned = (content ?? '').replace(/\s+/g, ' ').trim();
   const safeTitle = (title ?? '').trim() || 'Article';

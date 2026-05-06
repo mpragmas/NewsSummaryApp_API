@@ -5,6 +5,7 @@ import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
 import { RssModule } from '../rss/rss.module';
 import { AiModule } from '../ai/ai.module';
+import { ScraperModule } from '../scrapers/scraper.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { GuestModule } from '../guest/guest.module';
@@ -14,6 +15,7 @@ import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
   imports: [
     RssModule,
     AiModule,
+    ScraperModule,
     forwardRef(() => UsersModule),
     AuthModule,
     GuestModule,

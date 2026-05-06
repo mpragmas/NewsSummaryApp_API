@@ -11,6 +11,7 @@ datasource db {
 enum AppLocale {
   en
   fr
+  rw
 }
 
 model User {
@@ -109,6 +110,7 @@ model Article {
   content          String   @db.Text
   summary          String?  @db.Text
   summaryFr        String?  @db.Text
+  summaryRw        String?  @db.Text
   imageUrl         String?
   originalLanguage String   @default("en")
   source           String
@@ -130,6 +132,7 @@ model Article {
   @@index([country])
   @@index([continent])
   @@index([publishedAt])
+  @@index([region])
   @@index([originalLanguage])
   @@map("articles")
 }

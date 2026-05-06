@@ -1,4 +1,4 @@
-export type SupportedLanguage = 'en' | 'fr';
+export type SupportedLanguage = 'en' | 'fr' | 'rw';
 
 export interface RssFeedConfig {
   name: string;
@@ -66,6 +66,22 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     continent: 'Africa',
     region: 'East Africa',
     country: 'Rwanda',
+  },
+  {
+    name: 'Nation Africa',
+    url: 'https://nation.africa/kenya/rss.xml',
+    language: 'en',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Kenya',
+  },
+  {
+    name: 'Daily Monitor Uganda',
+    url: 'https://www.monitor.co.ug/rss',
+    language: 'en',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Uganda',
   },
   {
     name: 'Reuters',

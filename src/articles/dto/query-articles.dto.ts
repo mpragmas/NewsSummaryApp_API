@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 
 export class QueryArticlesDto {
   @IsOptional()
-  @IsIn(['en', 'fr'])
-  lang?: 'en' | 'fr';
+  @IsIn(['en', 'fr', 'rw'])
+  lang?: 'en' | 'fr' | 'rw';
 
   /** Full-text style search across title, summaries, and body (PostgreSQL case-insensitive contains). */
   @IsOptional()
@@ -23,6 +23,10 @@ export class QueryArticlesDto {
   @IsOptional()
   @IsString()
   continent?: string;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
 
   @IsOptional()
   @IsString()

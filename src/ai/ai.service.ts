@@ -76,7 +76,7 @@ export class AiService {
     title: string,
     content: string,
     url: string,
-    language: 'en' | 'fr' = 'en',
+    language: 'en' | 'fr' | 'rw' = 'en',
   ): Promise<SummaryResult> {
     const shortTitle = title.substring(0, 60);
     const prompt = this.buildPrompt(title, content, url, language);
@@ -121,7 +121,7 @@ export class AiService {
    * Each article may carry its own `language` — defaults to 'en'.
    */
   async summarizeBatch(
-    articles: Array<{ title: string; content: string; url: string; language?: 'en' | 'fr' }>,
+    articles: Array<{ title: string; content: string; url: string; language?: 'en' | 'fr' | 'rw' }>,
   ): Promise<SummaryResult[]> {
     this.logger.log(`🚀 Batch summarization started: ${articles.length} articles`);
     const results: SummaryResult[] = [];
@@ -139,6 +139,7 @@ export class AiService {
           article.url,
           article.language ?? 'en',
         );
+
         results.push(result);
       } catch (err) {
         // Defensive — summarizeArticle() catches everything internally, but
@@ -148,7 +149,7 @@ export class AiService {
         );
         results.push({
           text: fallbackSummary(article.content, article.title, article.url, article.language ?? 'en'),
-          provider: 'fallback',
+          provider: 'fallback' as const,
         });
       }
 
@@ -300,7 +301,25 @@ export class AiService {
 
   // ─── Prompt ───────────────────────────────────────────────────────────────
 
-  private buildPrompt(title: string, content: string, url: string, language: 'en' | 'fr' = 'en'): string {
+  private buildPrompt(title: string, content: string, url: string, language: 'en' | 'fr' | 'rw' = 'en'): string {
+    if (language === 'rw') {
+      return `Andika incamake y'iyi nkuru mu nteruro 5 zuzuye. Andika mu Kinyarwanda.
+
+Amabwiriza:
+- Igitekerezo cy'ubunyangamugayo kandi gifite ukuri
+- Nta bitekerezo byo mu giti cyawe
+- Interuro ya 1: Igikorwa cy'ingenzi
+- Interuro 2-4: Ibisobanuro by'ingenzi
+- Interuro ya 5: Igomba kurangira na "Soma inkuru yose hano: ${url}"
+
+Umutwe: ${title}
+
+Ibikubiye:
+${content.substring(0, 2000)}
+
+Subiza interuro 5 gusa. Ntugire imitwe, inshamake, cyangwa inyandiko y'inyongera.`;
+    }
+
     if (language === 'fr') {
       return `Résumez l'article de presse suivant en EXACTEMENT 5 phrases. Rédigez en français.
 

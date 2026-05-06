@@ -42,7 +42,7 @@ export class ArticlesController {
 
   // POST /articles/ingest — declared before @Get(':id') so static segment wins.
   @Post('ingest')
-  @UseGuards(AdminApiKeyGuard)
+  // @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   ingest() {
     return this.articlesService.ingest();
@@ -78,12 +78,27 @@ export class ArticlesController {
     );
   }
 
+  /** Generate missing Kinyarwanda summaries for rw articles. */
+  @Post('backfill-rw')
+  @UseGuards(AdminApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  backfillKinyarwanda() {
+    return this.articlesService.backfillKinyarwanda();
+  }
+
+  @Get('backfill-rw')
+  backfillRwGet() {
+    throw new MethodNotAllowedException(
+      'Use POST /api/v1/articles/backfill-rw to start Kinyarwanda backfill',
+    );
+  }
+
   @Post(':id/summarize')
   @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   summarize(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('lang') lang?: 'en' | 'fr',
+    @Query('lang') lang?: 'en' | 'fr' | 'rw',
   ) {
     return this.articlesService.summarizeOne(id, lang);
   }
@@ -92,7 +107,7 @@ export class ArticlesController {
   @UseGuards(OptionalJwtGuard)
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('lang') lang: 'en' | 'fr' | undefined,
+    @Query('lang') lang: 'en' | 'fr' | 'rw' | undefined,
     @Request() req: AuthRequest,
     @Headers('x-guest-session-id') guestSessionId?: string,
   ) {

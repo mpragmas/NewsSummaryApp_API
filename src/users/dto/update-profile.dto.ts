@@ -17,8 +17,8 @@ export class UpdateProfileDto {
   avatarUrl?: string;
 
   @IsOptional()
-  @IsIn(['en', 'fr'])
-  preferredLanguage?: 'en' | 'fr';
+  @IsIn(['en', 'fr', 'rw'])
+  preferredLanguage?: 'en' | 'fr' | 'rw';
 
   @IsOptional()
   @IsArray()

@@ -38,7 +38,7 @@ export class UsersService {
 
   /** Used by article list personalization (language view + optional category filter). */
   async getPersonalizationForFeed(userId: string): Promise<{
-    preferredLanguage: 'en' | 'fr';
+    preferredLanguage: 'en' | 'fr' | 'rw';
     favoriteTopics: string[];
   } | null> {
     const row = await this.prisma.user.findUnique({
@@ -47,7 +47,7 @@ export class UsersService {
     });
     if (!row) return null;
     return {
-      preferredLanguage: row.preferredLanguage as 'en' | 'fr',
+      preferredLanguage: row.preferredLanguage as 'en' | 'fr' | 'rw',
       favoriteTopics: row.favoriteTopics,
     };
   }

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RssService, NormalizedArticle } from '../rss/rss.service';
 import { AiService } from '../ai/ai.service';
 import { fallbackSummary } from '../ai/fallback-summary.util';
+import { ScraperService } from '../scrapers/scraper.service';
 import { CategorizerService } from './categorizer.service';
 import { DeduplicationService } from './deduplication.service';
 import { Prisma } from '../generated/prisma';
@@ -47,6 +48,7 @@ export class ArticlesService {
     private readonly categorizer: CategorizerService,
     private readonly deduplication: DeduplicationService,
     private readonly usersService: UsersService,
+    private readonly scraperService: ScraperService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -79,18 +81,20 @@ export class ArticlesService {
       category,
       country,
       continent,
+      region,
       source,
     } = query;
     const skip = (page - 1) * limit;
 
-    /** Summary language: explicit query wins, else logged-in user preference. */
+    // lang controls WHICH summary field is shown (applyLanguageView),
+    // NOT which articles are filtered. Use region/country/continent for discovery.
     const effectiveLang = (lang ?? personal?.preferredLanguage) as
       | 'en'
       | 'fr'
+      | 'rw'
       | undefined;
 
     const where: Prisma.ArticleWhereInput = {};
-    if (lang) where.originalLanguage = lang;
 
     const andFilters: Prisma.ArticleWhereInput[] = [];
 
@@ -101,6 +105,7 @@ export class ArticlesService {
           { title: { contains: q, mode: 'insensitive' } },
           { summary: { contains: q, mode: 'insensitive' } },
           { summaryFr: { contains: q, mode: 'insensitive' } },
+          { summaryRw: { contains: q, mode: 'insensitive' } },
           { content: { contains: q, mode: 'insensitive' } },
         ],
       });
@@ -113,6 +118,7 @@ export class ArticlesService {
     }
     if (country) andFilters.push({ country });
     if (continent) andFilters.push({ continent });
+    if (region) andFilters.push({ region });
     if (source) andFilters.push({ source });
 
     if (andFilters.length) {
@@ -156,7 +162,7 @@ export class ArticlesService {
     return result;
   }
 
-  async findOne(id: string, lang?: 'en' | 'fr'): Promise<ArticleResponseDto> {
+  async findOne(id: string, lang?: 'en' | 'fr' | 'rw'): Promise<ArticleResponseDto> {
     const cacheKey = `${CACHE_PREFIX}:${id}:${lang ?? 'default'}`;
 
     try {
@@ -188,13 +194,13 @@ export class ArticlesService {
 
   async summarizeOne(
     id: string,
-    lang?: 'en' | 'fr',
+    lang?: 'en' | 'fr' | 'rw',
   ): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
     const targetLang =
-      lang ?? (article.originalLanguage as 'en' | 'fr') ?? 'en';
+      lang ?? (article.originalLanguage as 'en' | 'fr' | 'rw') ?? 'en';
     const result = await this.aiService.summarizeArticle(
       article.title,
       article.content,
@@ -205,7 +211,9 @@ export class ArticlesService {
     const updateData =
       targetLang === 'fr'
         ? { summaryFr: result.text }
-        : { summary: result.text };
+        : targetLang === 'rw'
+          ? { summaryRw: result.text }
+          : { summary: result.text };
 
     const updated = await this.prisma.article.update({
       where: { id },
@@ -220,6 +228,7 @@ export class ArticlesService {
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:default`);
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:en`);
       await this.cacheManager.del(`${CACHE_PREFIX}:${id}:fr`);
+      await this.cacheManager.del(`${CACHE_PREFIX}:${id}:rw`);
     } catch (err) {
       this.logger.warn(
         `Cache invalidation failed (non-fatal): ${(err as Error).message}`,
@@ -232,26 +241,34 @@ export class ArticlesService {
   }
 
   /**
-   * Full ingestion pipeline. Never throws — external failures are logged and
-   * recovered. Every persisted article is guaranteed to have a non-empty
-   * summary in its original language (AI or local fallback).
+   * Full ingestion pipeline. Fetches RSS + scraped articles, deduplicates,
+   * summarizes in original language, and persists. Never throws.
    */
   async ingest(): Promise<IngestResult> {
     const startedAt = Date.now();
     this.logger.log('🔄 Ingestion pipeline started');
 
-    // ── 1. Fetch ──────────────────────────────────────────────────────────
-    let rawArticles: NormalizedArticle[] = [];
-    try {
-      rawArticles = await this.rssService.fetchAllFeeds();
-      this.logger.log(
-        `📥 Fetched ${rawArticles.length} raw articles from RSS feeds`,
-      );
-    } catch (err) {
-      this.logger.error(
-        `❌ RSS fetch failed catastrophically: ${(err as Error).message} — continuing with 0 articles`,
-      );
-    }
+    // ── 1. Fetch RSS feeds + scrapers in TRUE parallel ────────────────────
+    const [rssResult, scraperResult] = await Promise.allSettled([
+      this.rssService.fetchAllFeeds(),
+      this.scraperService.scrapeAll(),
+    ]);
+
+    const rssArticles: NormalizedArticle[] =
+      rssResult.status === 'fulfilled'
+        ? rssResult.value
+        : (this.logger.error(`❌ RSS fetch failed: ${rssResult.reason}`), []);
+
+    const scrapedArticles: NormalizedArticle[] =
+      scraperResult.status === 'fulfilled'
+        ? scraperResult.value
+        : (this.logger.error(`❌ Scraper failed: ${scraperResult.reason}`), []);
+
+    this.logger.log(
+      `📥 Fetched: ${rssArticles.length} RSS + ${scrapedArticles.length} scraped`,
+    );
+
+    const rawArticles = [...rssArticles, ...scrapedArticles];
 
     if (rawArticles.length === 0) {
       this.logger.warn(
@@ -260,7 +277,7 @@ export class ArticlesService {
       return this.emptyResult(startedAt);
     }
 
-    // ── 2. Deduplicate ────────────────────────────────────────────────────
+    // ── 3. Deduplicate ────────────────────────────────────────────────────
     let uniqueArticles: NormalizedArticle[] = rawArticles;
     try {
       uniqueArticles = await this.deduplication.filterDuplicates(rawArticles);
@@ -280,14 +297,14 @@ export class ArticlesService {
       return this.emptyResult(startedAt);
     }
 
-    // ── 3. Categorize ─────────────────────────────────────────────────────
+    // ── 4. Categorize ─────────────────────────────────────────────────────
     const articlesWithCategory = uniqueArticles.map((a) => ({
       ...a,
       category: this.safeCategorize(a.title, a.content),
     }));
     this.logger.log(`🏷️  Categorized ${articlesWithCategory.length} articles`);
 
-    // ── 4. Summarize in each article's original language ──────────────────
+    // ── 5. Summarize in each article's original language ──────────────────
     this.logger.log(
       `🤖 Requesting summaries for ${articlesWithCategory.length} articles…`,
     );
@@ -296,7 +313,7 @@ export class ArticlesService {
         title: a.title,
         content: a.content,
         url: a.url,
-        language: a.originalLanguage,
+        language: this.toSupportedLang(a.originalLanguage),
       })),
     );
 
@@ -312,7 +329,7 @@ export class ArticlesService {
             article.content,
             article.title,
             article.url,
-            article.originalLanguage,
+            this.toSupportedLang(article.originalLanguage),
           ),
           provider: 'fallback' as const,
         };
@@ -334,26 +351,32 @@ export class ArticlesService {
       );
     }
 
-    // ── 5. Persist — route summary to correct language column ─────────────
-    const insertData = articlesWithCategory.map((article, idx) => {
-      const isFrench = article.originalLanguage === 'fr';
-      return {
-        title: article.title,
-        content: article.content,
-        // English articles → summary (EN); French articles → summaryFr
-        summary: isFrench ? null : guaranteedSummaries[idx].text,
-        summaryFr: isFrench ? guaranteedSummaries[idx].text : null,
-        originalLanguage: article.originalLanguage,
-        source: article.source,
-        url: article.url,
-        imageUrl: article.imageUrl,
-        category: article.category,
-        continent: article.continent,
-        region: article.region,
-        country: article.country,
-        publishedAt: article.publishedAt,
-      };
-    });
+    // ── 6. Persist — route summary to correct language column ─────────────
+    const insertData = articlesWithCategory
+      .map((article, idx) => {
+        const lang = article.originalLanguage;
+        const summaryText = guaranteedSummaries[idx].text;
+        const cleanUrl = article.url.trim();
+        if (!cleanUrl) return null; // skip articles with no URL
+
+        return {
+          title: article.title.trim().substring(0, 1000),
+          content: article.content.trim() || article.title,
+          summary: lang === 'en' ? summaryText : null,
+          summaryFr: lang === 'fr' ? summaryText : null,
+          summaryRw: lang === 'rw' ? summaryText : null,
+          originalLanguage: article.originalLanguage,
+          source: article.source,
+          url: cleanUrl,
+          imageUrl: article.imageUrl,
+          category: article.category,
+          continent: article.continent,
+          region: article.region,
+          country: article.country,
+          publishedAt: article.publishedAt,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
 
     let saved = 0;
     let failed = 0;
@@ -386,7 +409,7 @@ export class ArticlesService {
       }
     }
 
-    // ── 6. Cache invalidation ─────────────────────────────────────────────
+    // ── 7. Cache invalidation ─────────────────────────────────────────────
     await this.invalidateListCache();
 
     const durationMs = Date.now() - startedAt;
@@ -407,8 +430,7 @@ export class ArticlesService {
   }
 
   /**
-   * Backfill EN summaries for articles that still have a null summary
-   * (pre-language-support era articles).
+   * Backfill EN summaries for articles that still have a null summary.
    */
   async resummarizeUnsummarized(): Promise<{
     total: number;
@@ -424,13 +446,7 @@ export class ArticlesService {
 
     if (unsummarized.length === 0) {
       this.logger.log('All English articles already have summaries');
-      return {
-        total: 0,
-        summarized: 0,
-        aiSummarized: 0,
-        fallbackUsed: 0,
-        errors: 0,
-      };
+      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
     }
 
     this.logger.log(
@@ -454,12 +470,7 @@ export class ArticlesService {
     for (let i = 0; i < unsummarized.length; i++) {
       const article = unsummarized[i];
       const result = summaries[i] ?? {
-        text: fallbackSummary(
-          article.content,
-          article.title,
-          article.url,
-          'en',
-        ),
+        text: fallbackSummary(article.content, article.title, article.url, 'en'),
         provider: 'fallback' as const,
       };
 
@@ -484,41 +495,21 @@ export class ArticlesService {
       `Re-summarization complete: ${summarized} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
     );
 
-    return {
-      total: unsummarized.length,
-      summarized,
-      aiSummarized,
-      fallbackUsed,
-      errors,
-    };
+    return { total: unsummarized.length, summarized, aiSummarized, fallbackUsed, errors };
   }
 
   /**
    * Backfill French summaries for all articles that are missing summaryFr.
-   * Generates French summaries regardless of the article's original language.
-   * Runs sequentially to respect AI rate limits.
    */
   async backfillFrench(): Promise<BackfillFrenchResult> {
     const missing = await this.prisma.article.findMany({
       where: { summaryFr: null },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        url: true,
-        originalLanguage: true,
-      },
+      select: { id: true, title: true, content: true, url: true, originalLanguage: true },
     });
 
     if (missing.length === 0) {
       this.logger.log('✅ All articles already have French summaries');
-      return {
-        total: 0,
-        summarized: 0,
-        aiSummarized: 0,
-        fallbackUsed: 0,
-        errors: 0,
-      };
+      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
     }
 
     this.logger.log(
@@ -526,12 +517,7 @@ export class ArticlesService {
     );
 
     const summaries = await this.aiService.summarizeBatch(
-      missing.map((a) => ({
-        title: a.title,
-        content: a.content,
-        url: a.url,
-        language: 'fr' as const,
-      })),
+      missing.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'fr' as const })),
     );
 
     let summarized = 0;
@@ -542,12 +528,7 @@ export class ArticlesService {
     for (let i = 0; i < missing.length; i++) {
       const article = missing[i];
       const result = summaries[i] ?? {
-        text: fallbackSummary(
-          article.content,
-          article.title,
-          article.url,
-          'fr',
-        ),
+        text: fallbackSummary(article.content, article.title, article.url, 'fr'),
         provider: 'fallback' as const,
       };
 
@@ -572,34 +553,99 @@ export class ArticlesService {
       `🇫🇷 French backfill complete: ${summarized}/${missing.length} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
     );
 
-    return {
-      total: missing.length,
-      summarized,
-      aiSummarized,
-      fallbackUsed,
-      errors,
-    };
+    return { total: missing.length, summarized, aiSummarized, fallbackUsed, errors };
+  }
+
+  /**
+   * Backfill Kinyarwanda summaries for all Kinyarwanda articles missing summaryRw.
+   */
+  async backfillKinyarwanda(): Promise<BackfillFrenchResult> {
+    const missing = await this.prisma.article.findMany({
+      where: { summaryRw: null, originalLanguage: 'rw' },
+      select: { id: true, title: true, content: true, url: true, originalLanguage: true },
+    });
+
+    if (missing.length === 0) {
+      this.logger.log('✅ All Kinyarwanda articles already have summaryRw');
+      return { total: 0, summarized: 0, aiSummarized: 0, fallbackUsed: 0, errors: 0 };
+    }
+
+    this.logger.log(
+      `🇷🇼 Backfilling Kinyarwanda summaries for ${missing.length} articles…`,
+    );
+
+    const summaries = await this.aiService.summarizeBatch(
+      missing.map((a) => ({ title: a.title, content: a.content, url: a.url, language: 'rw' as const })),
+    );
+
+    let summarized = 0;
+    let aiSummarized = 0;
+    let fallbackUsed = 0;
+    let errors = 0;
+
+    for (let i = 0; i < missing.length; i++) {
+      const article = missing[i];
+      const result = summaries[i] ?? {
+        text: fallbackSummary(article.content, article.title, article.url, 'rw'),
+        provider: 'fallback' as const,
+      };
+
+      try {
+        await this.prisma.article.update({
+          where: { id: article.id },
+          data: { summaryRw: result.text },
+        });
+        summarized++;
+        if (result.provider === 'fallback') fallbackUsed++;
+        else aiSummarized++;
+      } catch (err) {
+        this.logger.error(
+          `Failed to update Kinyarwanda summary for ${article.id}: ${(err as Error).message}`,
+        );
+        errors++;
+      }
+    }
+
+    await this.invalidateListCache();
+    this.logger.log(
+      `🇷🇼 Kinyarwanda backfill complete: ${summarized}/${missing.length} (AI: ${aiSummarized}, fallback: ${fallbackUsed}), ${errors} errors`,
+    );
+
+    return { total: missing.length, summarized, aiSummarized, fallbackUsed, errors };
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   /**
-   * Applies language view to an article: sets `summary` to the requested
-   * language version with fallback to the other language when missing.
-   * Never mixes languages within a single response.
+   * Applies language view: sets `summary` to the requested language version
+   * with a full three-way fallback chain. Never returns null when any summary exists.
+   *
+   * rw → summaryRw ?? summary ?? summaryFr
+   * fr → summaryFr ?? summary ?? summaryRw
+   * en → summary   ?? summaryFr ?? summaryRw
    */
   private applyLanguageView(
     article: ArticleResponseDto,
-    lang?: 'en' | 'fr',
+    lang?: 'en' | 'fr' | 'rw',
   ): ArticleResponseDto {
     if (!lang) return article;
 
-    const requestedSummary =
-      lang === 'fr'
-        ? (article.summaryFr ?? article.summary)
-        : (article.summary ?? article.summaryFr);
+    let requestedSummary: string | null;
+    if (lang === 'rw') {
+      requestedSummary = article.summaryRw ?? article.summary ?? article.summaryFr;
+    } else if (lang === 'fr') {
+      requestedSummary = article.summaryFr ?? article.summary ?? article.summaryRw;
+    } else {
+      requestedSummary = article.summary ?? article.summaryFr ?? article.summaryRw;
+    }
 
     return { ...article, summary: requestedSummary };
+  }
+
+  /** Normalize any originalLanguage value to a supported AI/fallback language. */
+  private toSupportedLang(lang: string): 'en' | 'fr' | 'rw' {
+    if (lang === 'fr' || lang === 'rw') return lang;
+    return 'en'; // default for 'en', 'unknown', or any unexpected value
   }
 
   private normalizeArticleResponse(
