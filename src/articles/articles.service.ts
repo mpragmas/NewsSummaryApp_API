@@ -17,6 +17,13 @@ import { UsersService } from '../users/users.service';
 import { SummarizationQueueService } from '../queue/summarization.queue';
 import { SummarizeArticleJobData } from '../queue/job-types';
 import { SupportedLang } from '../ai/prompts';
+import {
+  getContentQualityScore,
+  hasRealJournalisticContent,
+  isValidArticle,
+  normalizeText,
+  sanitizeContentForAI,
+} from '../common/util/article-validation';
 
 const CACHE_PREFIX = 'articles';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -308,11 +315,15 @@ export class ArticlesService {
     // ── Persist (no AI yet) ───────────────────────────────────────────────
     const insertData = articlesWithCategory
       .map((article) => {
+        // Safety guard requested for production: never save broken scraper output.
+        if (!this.isValidArticleForInsert(article)) return null;
+
         const cleanUrl = article.url.trim();
         if (!cleanUrl) return null;
+        const sanitizedContent = sanitizeContentForAI(article.content);
         return {
-          title: article.title.trim().substring(0, 1000),
-          content: article.content.trim() || article.title,
+          title: normalizeText(article.title).substring(0, 1000),
+          content: sanitizedContent || normalizeText(article.title),
           summary: null,
           summaryFr: null,
           summaryRw: null,
@@ -521,6 +532,29 @@ export class ArticlesService {
   private toSupportedLang(lang: string): SupportedLang {
     if (lang === 'fr' || lang === 'rw') return lang;
     return 'en';
+  }
+
+  private isValidArticleForInsert(article: NormalizedArticle): boolean {
+    // Keep strict hard validation for RW scraped sources only; RSS sources
+    // may be shorter but still valid according to their feed contracts.
+    if (!this.isRwScrapedSource(article)) return true;
+
+    if (!isValidArticle(article, { minContentLength: 250 })) return false;
+
+    const sanitized = sanitizeContentForAI(article.content);
+    const quality = getContentQualityScore(article.title, sanitized, {
+      minContentLength: 250,
+    });
+    if (!quality.ok) return false;
+
+    return hasRealJournalisticContent(sanitized, article.title);
+  }
+
+  private isRwScrapedSource(article: NormalizedArticle): boolean {
+    return (
+      article.originalLanguage === 'rw' &&
+      (article.source === 'Igihe' || article.source === 'Kigali Today')
+    );
   }
 
   private normalizeArticleResponse(

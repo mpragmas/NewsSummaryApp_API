@@ -110,6 +110,47 @@ export class AiOrchestratorService {
       }
     }
 
+    // RW-only hardening: one more strict prompt attempt before fallback.
+    if (input.language === 'rw' && !input.strictRw) {
+      this.logger.warn(
+        'RW summary first pass failed — retrying once with strict RW prompt.',
+      );
+      const strictInput: SummarizeInput = { ...input, strictRw: true };
+
+      for (const provider of order) {
+        if (!provider.enabled) continue;
+        if (this.isInCooldown(provider.name)) continue;
+
+        try {
+          const text = await withRetry(() => provider.summarize(strictInput), {
+            attempts: 1,
+            baseDelayMs: 1_000,
+            maxDelayMs: 1_000,
+            label: `${provider.name}-rw-strict`,
+            logger: this.logger,
+          });
+
+          await this.cache.set(input.title, input.content, input.language, {
+            text,
+            provider: provider.name,
+          });
+          return { text, provider: provider.name, cached: false };
+        } catch (err) {
+          if (err instanceof RateLimitError) {
+            this.startCooldown(provider.name, err.retryAfterMs, '429');
+            continue;
+          }
+          if (err instanceof ProviderFatalError) {
+            this.startCooldown(provider.name, 60 * 60 * 1_000, err.reason);
+            continue;
+          }
+          this.logger.warn(
+            `${provider.name} strict RW retry failed: ${(err as Error).message}`,
+          );
+        }
+      }
+    }
+
     // Last resort — never throws, always returns a string.
     const text = await this.fallback.summarize(input);
     return { text, provider: 'fallback', cached: false };

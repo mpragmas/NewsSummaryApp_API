@@ -7,6 +7,8 @@ export interface SummarizeInput {
   content: string;
   url: string;
   language: SupportedLang;
+  /** RW-only strict retry mode after a failed first pass. */
+  strictRw?: boolean;
 }
 
 export interface AiProvider {

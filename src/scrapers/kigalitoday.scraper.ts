@@ -1,6 +1,16 @@
 import { Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import type { NormalizedArticle } from '../rss/rss.service';
+import {
+  getContentQualityScore,
+  hasRealJournalisticContent,
+  isMeaningfulTitle,
+  isValidArticle,
+  normalizeText,
+  parsePublishedAt,
+  sanitizeContentForAI,
+} from '../common/util/article-validation';
+import type { RwScrapeResult } from './igihe.scraper';
 
 const SOURCE = 'Kigali Today';
 const BASE_URL = 'https://www.kigalitoday.com';
@@ -50,12 +60,18 @@ function normalizeImageUrl(src: string | undefined | null): string | null {
   }
 }
 
-export async function scrapeKigaliToday(logger: Logger): Promise<NormalizedArticle[]> {
+export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult> {
   const html = await fetchHtml(LISTING_URL, logger);
-  if (!html) return [];
+  if (!html) {
+    return { articles: [], scrapedTotal: 0, rejectedInvalid: 0, rejectedLowQuality: 0 };
+  }
 
   const $ = cheerio.load(html);
   const articles: NormalizedArticle[] = [];
+  const seenUrls = new Set<string>();
+  let scrapedTotal = 0;
+  let rejectedInvalid = 0;
+  let rejectedLowQuality = 0;
 
   // Try selectors in priority order; use first that yields 2+ results
   const selectors = [
@@ -91,48 +107,131 @@ export async function scrapeKigaliToday(logger: Logger): Promise<NormalizedArtic
 
       const articleUrl = resolveUrl(href);
       if (!articleUrl) continue;
+      if (seenUrls.has(articleUrl)) continue;
+      seenUrls.add(articleUrl);
+      scrapedTotal++;
 
-      const title = (
-        $el.find('h1, h2, h3, h4').first().text().trim() ||
-        linkEl.text().trim()
+      const listingFallbackTitle = normalizeText(
+        $el.find('h1, h2, h3, h4').first().text() || linkEl.text(),
       );
-      if (!title || title.length < 5) continue;
+      const detail = await scrapeKigaliTodayDetail(
+        articleUrl,
+        logger,
+        listingFallbackTitle,
+      );
+      if (!detail) {
+        rejectedInvalid++;
+        continue;
+      }
 
-      const imageEl = $el.find('img').first();
-      const imageSrc =
-        imageEl.attr('src') ??
-        imageEl.attr('data-src') ??
-        imageEl.attr('data-lazy-src');
-      const imageUrl = normalizeImageUrl(imageSrc);
-
-      const dateEl = $el.find('time, .date, .time, [datetime], .published').first();
-      const dateStr = dateEl.attr('datetime') ?? dateEl.text().trim();
-      const publishedAt = dateStr ? new Date(dateStr) : new Date();
-
-      const excerpt = $el
-        .find('p, .excerpt, .summary, .description, .intro')
-        .first()
-        .text()
-        .trim();
-      const content = excerpt.length > 20 ? excerpt : title;
-
-      articles.push({
-        title: title.substring(0, 500),
-        content,
-        imageUrl,
+      const candidate: NormalizedArticle = {
+        title: detail.title.substring(0, 500),
+        content: sanitizeContentForAI(detail.content),
+        imageUrl: detail.imageUrl,
         url: articleUrl,
         source: SOURCE,
         originalLanguage: 'rw',
-        publishedAt: isNaN(publishedAt.getTime()) ? new Date() : publishedAt,
+        publishedAt: detail.publishedAt,
         continent: 'Africa',
         region: 'East Africa',
         country: 'Rwanda',
+      };
+
+      if (!isValidArticle(candidate, { minContentLength: 250 })) {
+        logger.warn(
+          `${SOURCE}: skipped invalid article (${articleUrl}) title="${candidate.title}" contentLen=${candidate.content.length}`,
+        );
+        rejectedInvalid++;
+        continue;
+      }
+
+      const quality = getContentQualityScore(candidate.title, candidate.content, {
+        minContentLength: 250,
       });
+      if (!quality.ok) {
+        rejectedLowQuality++;
+        continue;
+      }
+
+      if (!hasRealJournalisticContent(candidate.content, candidate.title)) {
+        rejectedLowQuality++;
+        continue;
+      }
+
+      articles.push(candidate);
     } catch (err) {
       logger.warn(`${SOURCE}: failed to parse element — ${(err as Error).message}`);
     }
   }
 
-  logger.log(`${SOURCE}: scraped ${articles.length} articles`);
-  return articles;
+  logger.log(`${SOURCE}: scraped ${articles.length} accepted articles`);
+  return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
+}
+
+async function scrapeKigaliTodayDetail(
+  articleUrl: string,
+  logger: Logger,
+  listingFallbackTitle: string,
+): Promise<{
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  publishedAt: Date;
+} | null> {
+  const html = await fetchHtml(articleUrl, logger);
+  if (!html) return null;
+
+  const $ = cheerio.load(html);
+
+  const titleCandidates = [
+    normalizeText(
+      $('h1.article-title, article h1, .entry-title, h1').first().text(),
+    ),
+    normalizeText(
+      $('meta[property="og:title"]').attr('content') ??
+        $('meta[name="title"]').attr('content') ??
+        $('meta[name="twitter:title"]').attr('content') ??
+        '',
+    ),
+    normalizeText(listingFallbackTitle),
+  ];
+
+  const title = titleCandidates.find((value) => isMeaningfulTitle(value));
+  if (!title) return null;
+
+  const publishedAtRaw =
+    $('time[datetime]').first().attr('datetime') ??
+    $('meta[property="article:published_time"]').attr('content') ??
+    $('meta[name="pubdate"]').attr('content') ??
+    $('meta[itemprop="datePublished"]').attr('content') ??
+    $('time').first().text();
+  const publishedAt = parsePublishedAt(publishedAtRaw);
+
+  const imageUrl = normalizeImageUrl(
+    $('meta[property="og:image"]').attr('content') ??
+      $('article img').first().attr('src') ??
+      $('article img').first().attr('data-src') ??
+      null,
+  );
+
+  const contentSelectors = [
+    'article .entry-content p',
+    'article .article-content p',
+    '.article-content p',
+    '.entry-content p',
+    'article p',
+    '.content p',
+    'p',
+  ];
+  const paragraphBucket = contentSelectors
+    .map((selector) =>
+      $(selector)
+        .toArray()
+        .map((p) => normalizeText($(p).text()))
+        .filter((text) => text.length > 25),
+    )
+    .find((candidate) => candidate.length > 2);
+  const content = normalizeText((paragraphBucket ?? []).join(' '));
+
+  return { title, content, imageUrl, publishedAt };
 }

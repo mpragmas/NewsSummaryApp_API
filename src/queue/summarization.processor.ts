@@ -7,6 +7,8 @@ import { AiOrchestratorService } from '../ai/ai-orchestrator.service';
 import { fallbackSummary } from '../ai/fallback-summary.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { RateLimitError } from '../common/errors/rate-limit.error';
+import { sanitizeContentForAI } from '../common/util/article-validation';
+import { getRwPipelineMetrics, recordRwAiOutcome } from '../common/util/rw-pipeline-metrics';
 import {
   SUMMARIZATION_QUEUE,
   SummarizeArticleJobData,
@@ -51,11 +53,12 @@ export class SummarizationProcessor extends WorkerHost {
   ): Promise<SummarizeArticleJobResult> {
     const start = Date.now();
     const { articleId, title, content, url, language, field } = job.data;
+    const sanitizedContent = sanitizeContentForAI(content);
 
     try {
       const result = await this.orchestrator.summarize({
         title,
-        content,
+        content: sanitizedContent,
         url,
         language,
       });
@@ -69,6 +72,13 @@ export class SummarizationProcessor extends WorkerHost {
       this.logger.log(
         `job=${job.id} articleId=${articleId} provider=${result.provider} cached=${result.cached} field=${field} ${durationMs}ms`,
       );
+      if (language === 'rw') {
+        recordRwAiOutcome(result.provider === 'fallback' ? 'fallback' : result.provider);
+        const snapshot = getRwPipelineMetrics();
+        this.logger.log(
+          `[RW PIPELINE] scraped=${snapshot.rwScrapedTotal}, rejected=${snapshot.rwRejectedInvalid + snapshot.rwRejectedLowQuality}, ai=${snapshot.rwAIEnhanced}, fallback=${snapshot.rwFallbackUsed}`,
+        );
+      }
 
       return {
         articleId,
@@ -93,7 +103,7 @@ export class SummarizationProcessor extends WorkerHost {
 
       // If we've burned through all attempts, refuse to leave the DB blank.
       if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1)) {
-        const safe = fallbackSummary(content, title, url, language);
+        const safe = fallbackSummary(sanitizedContent, title, url, language);
         try {
           await this.prisma.article.update({
             where: { id: articleId },
@@ -102,6 +112,13 @@ export class SummarizationProcessor extends WorkerHost {
           this.logger.error(
             `job=${job.id} articleId=${articleId} all retries exhausted — wrote local fallback. Last error: ${(err as Error).message}`,
           );
+          if (language === 'rw') {
+            recordRwAiOutcome('fallback');
+            const snapshot = getRwPipelineMetrics();
+            this.logger.log(
+              `[RW PIPELINE] scraped=${snapshot.rwScrapedTotal}, rejected=${snapshot.rwRejectedInvalid + snapshot.rwRejectedLowQuality}, ai=${snapshot.rwAIEnhanced}, fallback=${snapshot.rwFallbackUsed}`,
+            );
+          }
           return {
             articleId,
             provider: 'fallback',

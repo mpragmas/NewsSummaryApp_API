@@ -69,6 +69,7 @@ export class GeminiProvider implements AiProvider {
       input.content,
       input.url,
       input.language,
+      { strictRw: input.strictRw },
     );
     const cost = estimateRequestTokens(prompt, MAX_OUTPUT_TOKENS);
 

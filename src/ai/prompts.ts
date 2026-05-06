@@ -12,12 +12,18 @@ export function buildPrompt(
   content: string,
   url: string,
   language: SupportedLang = 'en',
+  options?: { strictRw?: boolean },
 ): string {
   const clip = (content ?? '').slice(0, CONTENT_CHAR_LIMIT);
 
   if (language === 'rw') {
+    const strictLine = options?.strictRw
+      ? "NIBA umutwe usa n'itariki nka '06/05' cyangwa ari muto, uwirengagize kandi ukoreshe ibikubiye mu nkuru gusa."
+      : "Irinde gukoresha umutwe umeze nk'itariki (nka '06/05') nk'incamake.";
     return [
-      "Andika incamake mu nteruro 5 gusa. Andika mu Kinyarwanda. Igitekerezo cy'ubunyangamugayo.",
+      "Andika incamake y'inkuru mu nteruro 5 gusa, mu Kinyarwanda gisanzwe gikoreshwa mu makuru.",
+      "Interuro ya mbere igaragaze igikorwa nyamukuru cy'inkuru; ntusubiremo umutwe nk'uko uri.",
+      strictLine,
       `Interuro ya 5 igomba kurangira na: "Soma inkuru yose hano: ${url}".`,
       `Umutwe: ${title}`,
       `Ibikubiye: ${clip}`,
