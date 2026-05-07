@@ -92,6 +92,22 @@ export class ArticlesController {
     return this.articlesService.backfillKinyarwanda();
   }
 
+  /** Recompute categories for historical rows after taxonomy updates. */
+  @Post('recategorize')
+  @UseGuards(AdminApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  recategorize(@Query('limit') limit?: number) {
+    return this.articlesService.recategorizeAll(limit);
+  }
+
+  /** Recompute category + location + image quality for historical records. */
+  @Post('reindex-metadata')
+  @UseGuards(AdminApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  reindexMetadata(@Query('limit') limit?: number) {
+    return this.articlesService.reindexMetadata(limit);
+  }
+
   @Get('backfill-rw')
   backfillRwGet() {
     throw new MethodNotAllowedException(

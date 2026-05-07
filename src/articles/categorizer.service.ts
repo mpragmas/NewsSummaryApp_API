@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { SupportedLang } from '../ai/prompts';
+import { CanonicalCategory } from './category-i18n.util';
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   Politics: [
@@ -10,6 +12,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'élection', 'gouvernement', 'président', 'ministre', 'parlement', 'sénat',
     'politique', 'vote', 'démocratie', 'loi', 'diplomate', 'traité', 'sanctions',
     'coup d\'état', 'manifestation', 'réforme', 'premier ministre',
+    // Kinyarwanda
+    'leta', 'guverinoma', 'minisitiri', 'inteko', 'amatora', 'politiki',
+    'itegeko', 'dipolomasi', 'imiryango ya leta', 'umukuru w\'igihugu',
   ],
   Business: [
     // English
@@ -20,6 +25,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'économie', 'marché', 'bourse', 'commerce', 'investissement', 'banque',
     'financier', 'pib', 'inflation', 'devise', 'fusion', 'acquisition',
     'chiffre d\'affaires', 'bénéfice', 'fonds', 'entreprise', 'industrie',
+    // Kinyarwanda
+    'ubucuruzi', 'isoko', 'ishoramari', 'banki', 'ifaranga', 'ubukungu',
+    'inyungu', 'igihombo', 'uruganda', 'imisoro',
   ],
   Technology: [
     // English
@@ -30,6 +38,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'technologie', 'intelligence artificielle', 'logiciel', 'matériel', 'cybersécurité',
     'données', 'numérique', 'internet', 'algorithme', 'robot', 'automatisation',
     'crypto', 'application', 'innovation',
+    // Kinyarwanda
+    'ikoranabuhanga', 'mudasobwa', 'interineti', 'porogaramu', 'amakuru y\'ikoranabuhanga',
+    'ubwenge bw\'ubukorano', 'robot', 'amakuru y\'ikoranabuhanga',
   ],
   Health: [
     // English
@@ -40,6 +51,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'santé', 'hôpital', 'maladie', 'vaccin', 'pandémie', 'médecin', 'médical',
     'médicament', 'cancer', 'santé mentale', 'chirurgie', 'épidémie',
     'nutrition', 'oms', 'covid',
+    // Kinyarwanda
+    'ubuzima', 'ibitaro', 'indwara', 'urukingo', 'umuganga', 'ubuvuzi',
+    'imiti', 'icyorezo', 'covid', 'imirire',
   ],
   Sports: [
     // English
@@ -50,6 +64,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'football', 'basket', 'tennis', 'jeux olympiques', 'coupe du monde',
     'ligue', 'championnat', 'athlète', 'entraîneur', 'tournoi',
     'match', 'sport', 'but', 'victoire', 'défaite',
+    // Kinyarwanda
+    'imikino', 'umupira', 'football', 'basket', 'irushanwa', 'championnat',
+    'umukinnyi', 'itsinda', 'intsinzi', 'igitego',
   ],
   Entertainment: [
     // English
@@ -60,6 +77,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'film', 'musique', 'célébrité', 'prix', 'oscar', 'concert', 'album',
     'acteur', 'actrice', 'série', 'netflix', 'streaming', 'culture',
     'mode', 'art', 'théâtre', 'comédie',
+    // Kinyarwanda
+    'imyidagaduro', 'umuziki', 'filime', 'abahanzi', 'igitaramo', 'umuco',
+    'imyambarire', 'ikinamico',
   ],
   Science: [
     // English
@@ -70,6 +90,9 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'science', 'recherche', 'étude', 'espace', 'climat', 'environnement',
     'espèce', 'découverte', 'expérience', 'physique', 'biologie', 'chimie',
     'planète', 'fossile', 'gène', 'adn', 'univers', 'télescope',
+    // Kinyarwanda
+    'ubumenyi', 'ubushakashatsi', 'ikigero', 'ikirere', 'ikirunga', 'ibidukikije',
+    'ivumburwa', 'igerageza', 'isanzure',
   ],
   Conflict: [
     // English
@@ -80,25 +103,53 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'guerre', 'conflit', 'militaire', 'armée', 'bataille', 'troupes', 'attaque',
     'bombardement', 'missile', 'arme', 'cessez-le-feu', 'paix', 'réfugié',
     'terrorisme', 'otage', 'soldat', 'otan',
+    // Kinyarwanda
+    'intambara', 'amakimbirane', 'igisirikare', 'igitero', 'ibisasu',
+    'amahoro', 'impunzi', 'iterabwoba', 'abashinzwe umutekano',
   ],
 };
 
 @Injectable()
 export class CategorizerService {
-  categorize(title: string, content: string): string {
-    const text = `${title} ${content}`.toLowerCase();
+  categorize(
+    title: string,
+    content: string,
+    language: SupportedLang = 'en',
+  ): CanonicalCategory {
+    const titleText = (title ?? '').toLowerCase();
+    const contentText = (content ?? '').toLowerCase();
+    const text = `${titleText} ${contentText}`;
     const scores: Record<string, number> = {};
 
     for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
       scores[category] = 0;
       for (const keyword of keywords) {
-        if (text.includes(keyword)) {
-          scores[category]++;
+        const k = keyword.toLowerCase();
+        // Title hits are much more indicative for news taxonomy.
+        if (titleText.includes(k)) {
+          scores[category] += 3;
+        } else if (contentText.includes(k)) {
+          scores[category] += 1;
+        }
+      }
+    }
+
+    // RW heuristic: "ubuzima", "ikoranabuhanga", etc. should dominate
+    // over weak generic English matches.
+    if (language === 'rw') {
+      for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+        const rwBoost = keywords.filter(
+          (k) => /[a-z]/i.test(k) && !/[éèêàçùôî]/i.test(k) && k.includes(' '),
+        );
+        for (const keyword of rwBoost) {
+          if (text.includes(keyword.toLowerCase())) {
+            scores[category] += 1;
+          }
         }
       }
     }
 
     const best = Object.entries(scores).sort(([, a], [, b]) => b - a)[0];
-    return best && best[1] > 0 ? best[0] : 'General';
+    return best && best[1] > 0 ? (best[0] as CanonicalCategory) : 'General';
   }
 }

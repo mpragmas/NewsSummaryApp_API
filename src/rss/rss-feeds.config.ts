@@ -28,6 +28,14 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     country: 'Global',
   },
   {
+    name: 'BBC World',
+    url: 'http://feeds.bbci.co.uk/sport/football/rss.xml',
+    language: 'en',
+    continent: 'Global',
+    region: 'Global',
+    country: 'Global',
+  },
+  {
     name: 'Al Jazeera',
     url: 'https://www.aljazeera.com/xml/rss/all.xml',
     language: 'en',

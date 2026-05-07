@@ -6,6 +6,7 @@ import {
   RssFeedConfig,
   SupportedLanguage,
 } from './rss-feeds.config';
+import { sanitizeImageUrl } from '../common/util/image-quality.util';
 
 export interface NormalizedArticle {
   title: string;
@@ -80,7 +81,7 @@ export class RssService {
     // Ensure Gemini always receives enough text — fall back to title when body is absent
     const content = cleaned.length > 20 ? cleaned : (item.title ?? '');
     const mediaContent = this.readMediaContentUrl(item);
-    const imageUrl = this.normalizeImageUrl(
+    const imageUrl = sanitizeImageUrl(
       item.enclosure?.url ??
         mediaContent ??
         this.extractImageFromHtml(rawContent) ??
@@ -136,21 +137,4 @@ export class RssService {
     return match?.[1] ?? null;
   }
 
-  private normalizeImageUrl(url: string | null | undefined): string | null {
-    const trimmed = url?.trim();
-    if (!trimmed) return null;
-
-    // Support protocol-relative image URLs coming from some feeds.
-    const candidate = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
-
-    try {
-      const parsed = new URL(candidate);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return null;
-      }
-      return parsed.toString();
-    } catch {
-      return null;
-    }
-  }
 }

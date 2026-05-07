@@ -10,6 +10,7 @@ import {
   parsePublishedAt,
   sanitizeContentForAI,
 } from '../common/util/article-validation';
+import { sanitizeImageUrl } from '../common/util/image-quality.util';
 
 const SOURCE = 'Igihe';
 const BASE_URL = 'https://igihe.com';
@@ -55,15 +56,7 @@ function resolveUrl(href: string): string {
 }
 
 function normalizeImageUrl(src: string | undefined | null): string | null {
-  if (!src) return null;
-  const candidate = src.startsWith('//') ? `https:${src}` : src;
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
+  return sanitizeImageUrl(src);
 }
 
 export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
@@ -156,6 +149,12 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
         minContentLength: 250,
       });
       if (!quality.ok) {
+        rejectedLowQuality++;
+        continue;
+      }
+
+      // Hard Igihe body rule after fallback extraction.
+      if (candidate.content.length < 300) {
         rejectedLowQuality++;
         continue;
       }

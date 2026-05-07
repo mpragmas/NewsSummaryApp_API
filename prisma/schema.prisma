@@ -14,10 +14,14 @@ enum AppLocale {
   rw
 }
 
+enum AuthProvider {
+  google
+  apple
+  facebook
+}
+
 model User {
   id                String    @id @default(uuid())
-  /// Unique Firebase UID — set on first Firebase sign-in.
-  firebaseUid       String?   @unique
   /// Nullable — may be absent for anonymous-origin accounts.
   email             String?   @unique
   name              String?
@@ -31,8 +35,24 @@ model User {
 
   savedArticles  SavedArticle[]
   readingHistory ReadingHistory[]
+  oauthAccounts  OAuthAccount[]
 
   @@map("users")
+}
+
+model OAuthAccount {
+  id                String       @id @default(uuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 /// Ephemeral session for guest bookmarks / reading history before signup (merged on register).

@@ -11,6 +11,7 @@ import {
   sanitizeContentForAI,
 } from '../common/util/article-validation';
 import type { RwScrapeResult } from './igihe.scraper';
+import { sanitizeImageUrl } from '../common/util/image-quality.util';
 
 const SOURCE = 'Kigali Today';
 const BASE_URL = 'https://www.kigalitoday.com';
@@ -49,15 +50,7 @@ function resolveUrl(href: string): string {
 }
 
 function normalizeImageUrl(src: string | undefined | null): string | null {
-  if (!src) return null;
-  const candidate = src.startsWith('//') ? `https:${src}` : src;
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
+  return sanitizeImageUrl(src);
 }
 
 export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult> {

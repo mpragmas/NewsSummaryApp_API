@@ -17,11 +17,12 @@ export class SummarizationQueueService {
   ) {}
 
   /**
-   * Idempotent enqueue. Re-using `articleId:field` as the BullMQ jobId means
+   * Idempotent enqueue. Re-using `articleId__field` as the BullMQ jobId means
    * a second `ingest()` cycle won't double-queue the same article.
+   * Note: BullMQ rejects custom ids containing ':'.
    */
   async enqueue(data: SummarizeArticleJobData): Promise<string> {
-    const jobId = `${data.articleId}:${data.field}`;
+    const jobId = this.toJobId(data);
     await this.queue.add('summarize', data, {
       jobId,
       removeOnComplete: { count: 1_000, age: 24 * 60 * 60 },
@@ -38,7 +39,7 @@ export class SummarizationQueueService {
         name: 'summarize',
         data,
         opts: {
-          jobId: `${data.articleId}:${data.field}`,
+          jobId: this.toJobId(data),
           removeOnComplete: { count: 1_000, age: 24 * 60 * 60 },
           removeOnFail: { count: 5_000, age: 7 * 24 * 60 * 60 },
         },
@@ -58,5 +59,9 @@ export class SummarizationQueueService {
       'completed',
     );
     return { queue: SUMMARIZATION_QUEUE, ...counts };
+  }
+
+  private toJobId(data: SummarizeArticleJobData): string {
+    return `${data.articleId}__${data.field}`;
   }
 }

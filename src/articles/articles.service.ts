@@ -24,6 +24,13 @@ import {
   normalizeText,
   sanitizeContentForAI,
 } from '../common/util/article-validation';
+import { dropOverusedImages, sanitizeImageUrl } from '../common/util/image-quality.util';
+import { inferLocationFromText } from '../common/util/location-inference.util';
+import {
+  localizeCategory,
+  normalizeCategoryInput,
+  type CanonicalCategory,
+} from './category-i18n.util';
 
 const CACHE_PREFIX = 'articles';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -39,6 +46,16 @@ export interface IngestResult {
 export interface BackfillResult {
   total: number;
   enqueued: number;
+}
+
+export interface RecategorizeResult {
+  scanned: number;
+  updated: number;
+}
+
+export interface ReindexMetadataResult {
+  scanned: number;
+  updated: number;
 }
 
 @Injectable()
@@ -115,14 +132,32 @@ export class ArticlesService {
     }
 
     if (category) {
-      andFilters.push({ category });
+      const normalizedCategory = normalizeCategoryInput(category);
+      if (normalizedCategory) {
+        andFilters.push({
+          category: { equals: normalizedCategory, mode: 'insensitive' },
+        });
+      } else {
+        andFilters.push({ category: { equals: category, mode: 'insensitive' } });
+      }
     } else if (personal?.favoriteTopics?.length) {
-      andFilters.push({ category: { in: personal.favoriteTopics } });
+      const normalizedFavorites = personal.favoriteTopics
+        .map((value) => normalizeCategoryInput(value) ?? value)
+        .filter((value): value is string => Boolean(value));
+      andFilters.push({ category: { in: normalizedFavorites } });
     }
-    if (country) andFilters.push({ country });
-    if (continent) andFilters.push({ continent });
-    if (region) andFilters.push({ region });
-    if (source) andFilters.push({ source });
+    if (country) {
+      andFilters.push({ country: { equals: country, mode: 'insensitive' } });
+    }
+    if (continent) {
+      andFilters.push({ continent: { equals: continent, mode: 'insensitive' } });
+    }
+    if (region) {
+      andFilters.push({ region: { equals: region, mode: 'insensitive' } });
+    }
+    if (source) {
+      andFilters.push({ source: { equals: source, mode: 'insensitive' } });
+    }
 
     if (andFilters.length) {
       where.AND = andFilters;
@@ -141,6 +176,7 @@ export class ArticlesService {
     const mappedData = articles.map((a) =>
       this.normalizeArticleResponse(
         this.applyLanguageView(a as ArticleResponseDto, effectiveLang),
+        effectiveLang,
       ),
     );
 
@@ -185,6 +221,7 @@ export class ArticlesService {
 
     const result = this.normalizeArticleResponse(
       this.applyLanguageView(article as ArticleResponseDto, lang),
+      lang,
     );
 
     try {
@@ -247,6 +284,7 @@ export class ArticlesService {
 
     return this.normalizeArticleResponse(
       this.applyLanguageView(updated as ArticleResponseDto, targetLang),
+      targetLang,
     );
   }
 
@@ -309,11 +347,25 @@ export class ArticlesService {
 
     const articlesWithCategory = uniqueArticles.map((a) => ({
       ...a,
-      category: this.safeCategorize(a.title, a.content),
+      ...inferLocationFromText(
+        a.title,
+        a.content,
+        {
+          continent: a.continent,
+          region: a.region,
+          country: a.country,
+        },
+        this.toSupportedLang(a.originalLanguage),
+      ),
+      category: this.safeCategorize(
+        a.title,
+        a.content,
+        this.toSupportedLang(a.originalLanguage),
+      ),
     }));
 
     // ── Persist (no AI yet) ───────────────────────────────────────────────
-    const insertData = articlesWithCategory
+    const insertDataRaw = articlesWithCategory
       .map((article) => {
         // Safety guard requested for production: never save broken scraper output.
         if (!this.isValidArticleForInsert(article)) return null;
@@ -330,7 +382,7 @@ export class ArticlesService {
           originalLanguage: article.originalLanguage,
           source: article.source,
           url: cleanUrl,
-          imageUrl: article.imageUrl,
+          imageUrl: sanitizeImageUrl(article.imageUrl),
           category: article.category,
           continent: article.continent,
           region: article.region,
@@ -339,6 +391,7 @@ export class ArticlesService {
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
+    const insertData = dropOverusedImages(insertDataRaw, 4);
 
     let saved = 0;
     let failed = 0;
@@ -497,6 +550,110 @@ export class ArticlesService {
     return { total: missing.length, enqueued };
   }
 
+  /**
+   * Recompute categories for existing rows using the current categorizer.
+   * Useful after taxonomy/keyword improvements.
+   */
+  async recategorizeAll(limit = 5000): Promise<RecategorizeResult> {
+    const rows = await this.prisma.article.findMany({
+      take: Math.min(Math.max(limit, 1), 20000),
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        originalLanguage: true,
+        category: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let updated = 0;
+    for (const row of rows) {
+      const recomputed = this.safeCategorize(
+        row.title,
+        row.content,
+        this.toSupportedLang(row.originalLanguage),
+      );
+      if ((row.category ?? 'General') === recomputed) continue;
+      await this.prisma.article.update({
+        where: { id: row.id },
+        data: { category: recomputed },
+      });
+      updated++;
+    }
+
+    await this.invalidateListCache();
+    this.logger.log(`Recategorize complete: scanned=${rows.length}, updated=${updated}`);
+    return { scanned: rows.length, updated };
+  }
+
+  /**
+   * Recompute category + inferred location + image validity for existing rows.
+   * Use this after improving filters/extraction to repair historical records.
+   */
+  async reindexMetadata(limit = 5000): Promise<ReindexMetadataResult> {
+    const rows = await this.prisma.article.findMany({
+      take: Math.min(Math.max(limit, 1), 20000),
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        imageUrl: true,
+        originalLanguage: true,
+        category: true,
+        continent: true,
+        region: true,
+        country: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let updated = 0;
+    for (const row of rows) {
+      const lang = this.toSupportedLang(row.originalLanguage);
+      const sanitizedContent = sanitizeContentForAI(row.content);
+      const inferred = inferLocationFromText(
+        row.title,
+        sanitizedContent,
+        {
+          continent: row.continent ?? 'Global',
+          region: row.region ?? 'Global',
+          country: row.country ?? 'Global',
+        },
+        lang,
+      );
+      const category = this.safeCategorize(row.title, sanitizedContent, lang);
+      const imageUrl = sanitizeImageUrl(row.imageUrl);
+
+      const changed =
+        (row.category ?? 'General') !== category ||
+        (row.country ?? null) !== inferred.country ||
+        (row.region ?? null) !== inferred.region ||
+        (row.continent ?? null) !== inferred.continent ||
+        (row.imageUrl ?? null) !== imageUrl;
+
+      if (!changed) continue;
+
+      await this.prisma.article.update({
+        where: { id: row.id },
+        data: {
+          category,
+          country: inferred.country,
+          region: inferred.region,
+          continent: inferred.continent,
+          imageUrl,
+        },
+      });
+      updated++;
+    }
+
+    await this.invalidateListCache();
+    this.logger.log(
+      `Metadata reindex complete: scanned=${rows.length}, updated=${updated}`,
+    );
+    return { scanned: rows.length, updated };
+  }
+
   /** Diagnostics for admin/healthcheck — exposes provider + queue state. */
   async getProcessingStatus() {
     const [queue, providers] = await Promise.all([
@@ -559,25 +716,17 @@ export class ArticlesService {
 
   private normalizeArticleResponse(
     article: ArticleResponseDto,
+    lang?: SupportedLang,
   ): ArticleResponseDto {
     return {
       ...article,
       imageUrl: this.normalizeImageUrl(article.imageUrl),
+      category: localizeCategory(article.category, lang),
     };
   }
 
   private normalizeImageUrl(url: string | null | undefined): string | null {
-    const trimmed = url?.trim();
-    if (!trimmed) return null;
-    try {
-      const parsed = new URL(trimmed);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return null;
-      }
-      return parsed.toString();
-    } catch {
-      return null;
-    }
+    return sanitizeImageUrl(url);
   }
 
   private emptyResult(startedAt: number): IngestResult {
@@ -590,9 +739,13 @@ export class ArticlesService {
     };
   }
 
-  private safeCategorize(title: string, content: string): string {
+  private safeCategorize(
+    title: string,
+    content: string,
+    language: SupportedLang,
+  ): CanonicalCategory {
     try {
-      return this.categorizer.categorize(title, content);
+      return this.categorizer.categorize(title, content, language);
     } catch (err) {
       this.logger.warn(
         `Categorization failed for "${title.slice(0, 40)}": ${(err as Error).message}`,

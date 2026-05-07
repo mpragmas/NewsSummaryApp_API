@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service';
 import { GuestService } from '../guest/guest.service';
-import { FirebaseVerificationService } from './services/firebase-verification.service';
-import { FirebaseAuthDto } from './dto/firebase-auth.dto';
+import { OAuthAuthDto } from './dto/oauth-auth.dto';
+import { OAuthVerificationService } from './services/oauth-verification.service';
+import { PrismaOAuthAdapterService } from './services/prisma-oauth-adapter.service';
 
 export interface AuthTokenResponse {
   accessToken: string;
@@ -21,52 +21,22 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly guestService: GuestService,
-    private readonly firebase: FirebaseVerificationService,
+    private readonly oauthVerification: OAuthVerificationService,
+    private readonly prismaOAuthAdapter: PrismaOAuthAdapterService,
   ) {}
 
-  async loginWithFirebase(dto: FirebaseAuthDto): Promise<AuthTokenResponse> {
-    const profile = await this.firebase.verifyIdToken(dto.idToken);
-
-    let user = await this.prisma.user.findUnique({
-      where: { firebaseUid: profile.uid },
-    });
-
-    if (!user && profile.email) {
-      user = await this.prisma.user.findFirst({
-        where: { email: { equals: profile.email, mode: 'insensitive' } },
-      });
-      if (user) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            firebaseUid: profile.uid,
-            name: user.name ?? profile.name,
-            avatarUrl: user.avatarUrl ?? profile.picture,
-          },
-        });
-      }
-    }
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          firebaseUid: profile.uid,
-          email: profile.email,
-          name: profile.name,
-          avatarUrl: profile.picture,
-        },
-      });
-    }
+  async loginWithOAuth(dto: OAuthAuthDto): Promise<AuthTokenResponse> {
+    const identity = await this.oauthVerification.verify(dto);
+    const user = await this.prismaOAuthAdapter.getOrCreateUser(identity);
 
     const guestMerge = await this.maybeMergeGuest(
       user.id,
       dto.mergeFromGuestSessionId,
     );
     const tokenResponse = this.buildTokenResponse(user);
-    this.logger.log(`Firebase sign-in for user ${user.id}`);
+    this.logger.log(`OAuth sign-in (${identity.provider}) for user ${user.id}`);
     return guestMerge ? { ...tokenResponse, guestMerge } : tokenResponse;
   }
 
