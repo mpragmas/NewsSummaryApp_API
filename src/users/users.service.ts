@@ -99,7 +99,7 @@ export class UsersService {
     return { saved: false, articleId };
   }
 
-  async getSavedArticles(userId: string, lang?: 'en' | 'fr') {
+  async getSavedArticles(userId: string, lang?: 'en' | 'fr' | 'rw') {
     const rows = await this.prisma.savedArticle.findMany({
       where: { userId },
       orderBy: { savedAt: 'desc' },
@@ -110,13 +110,17 @@ export class UsersService {
             title: true,
             summary: true,
             summaryFr: true,
+            summaryRw: true,
             originalLanguage: true,
             source: true,
             url: true,
             imageUrl: true,
             category: true,
+            continent: true,
+            region: true,
             country: true,
             publishedAt: true,
+            createdAt: true,
           },
         },
       },
@@ -137,7 +141,7 @@ export class UsersService {
     });
   }
 
-  async getReadingHistory(userId: string, lang?: 'en' | 'fr') {
+  async getReadingHistory(userId: string, lang?: 'en' | 'fr' | 'rw') {
     const rows = await this.prisma.readingHistory.findMany({
       where: { userId },
       orderBy: { readAt: 'desc' },
@@ -149,13 +153,17 @@ export class UsersService {
             title: true,
             summary: true,
             summaryFr: true,
+            summaryRw: true,
             originalLanguage: true,
             source: true,
             url: true,
             imageUrl: true,
             category: true,
+            continent: true,
+            region: true,
             country: true,
             publishedAt: true,
+            createdAt: true,
           },
         },
       },
@@ -175,24 +183,30 @@ export class UsersService {
       title: string;
       summary: string | null;
       summaryFr: string | null;
+      summaryRw: string | null;
       originalLanguage: string;
       source: string;
       url: string;
       imageUrl: string | null;
       category: string | null;
+      continent: string | null;
+      region: string | null;
       country: string | null;
       publishedAt: Date;
+      createdAt: Date;
     },
-    lang?: 'en' | 'fr',
+    lang?: 'en' | 'fr' | 'rw',
   ) {
-    const summary = lang === 'fr'
-      ? (article.summaryFr ?? article.summary)
-      : lang === 'en'
-        ? (article.summary ?? article.summaryFr)
-        : article.summary;
+    const summary =
+      lang === 'fr'
+        ? (article.summaryFr ?? article.summary ?? article.summaryRw)
+        : lang === 'rw'
+          ? (article.summaryRw ?? article.summary ?? article.summaryFr)
+          : (article.summary ?? article.summaryFr ?? article.summaryRw);
 
-    const { summaryFr: _dropped, ...rest } = article;
-    void _dropped;
+    const { summaryFr: _fr, summaryRw: _rw, ...rest } = article;
+    void _fr;
+    void _rw;
     return { ...rest, summary, imageUrl: this.normalizeImageUrl(article.imageUrl) };
   }
 

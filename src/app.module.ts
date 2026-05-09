@@ -14,6 +14,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { QueueModule } from './queue/queue.module';
+import { HealthModule } from './health/health.module';
 
 const cacheLogger = new Logger('CacheModule');
 
@@ -86,6 +87,7 @@ const cacheLogger = new Logger('CacheModule');
     SchedulerModule,
     AuthModule,
     UsersModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

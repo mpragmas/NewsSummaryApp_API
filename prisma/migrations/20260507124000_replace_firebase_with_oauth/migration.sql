@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "AuthProvider" AS ENUM ('google', 'apple', 'facebook');
+CREATE TYPE "AuthProvider" AS ENUM ('google');
 
 -- AlterTable
 DROP INDEX IF EXISTS "users_firebaseUid_key";

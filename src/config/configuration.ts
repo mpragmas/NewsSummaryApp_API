@@ -50,9 +50,6 @@ export default () => ({
   },
   oauth: {
     googleClientIds: process.env.OAUTH_GOOGLE_CLIENT_IDS ?? '',
-    appleClientIds: process.env.OAUTH_APPLE_CLIENT_IDS ?? '',
-    facebookAppId: process.env.OAUTH_FACEBOOK_APP_ID ?? '',
-    facebookAppSecret: process.env.OAUTH_FACEBOOK_APP_SECRET ?? '',
   },
   reviews: {
     reviewDetails: process.env.REVIEW_DETAILS_ENABLED === 'true',

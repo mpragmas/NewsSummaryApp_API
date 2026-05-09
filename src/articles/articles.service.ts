@@ -24,7 +24,10 @@ import {
   normalizeText,
   sanitizeContentForAI,
 } from '../common/util/article-validation';
-import { dropOverusedImages, sanitizeImageUrl } from '../common/util/image-quality.util';
+import {
+  dropOverusedImages,
+  sanitizeImageUrl,
+} from '../common/util/image-quality.util';
 import { inferLocationFromText } from '../common/util/location-inference.util';
 import {
   localizeCategory,
@@ -138,7 +141,9 @@ export class ArticlesService {
           category: { equals: normalizedCategory, mode: 'insensitive' },
         });
       } else {
-        andFilters.push({ category: { equals: category, mode: 'insensitive' } });
+        andFilters.push({
+          category: { equals: category, mode: 'insensitive' },
+        });
       }
     } else if (personal?.favoriteTopics?.length) {
       const normalizedFavorites = personal.favoriteTopics
@@ -150,7 +155,9 @@ export class ArticlesService {
       andFilters.push({ country: { equals: country, mode: 'insensitive' } });
     }
     if (continent) {
-      andFilters.push({ continent: { equals: continent, mode: 'insensitive' } });
+      andFilters.push({
+        continent: { equals: continent, mode: 'insensitive' },
+      });
     }
     if (region) {
       andFilters.push({ region: { equals: region, mode: 'insensitive' } });
@@ -583,7 +590,9 @@ export class ArticlesService {
     }
 
     await this.invalidateListCache();
-    this.logger.log(`Recategorize complete: scanned=${rows.length}, updated=${updated}`);
+    this.logger.log(
+      `Recategorize complete: scanned=${rows.length}, updated=${updated}`,
+    );
     return { scanned: rows.length, updated };
   }
 

@@ -16,8 +16,6 @@ enum AppLocale {
 
 enum AuthProvider {
   google
-  apple
-  facebook
 }
 
 model User {

@@ -34,7 +34,7 @@ export class UsersController {
   @Get('saved-articles')
   getSavedArticles(
     @Request() req: AuthRequest,
-    @Query('lang') lang?: 'en' | 'fr',
+    @Query('lang') lang?: 'en' | 'fr' | 'rw',
   ) {
     return this.usersService.getSavedArticles(req.user.userId, lang);
   }
@@ -42,7 +42,7 @@ export class UsersController {
   @Get('history')
   getHistory(
     @Request() req: AuthRequest,
-    @Query('lang') lang?: 'en' | 'fr',
+    @Query('lang') lang?: 'en' | 'fr' | 'rw',
   ) {
     return this.usersService.getReadingHistory(req.user.userId, lang);
   }
