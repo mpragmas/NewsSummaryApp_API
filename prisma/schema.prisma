@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 /// ISO-style locale codes supported in the app. Add new variants via migration when you add languages.
