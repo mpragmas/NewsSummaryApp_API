@@ -30,9 +30,7 @@ function resolveRedisUrl(config: ConfigService): string | undefined {
 }
 
 /** BullMQ / ioredis connection (supports Upstash `rediss://` URLs). */
-export function getRedisConnectionOptions(
-  config: ConfigService,
-): RedisOptions & { maxRetriesPerRequest: null } {
+export function getRedisConnectionOptions(config: ConfigService): RedisOptions {
   const url = resolveRedisUrl(config);
   if (url) {
     const parsed = new URL(url);
@@ -45,15 +43,16 @@ export function getRedisConnectionOptions(
       ? decodeURIComponent(parsed.password)
       : undefined;
 
-    return {
+    const opts: RedisOptions = {
       host: parsed.hostname,
       port: parsed.port ? parseInt(parsed.port, 10) : 6379,
       username,
       password,
       db: parseInt(parsed.searchParams.get('db') ?? '0', 10),
-      ...(useTls ? { tls: {} } : {}),
       maxRetriesPerRequest: null,
     };
+    if (useTls) opts.tls = {};
+    return opts;
   }
 
   return {
