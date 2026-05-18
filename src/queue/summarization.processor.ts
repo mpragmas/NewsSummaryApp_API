@@ -31,6 +31,9 @@ import {
  */
 @Processor(SUMMARIZATION_QUEUE, {
   concurrency: parseInt(process.env.SUMMARIZATION_CONCURRENCY ?? '2', 10),
+  // AI calls with retries + provider fallback can exceed the 30s default lock TTL.
+  // 5 minutes covers worst-case Groq→Gemini→fallback chains under rate limiting.
+  lockDuration: 300_000,
 })
 export class SummarizationProcessor extends WorkerHost {
   private readonly logger = new Logger(SummarizationProcessor.name);

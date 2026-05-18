@@ -496,18 +496,24 @@ export function extractRssItemImageCandidates(
     '';
   const htmlBlob = typeof rawContent === 'string' ? rawContent : '';
 
-  candidates.push(...extractOgTwitterFromHtml(htmlBlob));
-  candidates.push(...extractJsonLdImages(htmlBlob));
+  // Also check description — some feeds (Nation Africa, AlJazeera) embed images there.
+  const rawDesc = (item as Record<string, unknown>)['description'] ?? '';
+  const descBlob = typeof rawDesc === 'string' && rawDesc !== htmlBlob ? rawDesc : '';
 
-  for (const img of extractImgSrcFromHtml(htmlBlob)) {
-    const resolved =
-      resolveToAbsoluteUrl(img.url, base) ??
-      resolveToAbsoluteUrl(img.url, feedSiteOrigin);
-    if (resolved) {
-      candidates.push({
-        ...img,
-        url: resolved,
-      });
+  for (const blob of [htmlBlob, descBlob]) {
+    if (!blob) continue;
+    candidates.push(...extractOgTwitterFromHtml(blob));
+    candidates.push(...extractJsonLdImages(blob));
+    for (const img of extractImgSrcFromHtml(blob)) {
+      const resolved =
+        resolveToAbsoluteUrl(img.url, base) ??
+        resolveToAbsoluteUrl(img.url, feedSiteOrigin);
+      if (resolved) {
+        candidates.push({
+          ...img,
+          url: resolved,
+        });
+      }
     }
   }
 

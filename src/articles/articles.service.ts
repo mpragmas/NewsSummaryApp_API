@@ -132,8 +132,9 @@ export class ArticlesService {
       | 'rw'
       | undefined;
 
+    // lang is used only for applyLanguageView (summary field selection) — never filter
+    // by originalLanguage so all articles are always returned regardless of origin.
     const where: Prisma.ArticleWhereInput = {};
-    if (effectiveLang) where.originalLanguage = effectiveLang;
     const andFilters: Prisma.ArticleWhereInput[] = [];
 
     const q = searchText?.trim();

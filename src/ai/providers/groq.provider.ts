@@ -47,11 +47,12 @@ export class GroqProvider implements AiProvider {
     });
 
     // Separate reservoir for tokens — every call pre-pays its estimated cost.
+    // No maxConcurrent here: the reservoir (token budget) already throttles throughput,
+    // and setting maxConcurrent:1 would reject any schedule({ weight > 1 }) call.
     this.tokenReservoir = new Bottleneck({
       reservoir: tpm,
       reservoirRefreshAmount: tpm,
       reservoirRefreshInterval: 60_000,
-      maxConcurrent: 1,
     });
 
     if (this.enabled) {

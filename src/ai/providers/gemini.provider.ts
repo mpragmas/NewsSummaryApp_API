@@ -43,11 +43,12 @@ export class GeminiProvider implements AiProvider {
       minTime: Math.ceil(60_000 / rpm),
     });
 
+    // No maxConcurrent here: the reservoir (token budget) already throttles throughput,
+    // and setting maxConcurrent:1 would reject any schedule({ weight > 1 }) call.
     this.tokenReservoir = new Bottleneck({
       reservoir: tpm,
       reservoirRefreshAmount: tpm,
       reservoirRefreshInterval: 60_000,
-      maxConcurrent: 1,
     });
 
     if (this.enabled) {
