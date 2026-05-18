@@ -6,11 +6,17 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { Cacheable, CacheableMemory } from 'cacheable';
 
 import configuration from './config/configuration';
+import { describeRedisTarget, getRedisKeyvUri } from './config/redis-connection';
 import { PrismaModule } from './prisma/prisma.module';
 import { ArticlesModule } from './articles/articles.module';
 import { RssModule } from './rss/rss.module';
 import { AiModule } from './ai/ai.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { QueueModule } from './queue/queue.module';
+import { HealthModule } from './health/health.module';
+import { GuestModule } from './guest/guest.module';
 
 const cacheLogger = new Logger('CacheModule');
 
@@ -42,10 +48,9 @@ const cacheLogger = new Logger('CacheModule');
         let secondary: unknown = undefined;
         try {
           const { createKeyv } = await import('@keyv/redis');
-          const redisHost = config.get<string>('redis.host') ?? 'localhost';
-          const redisPort = config.get<number>('redis.port') ?? 6379;
+          const redisUri = getRedisKeyvUri(config);
 
-          const redisStore = createKeyv(`redis://${redisHost}:${redisPort}`, {
+          const redisStore = createKeyv(redisUri, {
             connectionTimeout: 3000,
             throwOnConnectError: false,
             throwOnErrors: false,
@@ -56,7 +61,9 @@ const cacheLogger = new Logger('CacheModule');
           );
 
           secondary = redisStore;
-          cacheLogger.log(`Redis secondary cache: ${redisHost}:${redisPort}`);
+          cacheLogger.log(
+            `Redis secondary cache: ${describeRedisTarget(config)}`,
+          );
         } catch (err) {
           cacheLogger.warn(`Redis unavailable, memory-only cache active: ${(err as Error).message}`);
         }
@@ -78,8 +85,13 @@ const cacheLogger = new Logger('CacheModule');
     PrismaModule,
     RssModule,
     AiModule,
+    QueueModule,
     ArticlesModule,
     SchedulerModule,
+    AuthModule,
+    UsersModule,
+    GuestModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

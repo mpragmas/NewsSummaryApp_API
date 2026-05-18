@@ -1,29 +1,156 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+/// ISO-style locale codes supported in the app. Add new variants via migration when you add languages.
+enum AppLocale {
+  en
+  fr
+  rw
+}
+
+enum AuthProvider {
+  google
+}
+
+model User {
+  id                String    @id @default(uuid())
+  /// Nullable — may be absent for anonymous-origin accounts.
+  email             String?   @unique
+  name              String?
+  avatarUrl         String?
+  preferredLanguage AppLocale @default(en)
+  favoriteTopics    String[]  @default([])
+  dailyDigest       Boolean   @default(false)
+  breakingNews      Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  savedArticles  SavedArticle[]
+  readingHistory ReadingHistory[]
+  oauthAccounts  OAuthAccount[]
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String       @id @default(uuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+/// Ephemeral session for guest bookmarks / reading history before signup (merged on register).
+model GuestSession {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  savedArticles  GuestSavedArticle[]
+  readingHistory GuestReadingHistory[]
+
+  @@index([createdAt])
+  @@map("guest_sessions")
+}
+
+model GuestSavedArticle {
+  id             String   @id @default(uuid())
+  guestSessionId String
+  articleId      String
+  savedAt        DateTime @default(now())
+
+  session GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  article Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([guestSessionId, articleId])
+  @@index([guestSessionId])
+  @@map("guest_saved_articles")
+}
+
+model GuestReadingHistory {
+  id             String   @id @default(uuid())
+  guestSessionId String
+  articleId      String
+  readAt         DateTime @default(now())
+
+  session GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  article Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([guestSessionId, articleId])
+  @@index([guestSessionId])
+  @@map("guest_reading_history")
+}
+
+model SavedArticle {
+  id        String   @id @default(uuid())
+  userId    String
+  articleId String
+  savedAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@map("saved_articles")
+}
+
+model ReadingHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  articleId String
+  readAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@map("reading_history")
+}
+
 model Article {
-  id          String   @id @default(uuid())
-  title       String
-  content     String   @db.Text
-  summary     String?  @db.Text
-  source      String
-  url         String   @unique
-  category    String?
-  continent   String?
-  region      String?
-  country     String?
-  publishedAt DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(uuid())
+  title            String
+  content          String   @db.Text
+  summary          String?  @db.Text
+  summaryFr        String?  @db.Text
+  summaryRw        String?  @db.Text
+  imageUrl         String?
+  originalLanguage String   @default("en")
+  source           String
+  url              String   @unique
+  category         String?
+  continent        String?
+  region           String?
+  country          String?
+  publishedAt      DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  savedBy             SavedArticle[]
+  readingHistory      ReadingHistory[]
+  guestSaves          GuestSavedArticle[]
+  guestReadingHistory GuestReadingHistory[]
 
   @@index([category])
   @@index([country])
   @@index([continent])
   @@index([publishedAt])
+  @@index([region])
+  @@index([originalLanguage])
   @@map("articles")
 }

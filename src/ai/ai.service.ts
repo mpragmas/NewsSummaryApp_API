@@ -1,286 +1,107 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { fallbackSummary } from './fallback-summary.util';
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_TIMEOUT_MS = 15_000;
-const GEMINI_TIMEOUT_MS = 20_000;
-const BATCH_DELAY_MS = 400;
+import { AiOrchestratorService } from './ai-orchestrator.service';
+import { SupportedLang } from './prompts';
+import { ProviderName } from './providers/ai-provider.interface';
 
-export type SummaryProvider = 'groq' | 'gemini' | 'fallback';
+/**
+ * Backwards-compatible facade over {@link AiOrchestratorService}.
+ *
+ * Existing call sites (`articles.service.ts`, controllers) keep working.
+ * NEW callers should prefer enqueueing a `summarization` job via the
+ * queue instead of calling this directly — see SummarizationQueueService.
+ */
+
+export type SummaryProvider = ProviderName;
+
+export interface ProviderAttempt {
+  provider: SummaryProvider;
+  model: string;
+  durationMs: number;
+  success: boolean;
+}
+
+export interface ReviewDetails {
+  modelUsed: string;
+  providerAttempts: ProviderAttempt[];
+  totalDurationMs: number;
+}
 
 export interface SummaryResult {
   text: string;
   provider: SummaryProvider;
+  details?: ReviewDetails;
 }
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly geminiClient: GoogleGenerativeAI | null = null;
-  private readonly geminiModel = 'gemini-2.0-flash';
-  private readonly groqApiKey: string | null = null;
-  private readonly groqModel = 'llama-3.1-8b-instant';
 
-  constructor(private readonly configService: ConfigService) {
-    const groqKey = this.configService.get<string>('GROQ_API_KEY');
-    const geminiKey = this.configService.get<string>('GEMINI_API_KEY');
+  constructor(private readonly orchestrator: AiOrchestratorService) {}
 
-    if (groqKey) {
-      this.groqApiKey = groqKey;
-      this.logger.log(`✅ Groq primary initialized (${this.groqModel})`);
-    } else {
-      this.logger.warn('⚠️  GROQ_API_KEY not set — Groq primary disabled');
-    }
-
-    if (geminiKey) {
-      this.geminiClient = new GoogleGenerativeAI(geminiKey);
-      this.logger.log(`✅ Gemini secondary initialized (${this.geminiModel})`);
-    } else {
-      this.logger.warn('⚠️  GEMINI_API_KEY not set — Gemini secondary disabled');
-    }
-
-    this.logger.log('🛟 Local fallback summarizer always available (final safety net)');
-  }
-
-  /**
-   * Summarize a single article. ALWAYS returns a non-empty summary string.
-   * Strategy: Groq → Gemini → deterministic local fallback.
-   * Each provider gets exactly 1 attempt (no retry loops).
-   */
   async summarizeArticle(
     title: string,
     content: string,
     url: string,
+    language: SupportedLang = 'en',
   ): Promise<SummaryResult> {
-    const shortTitle = title.substring(0, 60);
-    const prompt = this.buildPrompt(title, content, url);
-
-    this.logger.log(`📤 Summarizing: "${shortTitle}"`);
-
-    // 1. Groq (primary) — single attempt
-    if (this.groqApiKey) {
-      const groq = await this.tryGroq(prompt, shortTitle);
-      if (groq) return { text: groq, provider: 'groq' };
-      this.logger.warn(`⚠️  Groq failed — trying Gemini for "${shortTitle}"`);
-    }
-
-    // 2. Gemini (secondary) — single attempt
-    if (this.geminiClient) {
-      const gemini = await this.tryGemini(prompt, shortTitle);
-      if (gemini) return { text: gemini, provider: 'gemini' };
-      this.logger.warn(`⚠️  Gemini failed — using local fallback for "${shortTitle}"`);
-    }
-
-    // 3. Local fallback — guaranteed non-empty
-    const text = fallbackSummary(content, title, url);
-    this.logger.log(`🔧 Local fallback used for: "${shortTitle}"`);
-    return { text, provider: 'fallback' };
+    const start = Date.now();
+    const result = await this.orchestrator.summarize({
+      title,
+      content,
+      url,
+      language,
+    });
+    return {
+      text: result.text,
+      provider: result.provider,
+      details: {
+        modelUsed: result.provider,
+        providerAttempts: [
+          {
+            provider: result.provider,
+            model: result.provider,
+            durationMs: Date.now() - start,
+            success: true,
+          },
+        ],
+        totalDurationMs: Date.now() - start,
+      },
+    };
   }
 
   /**
-   * Summarize a batch sequentially. Returns a same-length array where every
-   * entry has a non-empty summary (AI-generated or deterministic fallback).
+   * Sequential helper kept for the rare synchronous call site (admin
+   * one-shot re-summarize of a single article). The ingest pipeline and
+   * backfill endpoints now go through the queue instead.
    */
   async summarizeBatch(
-    articles: Array<{ title: string; content: string; url: string }>,
+    articles: Array<{
+      title: string;
+      content: string;
+      url: string;
+      language?: SupportedLang;
+    }>,
   ): Promise<SummaryResult[]> {
-    this.logger.log(`🚀 Batch summarization started: ${articles.length} articles`);
+    this.logger.warn(
+      `summarizeBatch() called for ${articles.length} articles synchronously — prefer the queue for large batches.`,
+    );
+
     const results: SummaryResult[] = [];
-
-    for (let i = 0; i < articles.length; i++) {
-      const article = articles[i];
-      this.logger.log(
-        `📄 [${i + 1}/${articles.length}] "${article.title.substring(0, 50)}"`,
+    for (const a of articles) {
+      results.push(
+        await this.summarizeArticle(
+          a.title,
+          a.content,
+          a.url,
+          a.language ?? 'en',
+        ),
       );
-
-      try {
-        const result = await this.summarizeArticle(
-          article.title,
-          article.content,
-          article.url,
-        );
-        results.push(result);
-      } catch (err) {
-        // Defensive — summarizeArticle() catches everything internally, but
-        // if something leaks through we still guarantee a non-null summary.
-        this.logger.error(
-          `❌ [${i + 1}/${articles.length}] Unexpected error: ${(err as Error).message} — using local fallback`,
-        );
-        results.push({
-          text: fallbackSummary(article.content, article.title, article.url),
-          provider: 'fallback',
-        });
-      }
-
-      if (i < articles.length - 1) await this.sleep(BATCH_DELAY_MS);
     }
-
-    const counts = results.reduce(
-      (acc, r) => {
-        acc[r.provider]++;
-        return acc;
-      },
-      { groq: 0, gemini: 0, fallback: 0 },
-    );
-
-    this.logger.log(
-      `✅ Batch complete: ${counts.groq} Groq, ${counts.gemini} Gemini, ${counts.fallback} fallback (${results.length} total)`,
-    );
-
     return results;
   }
 
-  // ─── Private provider helpers ─────────────────────────────────────────────
-
-  private async tryGroq(prompt: string, shortTitle: string): Promise<string | null> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
-
-    try {
-      this.logger.debug(`📡 Groq → "${shortTitle}"`);
-
-      const response = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.groqApiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.groqModel,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 512,
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        const errType = this.classifyHttpError(response.status, body);
-        this.logger.error(
-          `❌ Groq [${errType}] "${shortTitle}": HTTP ${response.status} — ${body.substring(0, 200)}`,
-        );
-        return null;
-      }
-
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      if (!text) {
-        this.logger.error(`❌ Groq empty response for "${shortTitle}"`);
-        return null;
-      }
-
-      this.logger.log(`✅ Groq OK: "${shortTitle}"`);
-      return text;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error(
-        `❌ Groq [${this.classifyError(err)}] "${shortTitle}": ${err.message}`,
-      );
-      return null;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  private async tryGemini(prompt: string, shortTitle: string): Promise<string | null> {
-    try {
-      this.logger.debug(`📡 Gemini → "${shortTitle}"`);
-      const model = this.geminiClient!.getGenerativeModel({ model: this.geminiModel });
-
-      // Gemini SDK has no native timeout — race against a hard deadline.
-      const response = await Promise.race([
-        model.generateContent(prompt),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Gemini timeout')),
-            GEMINI_TIMEOUT_MS,
-          ),
-        ),
-      ]);
-
-      const text =
-        response?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-      if (!text) {
-        this.logger.error(`❌ Gemini empty response for "${shortTitle}"`);
-        return null;
-      }
-
-      this.logger.log(`✅ Gemini OK: "${shortTitle}"`);
-      return text;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error(
-        `❌ Gemini [${this.classifyError(err)}] "${shortTitle}": ${err.message}`,
-      );
-      return null;
-    }
-  }
-
-  // ─── Error classification (for structured logs) ───────────────────────────
-
-  private classifyError(error: Error): string {
-    const msg = error.message.toLowerCase();
-    if (msg.includes('429') || msg.includes('rate limit')) return 'RATE_LIMIT';
-    if (msg.includes('quota') || msg.includes('exhausted')) return 'QUOTA_EXHAUSTED';
-    if (msg.includes('decommissioned') || msg.includes('deprecated'))
-      return 'MODEL_DECOMMISSIONED';
-    if (
-      msg.includes('401') ||
-      msg.includes('403') ||
-      msg.includes('invalid api key') ||
-      msg.includes('permission denied')
-    )
-      return 'AUTH_ERROR';
-    if (msg.includes('timeout') || msg.includes('aborted')) return 'TIMEOUT';
-    if (
-      msg.includes('enotfound') ||
-      msg.includes('econnrefused') ||
-      msg.includes('network') ||
-      msg.includes('fetch failed')
-    )
-      return 'NETWORK_ERROR';
-    return 'UNKNOWN_ERROR';
-  }
-
-  private classifyHttpError(status: number, body: string): string {
-    const b = body.toLowerCase();
-    if (status === 429) return 'RATE_LIMIT';
-    if (status === 401 || status === 403) return 'AUTH_ERROR';
-    if (b.includes('decommissioned') || b.includes('deprecated'))
-      return 'MODEL_DECOMMISSIONED';
-    if (b.includes('quota')) return 'QUOTA_EXHAUSTED';
-    if (status >= 500) return 'SERVER_ERROR';
-    return `HTTP_${status}`;
-  }
-
-  // ─── Prompt ───────────────────────────────────────────────────────────────
-
-  private buildPrompt(title: string, content: string, url: string): string {
-    return `Summarize the following news article into EXACTLY 5 sentences.
-
-Rules:
-- Neutral tone
-- No opinions
-- Sentence 1: Main event
-- Sentences 2-4: Key details
-- Sentence 5: Must end with "Read the full story at: ${url}"
-
-Title: ${title}
-
-Content:
-${content.substring(0, 2000)}
-
-Return ONLY the 5 sentences. Do not add headings, bullet points, or extra text.`;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  getProviderStatus() {
+    return this.orchestrator.getProviderStatus();
   }
 }
