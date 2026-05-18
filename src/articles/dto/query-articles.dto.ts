@@ -1,7 +1,17 @@
-import { IsOptional, IsString, IsInt, Min, Max, IsIn } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, IsIn, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryArticlesDto {
+  @IsOptional()
+  @IsIn(['en', 'fr', 'rw'])
+  lang?: 'en' | 'fr' | 'rw';
+
+  /** Full-text style search across title, summaries, and body (PostgreSQL case-insensitive contains). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  query?: string;
+
   @IsOptional()
   @IsString()
   category?: string;
@@ -13,6 +23,10 @@ export class QueryArticlesDto {
   @IsOptional()
   @IsString()
   continent?: string;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
 
   @IsOptional()
   @IsString()
