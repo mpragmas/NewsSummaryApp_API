@@ -10,7 +10,7 @@ import {
   parsePublishedAt,
   sanitizeContentForAI,
 } from '../common/util/article-validation';
-import { sanitizeImageUrl } from '../common/util/image-quality.util';
+import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
 
 const SOURCE = 'Igihe';
 const BASE_URL = 'https://igihe.com';
@@ -33,14 +33,18 @@ async function fetchHtml(url: string, logger: Logger): Promise<string | null> {
     try {
       const res = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)' },
+        headers: {
+          'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
+        },
       });
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.text();
     } catch (err) {
       clearTimeout(timeoutId);
-      logger.warn(`${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`);
+      logger.warn(
+        `${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`,
+      );
       if (attempt === MAX_RETRIES) return null;
       await new Promise((r) => setTimeout(r, 500 * attempt));
     }
@@ -55,14 +59,15 @@ function resolveUrl(href: string): string {
   return `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
 }
 
-function normalizeImageUrl(src: string | undefined | null): string | null {
-  return sanitizeImageUrl(src);
-}
-
 export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
   const html = await fetchHtml(LISTING_URL, logger);
   if (!html) {
-    return { articles: [], scrapedTotal: 0, rejectedInvalid: 0, rejectedLowQuality: 0 };
+    return {
+      articles: [],
+      scrapedTotal: 0,
+      rejectedInvalid: 0,
+      rejectedLowQuality: 0,
+    };
   }
 
   const $ = cheerio.load(html);
@@ -84,9 +89,10 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
     'li[class*="article"]',
   ];
 
-  let elements = selectors
-    .map((sel) => $(sel).toArray())
-    .find((found) => found.length >= 2) ?? [];
+  let elements =
+    selectors
+      .map((sel) => $(sel).toArray())
+      .find((found) => found.length >= 2) ?? [];
 
   // Fallback: grab parent containers of heading links
   if (elements.length === 0) {
@@ -145,9 +151,13 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
         continue;
       }
 
-      const quality = getContentQualityScore(candidate.title, candidate.content, {
-        minContentLength: 250,
-      });
+      const quality = getContentQualityScore(
+        candidate.title,
+        candidate.content,
+        {
+          minContentLength: 250,
+        },
+      );
       if (!quality.ok) {
         rejectedLowQuality++;
         continue;
@@ -166,7 +176,9 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
 
       articles.push(candidate);
     } catch (err) {
-      logger.warn(`${SOURCE}: failed to parse element — ${(err as Error).message}`);
+      logger.warn(
+        `${SOURCE}: failed to parse element — ${(err as Error).message}`,
+      );
     }
   }
 
@@ -209,16 +221,13 @@ async function scrapeIgiheArticleDetail(
   ];
   const title = titleCandidates.find((value) => isMeaningfulTitle(value));
   if (!title) {
-    logger.warn(`${SOURCE}: rejected detail page with invalid title (${articleUrl})`);
+    logger.warn(
+      `${SOURCE}: rejected detail page with invalid title (${articleUrl})`,
+    );
     return null;
   }
 
-  const imageUrl = normalizeImageUrl(
-    $('meta[property="og:image"]').attr('content') ??
-      $('article img').first().attr('src') ??
-      $('article img').first().attr('data-src') ??
-      null,
-  );
+  const imageUrl = extractBestImageFromCheerioRoot($, articleUrl, title);
 
   const publishedAtRaw =
     $('time[datetime]').first().attr('datetime') ??

@@ -6,7 +6,11 @@ import {
   RssFeedConfig,
   SupportedLanguage,
 } from './rss-feeds.config';
-import { sanitizeImageUrl } from '../common/util/image-quality.util';
+import {
+  extractRssItemImageCandidates,
+  pickBestImageCandidate,
+} from '../common/util/image-extractor.util';
+import { recordPickPhase } from '../common/util/image-ingest-metrics.util';
 
 export interface NormalizedArticle {
   title: string;
@@ -27,6 +31,12 @@ export class RssService {
   private readonly parser = new RssParser({
     timeout: 10000,
     headers: { 'User-Agent': 'NewsAggregator/1.0' },
+    customFields: {
+      item: [
+        ['media:content', 'media:content', { keepArray: true }],
+        ['media:thumbnail', 'media:thumbnail', { keepArray: true }],
+      ],
+    },
   });
 
   async fetchAllFeeds(): Promise<NormalizedArticle[]> {
@@ -80,15 +90,36 @@ export class RssService {
 
     // Ensure Gemini always receives enough text — fall back to title when body is absent
     const content = cleaned.length > 20 ? cleaned : (item.title ?? '');
-    const mediaContent = this.readMediaContentUrl(item);
-    const imageUrl = sanitizeImageUrl(
-      item.enclosure?.url ??
-        mediaContent ??
-        this.extractImageFromHtml(rawContent) ??
-        null,
+    const articleLink = item.link ?? item.guid ?? '';
+    let feedOrigin: string;
+    try {
+      feedOrigin = new URL(feed.url).origin;
+    } catch {
+      feedOrigin = 'https://invalid.invalid';
+    }
+    const candidates = extractRssItemImageCandidates(
+      item,
+      articleLink || feedOrigin,
+      feedOrigin,
     );
+    const picked = pickBestImageCandidate(candidates, (item.title ?? '').trim());
+    const imageUrl = picked?.url ?? null;
 
-    const url = item.link ?? item.guid ?? '';
+    let itemDomain = '';
+    try {
+      itemDomain = new URL(articleLink || feedOrigin).hostname;
+    } catch {
+      itemDomain = '';
+    }
+    if (imageUrl) {
+      recordPickPhase(itemDomain, 'chosen');
+    } else if (candidates.length === 0) {
+      recordPickPhase(itemDomain, 'no_candidates');
+    } else {
+      recordPickPhase(itemDomain, 'null_after_candidates');
+    }
+
+    const url = articleLink;
 
     const publishedAt = item.pubDate
       ? new Date(item.pubDate)
@@ -115,26 +146,6 @@ export class RssService {
       .replace(/<[^>]*>/g, '')
       .replace(/&[a-z]+;/gi, ' ')
       .trim();
-  }
-
-  private readMediaContentUrl(item: RssParser.Item): string | null {
-    const mediaContent = (item as unknown as Record<string, unknown>)['media:content'];
-    if (!mediaContent) return null;
-    if (
-      typeof mediaContent === 'object' &&
-      mediaContent !== null &&
-      'url' in mediaContent
-    ) {
-      const value = (mediaContent as { url?: unknown }).url;
-      return typeof value === 'string' ? value : null;
-    }
-    return null;
-  }
-
-  private extractImageFromHtml(html: string): string | null {
-    if (!html) return null;
-    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
   }
 
 }

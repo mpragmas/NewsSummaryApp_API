@@ -1,49 +1,62 @@
-const BLOCKED_TOKENS = [
-  'logo',
-  'icon',
-  'avatar',
-  'placeholder',
-  'default',
-  'sprite',
-  'favicon',
-  'banner',
-  'ads',
-  'pixel',
-  '1x1',
-];
+import {
+  fingerprintDedupeComposite,
+  normalizeImageUrlStrict,
+  parseImageUrl,
+} from './image-extractor.util';
 
-export function sanitizeImageUrl(url: string | null | undefined): string | null {
-  const trimmed = url?.trim();
-  if (!trimmed) return null;
-  const candidate = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+/** @deprecated Prefer importing normalizeImageUrlStrict from image-extractor.util */
+export function sanitizeImageUrl(
+  url: string | null | undefined,
+): string | null {
+  return normalizeImageUrlStrict(url);
+}
 
+const GENERIC_ASSET_PATH_RE =
+  /\/(logo|favicon|icon|sprite|placeholder|avatar-default|brand-logo|site-logo)(\/|$)|\/icons?\//i;
+
+/** Paths that are usually site chrome rather than story art — stricter dedupe. */
+export function isLikelyGenericAsset(url: string): boolean {
+  const p = parseImageUrl(url);
+  if (!p.url) return true;
   try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-
-    const full = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
-    if (BLOCKED_TOKENS.some((token) => full.includes(token))) return null;
-    if (full.endsWith('.svg')) return null;
-
-    return parsed.toString();
+    const path = new URL(p.url).pathname;
+    return GENERIC_ASSET_PATH_RE.test(path);
   } catch {
-    return null;
+    return true;
   }
 }
 
+/**
+ * Caps runaway duplicate **generic** hero images; allows higher repetition for
+ * normal article imagery (same photo legitimately reused across related wires).
+ */
 export function dropOverusedImages<T extends { imageUrl: string | null }>(
   rows: T[],
-  threshold = 4,
+  thresholdArticleImages = 14,
+  thresholdGenericAssets = 6,
 ): T[] {
-  const frequency = new Map<string, number>();
+  const freqArticle = new Map<string, number>();
+  const freqGeneric = new Map<string, number>();
+
   for (const row of rows) {
     if (!row.imageUrl) continue;
-    frequency.set(row.imageUrl, (frequency.get(row.imageUrl) ?? 0) + 1);
+    const key = fingerprintDedupeComposite(row.imageUrl);
+    if (isLikelyGenericAsset(row.imageUrl)) {
+      freqGeneric.set(key, (freqGeneric.get(key) ?? 0) + 1);
+    } else {
+      freqArticle.set(key, (freqArticle.get(key) ?? 0) + 1);
+    }
   }
 
   return rows.map((row) => {
     if (!row.imageUrl) return row;
-    if ((frequency.get(row.imageUrl) ?? 0) < threshold) return row;
+    const key = fingerprintDedupeComposite(row.imageUrl);
+    const generic = isLikelyGenericAsset(row.imageUrl);
+    const count = generic
+      ? (freqGeneric.get(key) ?? 0)
+      : (freqArticle.get(key) ?? 0);
+    const limit = generic ? thresholdGenericAssets : thresholdArticleImages;
+    if (count < limit) return row;
     return { ...row, imageUrl: null };
   });
 }

@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { describeRedisTarget } from './config/redis-connection';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
@@ -61,6 +62,8 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const port = config.get<number>('port') ?? 3000;
   const host = process.env.HOST ?? '0.0.0.0';
+
+  logger.log(`Redis target: ${describeRedisTarget(config)}`);
 
   await app.listen(port, host);
   logger.log(`Application running on http://localhost:${port}/api/v1`);

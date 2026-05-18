@@ -11,7 +11,7 @@ import {
   sanitizeContentForAI,
 } from '../common/util/article-validation';
 import type { RwScrapeResult } from './igihe.scraper';
-import { sanitizeImageUrl } from '../common/util/image-quality.util';
+import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
 
 const SOURCE = 'Kigali Today';
 const BASE_URL = 'https://www.kigalitoday.com';
@@ -27,14 +27,18 @@ async function fetchHtml(url: string, logger: Logger): Promise<string | null> {
     try {
       const res = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)' },
+        headers: {
+          'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
+        },
       });
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.text();
     } catch (err) {
       clearTimeout(timeoutId);
-      logger.warn(`${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`);
+      logger.warn(
+        `${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`,
+      );
       if (attempt === MAX_RETRIES) return null;
       await new Promise((r) => setTimeout(r, 500 * attempt));
     }
@@ -49,14 +53,17 @@ function resolveUrl(href: string): string {
   return `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
 }
 
-function normalizeImageUrl(src: string | undefined | null): string | null {
-  return sanitizeImageUrl(src);
-}
-
-export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult> {
+export async function scrapeKigaliToday(
+  logger: Logger,
+): Promise<RwScrapeResult> {
   const html = await fetchHtml(LISTING_URL, logger);
   if (!html) {
-    return { articles: [], scrapedTotal: 0, rejectedInvalid: 0, rejectedLowQuality: 0 };
+    return {
+      articles: [],
+      scrapedTotal: 0,
+      rejectedInvalid: 0,
+      rejectedLowQuality: 0,
+    };
   }
 
   const $ = cheerio.load(html);
@@ -78,9 +85,10 @@ export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult>
     '.item',
   ];
 
-  let elements = selectors
-    .map((sel) => $(sel).toArray())
-    .find((found) => found.length >= 2) ?? [];
+  let elements =
+    selectors
+      .map((sel) => $(sel).toArray())
+      .find((found) => found.length >= 2) ?? [];
 
   // Fallback: grab parent containers of heading links
   if (elements.length === 0) {
@@ -138,9 +146,13 @@ export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult>
         continue;
       }
 
-      const quality = getContentQualityScore(candidate.title, candidate.content, {
-        minContentLength: 250,
-      });
+      const quality = getContentQualityScore(
+        candidate.title,
+        candidate.content,
+        {
+          minContentLength: 250,
+        },
+      );
       if (!quality.ok) {
         rejectedLowQuality++;
         continue;
@@ -153,7 +165,9 @@ export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult>
 
       articles.push(candidate);
     } catch (err) {
-      logger.warn(`${SOURCE}: failed to parse element — ${(err as Error).message}`);
+      logger.warn(
+        `${SOURCE}: failed to parse element — ${(err as Error).message}`,
+      );
     }
   }
 
@@ -200,12 +214,7 @@ async function scrapeKigaliTodayDetail(
     $('time').first().text();
   const publishedAt = parsePublishedAt(publishedAtRaw);
 
-  const imageUrl = normalizeImageUrl(
-    $('meta[property="og:image"]').attr('content') ??
-      $('article img').first().attr('src') ??
-      $('article img').first().attr('data-src') ??
-      null,
-  );
+  const imageUrl = extractBestImageFromCheerioRoot($, articleUrl, title);
 
   const contentSelectors = [
     'article .entry-content p',

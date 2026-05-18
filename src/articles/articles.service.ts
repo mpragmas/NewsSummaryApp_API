@@ -28,6 +28,14 @@ import {
   dropOverusedImages,
   sanitizeImageUrl,
 } from '../common/util/image-quality.util';
+import {
+  extractBestImageFromArticleHtml,
+  fingerprintCanonicalImageUrl,
+} from '../common/util/image-extractor.util';
+import {
+  formatImageIngestMetricsSummary,
+  resetImageIngestMetrics,
+} from '../common/util/image-ingest-metrics.util';
 import { inferLocationFromText } from '../common/util/location-inference.util';
 import {
   localizeCategory,
@@ -59,6 +67,13 @@ export interface RecategorizeResult {
 export interface ReindexMetadataResult {
   scanned: number;
   updated: number;
+}
+
+export interface ReindexImagesResult {
+  scanned: number;
+  updated: number;
+  duplicatesNulled: number;
+  durationMs: number;
 }
 
 @Injectable()
@@ -314,6 +329,7 @@ export class ArticlesService {
    */
   async ingest(): Promise<IngestResult> {
     const startedAt = Date.now();
+    resetImageIngestMetrics();
     this.logger.log('Ingestion pipeline started');
 
     const [rssResult, scraperResult] = await Promise.allSettled([
@@ -398,7 +414,7 @@ export class ArticlesService {
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
-    const insertData = dropOverusedImages(insertDataRaw, 4);
+    const insertData = dropOverusedImages(insertDataRaw);
 
     let saved = 0;
     let failed = 0;
@@ -478,6 +494,7 @@ export class ArticlesService {
     this.logger.log(
       `Ingestion done in ${durationMs}ms — saved=${saved}, enqueued=${enqueued}, dbErrors=${failed}`,
     );
+    this.logger.log(formatImageIngestMetricsSummary(uniqueArticles.length));
 
     return {
       processed: uniqueArticles.length,
@@ -597,8 +614,7 @@ export class ArticlesService {
   }
 
   /**
-   * Recompute category + inferred location + image validity for existing rows.
-   * Use this after improving filters/extraction to repair historical records.
+   * Recompute category + inferred location for existing rows (does not alter stored images).
    */
   async reindexMetadata(limit = 5000): Promise<ReindexMetadataResult> {
     const rows = await this.prisma.article.findMany({
@@ -607,7 +623,6 @@ export class ArticlesService {
         id: true,
         title: true,
         content: true,
-        imageUrl: true,
         originalLanguage: true,
         category: true,
         continent: true,
@@ -632,14 +647,12 @@ export class ArticlesService {
         lang,
       );
       const category = this.safeCategorize(row.title, sanitizedContent, lang);
-      const imageUrl = sanitizeImageUrl(row.imageUrl);
 
       const changed =
         (row.category ?? 'General') !== category ||
         (row.country ?? null) !== inferred.country ||
         (row.region ?? null) !== inferred.region ||
-        (row.continent ?? null) !== inferred.continent ||
-        (row.imageUrl ?? null) !== imageUrl;
+        (row.continent ?? null) !== inferred.continent;
 
       if (!changed) continue;
 
@@ -650,7 +663,6 @@ export class ArticlesService {
           country: inferred.country,
           region: inferred.region,
           continent: inferred.continent,
-          imageUrl,
         },
       });
       updated++;
@@ -661,6 +673,92 @@ export class ArticlesService {
       `Metadata reindex complete: scanned=${rows.length}, updated=${updated}`,
     );
     return { scanned: rows.length, updated };
+  }
+
+  /**
+   * Optional repair: backfill images only where missing (default), and optionally trim
+   * fingerprint-duplicated hero images that appear too often in recent rows.
+   */
+  async reindexImages(options?: {
+    limit?: number;
+    fixDuplicateFingerprints?: boolean;
+    duplicateFingerprintMinRows?: number;
+    duplicateKeepFirst?: number;
+    concurrency?: number;
+  }): Promise<ReindexImagesResult> {
+    const startedAt = Date.now();
+    const limit = Math.min(Math.max(options?.limit ?? 400, 1), 8000);
+    const concurrency = Math.min(Math.max(options?.concurrency ?? 8, 1), 24);
+    const fixDup = options?.fixDuplicateFingerprints ?? false;
+    const dupMin = Math.min(
+      Math.max(options?.duplicateFingerprintMinRows ?? 12, 4),
+      500,
+    );
+    const keepFirst = Math.min(
+      Math.max(options?.duplicateKeepFirst ?? 3, 1),
+      20,
+    );
+
+    let duplicatesNulled = 0;
+    if (fixDup) {
+      duplicatesNulled = await this.nullExcessFingerprintDuplicates(
+        dupMin,
+        keepFirst,
+      );
+    }
+
+    const missing = await this.prisma.article.findMany({
+      where: { imageUrl: null },
+      select: { id: true, title: true, url: true },
+      orderBy: { publishedAt: 'desc' },
+      take: limit,
+    });
+
+    const memoHtml = new Map<string, string | null>();
+    let updated = 0;
+
+    for (let i = 0; i < missing.length; i += concurrency) {
+      const slice = missing.slice(i, i + concurrency);
+      const batchHits = await Promise.all(
+        slice.map(async (row) => {
+          if (!row.url?.trim()) return false;
+          let html = memoHtml.get(row.url);
+          if (html === undefined) {
+            html = await this.fetchArticleHtmlBrief(row.url);
+            memoHtml.set(row.url, html);
+          }
+          if (!html) return false;
+
+          const extracted = extractBestImageFromArticleHtml(
+            html,
+            row.url,
+            row.title,
+          );
+          const imageUrl = sanitizeImageUrl(extracted);
+          if (!imageUrl) return false;
+
+          await this.prisma.article.update({
+            where: { id: row.id },
+            data: { imageUrl },
+          });
+          return true;
+        }),
+      );
+      updated += batchHits.filter(Boolean).length;
+    }
+
+    await this.invalidateListCache();
+    const durationMs = Date.now() - startedAt;
+    this.logger.log(
+      `Image reindex: scanned=${missing.length}, updated=${updated}, duplicatesNulled=${duplicatesNulled}, ${durationMs}ms`,
+    );
+
+    return {
+      scanned: missing.length,
+      updated,
+      duplicatesNulled,
+      durationMs,
+    };
   }
 
   /** Diagnostics for admin/healthcheck — exposes provider + queue state. */
@@ -736,6 +834,71 @@ export class ArticlesService {
 
   private normalizeImageUrl(url: string | null | undefined): string | null {
     return sanitizeImageUrl(url);
+  }
+
+  private async fetchArticleHtmlBrief(url: string): Promise<string | null> {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
+          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+        },
+      });
+      clearTimeout(tid);
+      if (!res.ok) return null;
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.includes('text/html') && !ct.includes('application/xhtml'))
+        return null;
+      const text = await res.text();
+      return text.length > 400 ? text : null;
+    } catch {
+      clearTimeout(tid);
+      return null;
+    }
+  }
+
+  /**
+   * Clears imageUrl for newer rows when the same canonical fingerprint appears
+   * too often among recently published articles (optional repair).
+   */
+  private async nullExcessFingerprintDuplicates(
+    minRows: number,
+    keepFirst: number,
+  ): Promise<number> {
+    const rows = await this.prisma.article.findMany({
+      where: { imageUrl: { not: null } },
+      select: { id: true, imageUrl: true, publishedAt: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 12000,
+    });
+
+    const byFp = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const fp = fingerprintCanonicalImageUrl(r.imageUrl!);
+      const list = byFp.get(fp) ?? [];
+      list.push(r);
+      byFp.set(fp, list);
+    }
+
+    let nulled = 0;
+    for (const [, list] of byFp) {
+      if (list.length < minRows) continue;
+      const sorted = [...list].sort(
+        (a, b) => a.publishedAt.getTime() - b.publishedAt.getTime(),
+      );
+      for (const row of sorted.slice(keepFirst)) {
+        await this.prisma.article.update({
+          where: { id: row.id },
+          data: { imageUrl: null },
+        });
+        nulled++;
+      }
+    }
+    return nulled;
   }
 
   private emptyResult(startedAt: number): IngestResult {

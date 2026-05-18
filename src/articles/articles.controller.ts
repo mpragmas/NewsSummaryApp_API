@@ -100,12 +100,34 @@ export class ArticlesController {
     return this.articlesService.recategorizeAll(limit);
   }
 
-  /** Recompute category + location + image quality for historical records. */
+  /** Recompute category + location for historical records (does not modify stored images). */
   @Post('reindex-metadata')
   @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   reindexMetadata(@Query('limit') limit?: number) {
     return this.articlesService.reindexMetadata(limit);
+  }
+
+  /** Backfill missing hero images from article URLs; optional fingerprint dedupe repair. */
+  @Post('reindex-images')
+  //@UseGuards(AdminApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  reindexImages(
+    @Query('limit') limit?: number,
+    @Query('fixDuplicateFingerprints') fixDup?: string,
+    @Query('duplicateFingerprintMinRows') dupMin?: number,
+    @Query('duplicateKeepFirst') keepFirst?: number,
+    @Query('concurrency') concurrency?: number,
+  ) {
+    return this.articlesService.reindexImages({
+      limit: limit !== undefined ? Number(limit) : undefined,
+      fixDuplicateFingerprints: fixDup === 'true' || fixDup === '1',
+      duplicateFingerprintMinRows:
+        dupMin !== undefined ? Number(dupMin) : undefined,
+      duplicateKeepFirst:
+        keepFirst !== undefined ? Number(keepFirst) : undefined,
+      concurrency: concurrency !== undefined ? Number(concurrency) : undefined,
+    });
   }
 
   @Get('backfill-rw')

@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 
 import { AiModule } from '../ai/ai.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { getRedisConnectionOptions } from '../config/redis-connection';
 import { SUMMARIZATION_QUEUE } from './job-types';
 import { SummarizationProcessor } from './summarization.processor';
 import { SummarizationQueueService } from './summarization.queue';
@@ -14,14 +15,7 @@ import { SummarizationQueueService } from './summarization.queue';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('redis.host') ?? 'localhost',
-          port: config.get<number>('redis.port') ?? 6379,
-          password: config.get<string>('redis.password'),
-          db: config.get<number>('redis.db') ?? 0,
-          // Required by BullMQ on shared Redis instances.
-          maxRetriesPerRequest: null,
-        },
+        connection: getRedisConnectionOptions(config),
       }),
     }),
     BullModule.registerQueueAsync({
