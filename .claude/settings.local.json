@@ -25,7 +25,8 @@
       "Bash(xargs grep -l \"maxRetriesPerRequest\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell(git *)"
     ]
   }
 }
