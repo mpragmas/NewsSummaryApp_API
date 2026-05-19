@@ -13,10 +13,15 @@ async function bootstrap() {
     logger: ['log', 'warn', 'error', 'debug'],
   });
 
-  const allowedOrigin = process.env.CORS_ORIGIN ?? '*';
+  const corsOrigin = process.env.CORS_ORIGIN?.trim();
+  const origin =
+    !corsOrigin || corsOrigin === '*'
+      ? true
+      : corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
+
   app.enableCors({
-    origin: allowedOrigin,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    origin,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'Authorization',
