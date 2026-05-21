@@ -132,10 +132,15 @@ export class ArticlesService {
       | 'rw'
       | undefined;
 
-    // lang is used only for applyLanguageView (summary field selection) — never filter
-    // by originalLanguage so all articles are always returned regardless of origin.
+    // Filter the feed by originalLanguage so users only see news actually written
+    // in their chosen language. Without this, titles (which we don't translate)
+    // would mix English / French / Kinyarwanda content on the same feed.
     const where: Prisma.ArticleWhereInput = {};
     const andFilters: Prisma.ArticleWhereInput[] = [];
+
+    if (effectiveLang) {
+      andFilters.push({ originalLanguage: effectiveLang });
+    }
 
     const q = searchText?.trim();
     if (q) {
@@ -779,16 +784,18 @@ export class ArticlesService {
   ): ArticleResponseDto {
     if (!lang) return article;
 
+    // No cross-language fallback for the main feed: the feed is already filtered
+    // by originalLanguage, so we only surface the summary that matches the user's
+    // language. For an `rw` article without summaryRw yet (queue still working),
+    // return null and let the client show a "summary pending" placeholder rather
+    // than mixing in an English/French summary under a Kinyarwanda title.
     let requestedSummary: string | null;
     if (lang === 'rw') {
-      requestedSummary =
-        article.summaryRw ?? article.summary ?? article.summaryFr;
+      requestedSummary = article.summaryRw ?? null;
     } else if (lang === 'fr') {
-      requestedSummary =
-        article.summaryFr ?? article.summary ?? article.summaryRw;
+      requestedSummary = article.summaryFr ?? null;
     } else {
-      requestedSummary =
-        article.summary ?? article.summaryFr ?? article.summaryRw;
+      requestedSummary = article.summary ?? null;
     }
 
     return { ...article, summary: requestedSummary };
