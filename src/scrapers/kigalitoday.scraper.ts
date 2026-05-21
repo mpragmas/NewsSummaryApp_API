@@ -12,38 +12,23 @@ import {
 } from '../common/util/article-validation';
 import type { RwScrapeResult } from './igihe.scraper';
 import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
+import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util';
 
 const SOURCE = 'Kigali Today';
 const BASE_URL = 'https://www.kigalitoday.com';
 const LISTING_URL = 'https://www.kigalitoday.com/amakuru/';
 const SCRAPE_LIMIT = 20;
-const FETCH_TIMEOUT_MS = 5_000;
-const MAX_RETRIES = 2;
 
-async function fetchHtml(url: string, logger: Logger): Promise<string | null> {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
-        },
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
-    } catch (err) {
-      clearTimeout(timeoutId);
-      logger.warn(
-        `${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`,
-      );
-      if (attempt === MAX_RETRIES) return null;
-      await new Promise((r) => setTimeout(r, 500 * attempt));
-    }
-  }
-  return null;
+function fetchHtml(url: string, logger: Logger): Promise<string | null> {
+  // Kigali Today is behind Cloudflare which TLS-fingerprints Node's fetch and
+  // returns a "Just a moment..." challenge page. We fall back to the system
+  // `curl` binary (available on Render/Linux) for these requests.
+  return resilientFetchHtml(url, SOURCE, logger, {
+    timeoutMs: 15_000,
+    maxRetries: 2,
+    curlFallback: true,
+    preferCurl: true,
+  });
 }
 
 function resolveUrl(href: string): string {
@@ -73,16 +58,16 @@ export async function scrapeKigaliToday(
   let rejectedInvalid = 0;
   let rejectedLowQuality = 0;
 
-  // Try selectors in priority order; use first that yields 2+ results
+  // Kigali Today renders the news list as `ul.items.hedSumm > li > .item-container`,
+  // with `h3.headline > a` linking to the article. Selectors are listed in
+  // priority order — first one with 2+ matches wins.
   const selectors = [
+    'ul.items.hedSumm > li',
+    '.item-container',
+    '.hedSumm li',
+    '.automated-news .item-container',
     'article',
-    '.article-item',
-    '.news-item',
-    '.post',
-    '.entry',
-    'div[class*="article"]',
     'div[class*="news"]',
-    '.item',
   ];
 
   let elements =
@@ -90,9 +75,11 @@ export async function scrapeKigaliToday(
       .map((sel) => $(sel).toArray())
       .find((found) => found.length >= 2) ?? [];
 
-  // Fallback: grab parent containers of heading links
+  // Fallback: parent containers of article-link headings
   if (elements.length === 0) {
-    elements = $('h2 a, h3 a, h4 a')
+    elements = $(
+      'h2 a[href*="/article/"], h3 a[href*="/article/"], a[href*="/article/"]',
+    )
       .toArray()
       .map((a) => $(a).closest('div, li, section').get(0))
       .filter((el): el is NonNullable<typeof el> => el != null);
@@ -102,9 +89,14 @@ export async function scrapeKigaliToday(
     try {
       const $el = $(el);
 
-      const linkEl = $el.find('a[href]').first();
+      // Prefer the headline link inside the card — never a category/navigation link.
+      const linkEl =
+        $el.find('h3.headline a[href*="/article/"]').first().length > 0
+          ? $el.find('h3.headline a[href*="/article/"]').first()
+          : $el.find('a[href*="/article/"]').first();
       const href = linkEl.attr('href') ?? '';
       if (!href) continue;
+      if (!/\/article\//.test(href)) continue;
 
       const articleUrl = resolveUrl(href);
       if (!articleUrl) continue;
@@ -113,12 +105,23 @@ export async function scrapeKigaliToday(
       scrapedTotal++;
 
       const listingFallbackTitle = normalizeText(
-        $el.find('h1, h2, h3, h4').first().text() || linkEl.text(),
+        $el.find('h3.headline').first().text() ||
+          $el.find('h1, h2, h3, h4').first().text() ||
+          linkEl.text(),
       );
+      const listingTeaser = normalizeText(
+        $el.find('.summary-container p').text(),
+      );
+      const listingImage =
+        $el.find('img[src]').first().attr('src') ??
+        $el.find('a.headline-image img').attr('src') ??
+        null;
       const detail = await scrapeKigaliTodayDetail(
         articleUrl,
         logger,
         listingFallbackTitle,
+        listingTeaser,
+        listingImage,
       );
       if (!detail) {
         rejectedInvalid++;
@@ -179,6 +182,8 @@ async function scrapeKigaliTodayDetail(
   articleUrl: string,
   logger: Logger,
   listingFallbackTitle: string,
+  listingTeaser = '',
+  listingImageHref: string | null = null,
 ): Promise<{
   title: string;
   content: string;
@@ -192,7 +197,11 @@ async function scrapeKigaliTodayDetail(
 
   const titleCandidates = [
     normalizeText(
-      $('h1.article-title, article h1, .entry-title, h1').first().text(),
+      $(
+        'h1.wsj-article-headline, [itemprop="headline"], h1.article-title, article h1, .entry-title, h1',
+      )
+        .first()
+        .text(),
     ),
     normalizeText(
       $('meta[property="og:title"]').attr('content') ??
@@ -214,15 +223,20 @@ async function scrapeKigaliTodayDetail(
     $('time').first().text();
   const publishedAt = parsePublishedAt(publishedAtRaw);
 
-  const imageUrl = extractBestImageFromCheerioRoot($, articleUrl, title);
+  let imageUrl = extractBestImageFromCheerioRoot($, articleUrl, title);
+  if (!imageUrl && listingImageHref) {
+    imageUrl = resolveUrl(listingImageHref) || null;
+  }
 
+  // Kigali Today wraps the body in `[itemprop="articleBody"]` (a.k.a.
+  // `#wsj-article-wrap.article-wrap`). Target it directly so we don't pick
+  // up sidebar/comment paragraphs.
   const contentSelectors = [
-    'article .entry-content p',
-    'article .article-content p',
-    '.article-content p',
-    '.entry-content p',
+    '[itemprop="articleBody"] p',
+    '#wsj-article-wrap p',
+    'article#article-contents [itemprop="articleBody"] p',
+    'article#article-contents p',
     'article p',
-    '.content p',
     'p',
   ];
   const paragraphBucket = contentSelectors
@@ -233,7 +247,21 @@ async function scrapeKigaliTodayDetail(
         .filter((text) => text.length > 25),
     )
     .find((candidate) => candidate.length > 2);
-  const content = normalizeText((paragraphBucket ?? []).join(' '));
+  let content = normalizeText((paragraphBucket ?? []).join(' '));
+
+  // Listing cards often include a usable teaser; merge when the detail page is thin.
+  if (content.length < 250 && listingTeaser.length > 80) {
+    content = normalizeText(
+      content.length > 0 ? `${content} ${listingTeaser}` : listingTeaser,
+    );
+  }
+
+  if (content.length < 100) {
+    logger.warn(
+      `${SOURCE}: detail page too short (${content.length} chars) — ${articleUrl}`,
+    );
+    return null;
+  }
 
   return { title, content, imageUrl, publishedAt };
 }

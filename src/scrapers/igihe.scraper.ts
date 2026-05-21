@@ -11,13 +11,12 @@ import {
   sanitizeContentForAI,
 } from '../common/util/article-validation';
 import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
+import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util';
 
 const SOURCE = 'Igihe';
 const BASE_URL = 'https://igihe.com';
 const LISTING_URL = 'https://igihe.com/amakuru/';
 const SCRAPE_LIMIT = 20;
-const FETCH_TIMEOUT_MS = 5_000;
-const MAX_RETRIES = 2;
 
 export interface RwScrapeResult {
   articles: NormalizedArticle[];
@@ -26,30 +25,14 @@ export interface RwScrapeResult {
   rejectedLowQuality: number;
 }
 
-async function fetchHtml(url: string, logger: Logger): Promise<string | null> {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
-        },
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
-    } catch (err) {
-      clearTimeout(timeoutId);
-      logger.warn(
-        `${SOURCE} fetch attempt ${attempt}/${MAX_RETRIES} failed: ${(err as Error).message}`,
-      );
-      if (attempt === MAX_RETRIES) return null;
-      await new Promise((r) => setTimeout(r, 500 * attempt));
-    }
-  }
-  return null;
+function fetchHtml(url: string, logger: Logger): Promise<string | null> {
+  return resilientFetchHtml(url, SOURCE, logger, {
+    timeoutMs: 15_000,
+    maxRetries: 2,
+    // Igihe doesn't use Cloudflare today, but keep the curl fallback armed in
+    // case they enable it — it's a no-op when fetch succeeds.
+    curlFallback: true,
+  });
 }
 
 function resolveUrl(href: string): string {
@@ -77,16 +60,17 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
   let rejectedInvalid = 0;
   let rejectedLowQuality = 0;
 
-  // Try selectors in priority order; use first that yields 2+ results
+  // Igihe wraps each news card in `.article-wrap > .homenews`. We prefer the
+  // narrower `.homenews` container because `.article-wrap` is also used inside
+  // article detail pages (gallery wrappers).
   const selectors = [
+    '.homenews',
+    '.article-wrap .homenews-title',
+    '.article-wrap',
     'article',
-    '.article-item',
     '.news-item',
     '.post',
-    '.entry',
-    'div[class*="article"]',
     'div[class*="news"]',
-    'li[class*="article"]',
   ];
 
   let elements =
@@ -94,9 +78,9 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
       .map((sel) => $(sel).toArray())
       .find((found) => found.length >= 2) ?? [];
 
-  // Fallback: grab parent containers of heading links
+  // Fallback: grab parent containers of article-style heading links
   if (elements.length === 0) {
-    elements = $('h2 a, h3 a, h4 a')
+    elements = $('h2 a[href*="/article/"], h3 a[href*="/article/"], a[href*="/article/"]')
       .toArray()
       .map((a) => $(a).closest('div, li, section').get(0))
       .filter((el): el is NonNullable<typeof el> => el != null);
@@ -106,9 +90,15 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
     try {
       const $el = $(el);
 
-      const linkEl = $el.find('a[href]').first();
+      // Prefer the first link that points to an actual article page; this avoids
+      // picking up navigation or category links on the listing.
+      const linkEl =
+        $el.find('a[href*="/article/"]').first().length > 0
+          ? $el.find('a[href*="/article/"]').first()
+          : $el.find('a[href]').first();
       const href = linkEl.attr('href') ?? '';
       if (!href) continue;
+      if (!/\/article\//.test(href)) continue;
 
       const articleUrl = resolveUrl(href);
       if (!articleUrl) continue;
@@ -237,13 +227,13 @@ async function scrapeIgiheArticleDetail(
     $('time').first().text();
   const publishedAt = parsePublishedAt(publishedAtRaw);
 
+  // Igihe stores the lead in `.surtitre` and the main body in `.fulltext`.
+  // Fall back to the outer wrapper `.text-article` then to broad `p`.
   const contentSelectors = [
-    'article .article-body p',
-    'article .post-content p',
-    'article .entry-content p',
+    '.fulltext p',
+    '.surtitre p, .fulltext p',
+    '.text-article p',
     'article p',
-    '.article-content p',
-    '.content p',
     'p',
   ];
 
@@ -280,10 +270,10 @@ async function scrapeIgiheArticleDetail(
 
 function extractFallbackBody($: cheerio.CheerioAPI): string {
   const fallbackSelectors = [
+    '.fulltext',
+    '.text-article',
+    '.surtitre',
     'article',
-    '.article-body',
-    '.post-content',
-    '.entry-content',
     '#content',
     'main',
   ];

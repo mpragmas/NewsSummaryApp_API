@@ -155,6 +155,10 @@ export class ArticlesService {
       });
     }
 
+    // Category filter only when the client explicitly requests it (e.g. Explore tab).
+    // Do not hard-filter by saved favoriteTopics here: logged-in users would see far
+    // fewer articles than guests (especially for rw, where the catalog is smaller).
+    // Topic preferences are applied on the client for section ordering ("For you").
     if (category) {
       const normalizedCategory = normalizeCategoryInput(category);
       if (normalizedCategory) {
@@ -166,11 +170,6 @@ export class ArticlesService {
           category: { equals: category, mode: 'insensitive' },
         });
       }
-    } else if (personal?.favoriteTopics?.length) {
-      const normalizedFavorites = personal.favoriteTopics
-        .map((value) => normalizeCategoryInput(value) ?? value)
-        .filter((value): value is string => Boolean(value));
-      andFilters.push({ category: { in: normalizedFavorites } });
     }
     if (country) {
       andFilters.push({ country: { equals: country, mode: 'insensitive' } });
@@ -784,18 +783,19 @@ export class ArticlesService {
   ): ArticleResponseDto {
     if (!lang) return article;
 
-    // No cross-language fallback for the main feed: the feed is already filtered
-    // by originalLanguage, so we only surface the summary that matches the user's
-    // language. For an `rw` article without summaryRw yet (queue still working),
-    // return null and let the client show a "summary pending" placeholder rather
-    // than mixing in an English/French summary under a Kinyarwanda title.
+    // Feed is filtered by originalLanguage; pick the best summary for that language
+    // with same fallback chain as the mobile app (rw catalog is smaller — avoid
+    // empty cards while summaryRw is still queued).
     let requestedSummary: string | null;
     if (lang === 'rw') {
-      requestedSummary = article.summaryRw ?? null;
+      requestedSummary =
+        article.summaryRw ?? article.summary ?? article.summaryFr ?? null;
     } else if (lang === 'fr') {
-      requestedSummary = article.summaryFr ?? null;
+      requestedSummary =
+        article.summaryFr ?? article.summary ?? article.summaryRw ?? null;
     } else {
-      requestedSummary = article.summary ?? null;
+      requestedSummary =
+        article.summary ?? article.summaryFr ?? article.summaryRw ?? null;
     }
 
     return { ...article, summary: requestedSummary };

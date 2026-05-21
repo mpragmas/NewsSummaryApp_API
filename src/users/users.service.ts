@@ -36,19 +36,17 @@ export class UsersService {
     };
   }
 
-  /** Used by article list personalization (language view + optional category filter). */
+  /** Default feed language when the client omits `lang` (topics are not server-filtered). */
   async getPersonalizationForFeed(userId: string): Promise<{
     preferredLanguage: 'en' | 'fr' | 'rw';
-    favoriteTopics: string[];
   } | null> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { preferredLanguage: true, favoriteTopics: true },
+      select: { preferredLanguage: true },
     });
     if (!row) return null;
     return {
       preferredLanguage: row.preferredLanguage as 'en' | 'fr' | 'rw',
-      favoriteTopics: row.favoriteTopics,
     };
   }
 
