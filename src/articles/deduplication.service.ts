@@ -2,78 +2,77 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NormalizedArticle } from '../rss/rss.service';
 
-const TITLE_SIMILARITY_THRESHOLD = 0.75;
-
+/**
+ * Conservative deduplication.
+ *
+ * We deliberately do NOT remove similar stories from different sources — that
+ * is the job of the clustering engine (`StoryClusteringService`), which groups
+ * same-event articles into a `StoryCluster` while keeping every source.
+ *
+ * This stage only removes true duplicates:
+ *   1. Exact same URL (already in DB, or repeated within the incoming batch).
+ *   2. Exact duplicate from the SAME source (same source + identical
+ *      normalized title) — e.g. an RSS feed re-publishing the same item.
+ *
+ * Cross-source near-duplicates are intentionally kept so BBC / France24 / CNN /
+ * Al Jazeera coverage of the same event all survive and can be clustered.
+ */
 @Injectable()
 export class DeduplicationService {
   private readonly logger = new Logger(DeduplicationService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async filterDuplicates(articles: NormalizedArticle[]): Promise<NormalizedArticle[]> {
+  async filterDuplicates(
+    articles: NormalizedArticle[],
+  ): Promise<NormalizedArticle[]> {
     const urls = articles.map((a) => a.url);
 
-    // Fetch all existing URLs in one query
+    // Existing rows that collide on URL (indexed unique lookup). Same-source
+    // exact reposts across runs almost always carry the same URL, so this also
+    // covers the cross-run repost case without an unindexed full-table scan.
     const existing = await this.prisma.article.findMany({
       where: { url: { in: urls } },
-      select: { url: true, title: true },
+      select: { url: true },
     });
-
     const existingUrlSet = new Set(existing.map((e) => e.url));
-    const existingTitles = existing.map((e) => e.title.toLowerCase());
 
     const unique: NormalizedArticle[] = [];
     const seenUrls = new Set<string>();
-    const seenTitles: string[] = [];
+    const seenSourceTitles = new Set<string>();
 
     for (const article of articles) {
-      // Skip if URL already in DB or seen in current batch
+      // 1. Exact URL duplicate (DB or earlier in this batch)
       if (existingUrlSet.has(article.url) || seenUrls.has(article.url)) {
         continue;
       }
 
-      const titleLower = article.title.toLowerCase();
-
-      // Check similarity against DB titles and current batch
-      const allTitles = [...existingTitles, ...seenTitles];
-      const isDuplicate = allTitles.some(
-        (t) => this.similarity(t, titleLower) >= TITLE_SIMILARITY_THRESHOLD,
-      );
-
-      if (!isDuplicate) {
-        unique.push(article);
-        seenUrls.add(article.url);
-        seenTitles.push(titleLower);
+      // 2. Same-source exact-title repost within this batch (e.g. a feed listing
+      //    the same item twice, or RSS + scraper overlap in one run).
+      const sourceTitleKey = this.sourceTitleKey(article.source, article.title);
+      if (seenSourceTitles.has(sourceTitleKey)) {
+        continue;
       }
+
+      unique.push(article);
+      seenUrls.add(article.url);
+      seenSourceTitles.add(sourceTitleKey);
     }
 
     this.logger.debug(
-      `Deduplication: ${articles.length} in → ${unique.length} unique`,
+      `Deduplication: ${articles.length} in → ${unique.length} kept ` +
+        `(${articles.length - unique.length} exact/same-source duplicates dropped)`,
     );
     return unique;
   }
 
-  private similarity(a: string, b: string): number {
-    if (a === b) return 1;
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    if (longer.length === 0) return 1;
-    const editDist = this.levenshtein(longer, shorter);
-    return (longer.length - editDist) / longer.length;
-  }
-
-  private levenshtein(a: string, b: string): number {
-    const dp = Array.from({ length: a.length + 1 }, (_, i) =>
-      Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-    );
-    for (let i = 1; i <= a.length; i++) {
-      for (let j = 1; j <= b.length; j++) {
-        dp[i][j] =
-          a[i - 1] === b[j - 1]
-            ? dp[i - 1][j - 1]
-            : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-      }
-    }
-    return dp[a.length][b.length];
+  /** Stable key for "same source + same headline" exact-repost detection. */
+  private sourceTitleKey(source: string, title: string): string {
+    const normalizedSource = (source ?? '').trim().toLowerCase();
+    const normalizedTitle = (title ?? '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+    return `${normalizedSource}::${normalizedTitle}`;
   }
 }

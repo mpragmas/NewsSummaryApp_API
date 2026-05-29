@@ -20,3 +20,19 @@ export interface SummarizeArticleJobResult {
   cached: boolean;
   durationMs: number;
 }
+
+export const CLUSTERING_QUEUE = 'clustering';
+
+export interface ClusterRecentJobData {
+  /** What triggered the run (for logging/observability). */
+  trigger: 'ingest' | 'scheduled' | 'manual';
+  /** When true, wipe and rebuild all clusters instead of incremental. */
+  rebuild?: boolean;
+}
+
+export interface ClusterRecentJobResult {
+  scanned: number;
+  attached: number;
+  created: number;
+  durationMs: number;
+}

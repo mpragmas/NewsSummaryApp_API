@@ -141,6 +141,10 @@ model Article {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  /// Multi-source story grouping. Null until the clustering engine assigns it.
+  clusterId        String?
+  cluster          StoryCluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+
   savedBy             SavedArticle[]
   readingHistory      ReadingHistory[]
   guestSaves          GuestSavedArticle[]
@@ -152,5 +156,46 @@ model Article {
   @@index([publishedAt])
   @@index([region])
   @@index([originalLanguage])
+  @@index([clusterId])
   @@map("articles")
+}
+
+/// A real-world story covered by one or more sources. Articles from BBC,
+/// France24, CNN, Al Jazeera, etc. about the same event are kept and grouped
+/// here (never deduplicated away). Grouping is same-language only.
+model StoryCluster {
+  id                String   @id @default(uuid())
+  canonicalTitle    String
+  canonicalSummary  String?  @db.Text
+  imageUrl          String?
+  category          String?
+  continent         String?
+  region            String?
+  country           String?
+  /// Language of the cluster — grouping never crosses languages.
+  language          String   @default("en")
+  /// Top entities/keywords used for bounded candidate retrieval (GIN-indexed).
+  entityKeys        String[] @default([])
+  /// Normalized title tokens used for similarity scoring.
+  titleTokens       String[] @default([])
+  /// Distinct source count (BBC, CNN, …).
+  sourceCount       Int      @default(0)
+  articleCount      Int      @default(0)
+  /// Languages present among member articles (variants).
+  languages         String[] @default([])
+  /// Canonical / lead source article shown as the story headline.
+  leadArticleId     String?
+  latestPublishedAt DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  articles Article[]
+
+  @@index([category])
+  @@index([region])
+  @@index([country])
+  @@index([language])
+  @@index([latestPublishedAt])
+  @@index([entityKeys], type: Gin)
+  @@map("story_clusters")
 }

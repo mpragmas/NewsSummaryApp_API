@@ -15,6 +15,7 @@ import {
 } from './dto/article-response.dto';
 import { UsersService } from '../users/users.service';
 import { SummarizationQueueService } from '../queue/summarization.queue';
+import { ClusteringQueueService } from '../queue/clustering.queue';
 import { SummarizeArticleJobData } from '../queue/job-types';
 import { SupportedLang } from '../ai/prompts';
 import {
@@ -38,10 +39,13 @@ import {
 } from '../common/util/image-ingest-metrics.util';
 import { inferLocationFromText } from '../common/util/location-inference.util';
 import {
-  localizeCategory,
   normalizeCategoryInput,
   type CanonicalCategory,
 } from './category-i18n.util';
+import {
+  applyLanguageView as applyLanguageViewUtil,
+  normalizeArticleResponse as normalizeArticleResponseUtil,
+} from './article-view.util';
 
 const CACHE_PREFIX = 'articles';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -89,6 +93,7 @@ export class ArticlesService {
     private readonly usersService: UsersService,
     private readonly scraperService: ScraperService,
     private readonly summarizationQueue: SummarizationQueueService,
+    private readonly clusteringQueue: ClusteringQueueService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -126,11 +131,7 @@ export class ArticlesService {
     } = query;
     const skip = (page - 1) * limit;
 
-    const effectiveLang = (lang ?? personal?.preferredLanguage) as
-      | 'en'
-      | 'fr'
-      | 'rw'
-      | undefined;
+    const effectiveLang = lang ?? personal?.preferredLanguage;
 
     // Filter the feed by originalLanguage so users only see news actually written
     // in their chosen language. Without this, titles (which we don't translate)
@@ -247,7 +248,7 @@ export class ArticlesService {
     if (!article) throw new NotFoundException(`Article ${id} not found`);
 
     const result = this.normalizeArticleResponse(
-      this.applyLanguageView(article as ArticleResponseDto, lang),
+      this.applyLanguageView(article, lang),
       lang,
     );
 
@@ -260,6 +261,36 @@ export class ArticlesService {
     }
 
     return result;
+  }
+
+  /**
+   * Related coverage: other source articles in the same story cluster. Returns
+   * [] when the article isn't clustered yet (clustering runs in the background).
+   */
+  async findRelated(
+    id: string,
+    lang?: 'en' | 'fr' | 'rw',
+    limit = 12,
+  ): Promise<ArticleResponseDto[]> {
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      select: { clusterId: true },
+    });
+    if (!article) throw new NotFoundException(`Article ${id} not found`);
+    if (!article.clusterId) return [];
+
+    const siblings = await this.prisma.article.findMany({
+      where: { clusterId: article.clusterId, id: { not: id } },
+      orderBy: { publishedAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 50),
+    });
+
+    return siblings.map((s) =>
+      this.normalizeArticleResponse(
+        this.applyLanguageView(s as ArticleResponseDto, lang),
+        lang,
+      ),
+    );
   }
 
   /**
@@ -310,7 +341,7 @@ export class ArticlesService {
     }
 
     return this.normalizeArticleResponse(
-      this.applyLanguageView(updated as ArticleResponseDto, targetLang),
+      this.applyLanguageView(updated, targetLang),
       targetLang,
     );
   }
@@ -492,6 +523,16 @@ export class ArticlesService {
     }
 
     const enqueued = await this.summarizationQueue.enqueueBatch(jobs);
+
+    // Group newly-persisted articles into multi-source story clusters. Runs in
+    // the background worker (never blocks ingest), keeping every source.
+    try {
+      await this.clusteringQueue.enqueueClusterRecent({ trigger: 'ingest' });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to enqueue clustering job (non-fatal): ${(err as Error).message}`,
+      );
+    }
 
     await this.invalidateListCache();
 
@@ -781,24 +822,7 @@ export class ArticlesService {
     article: ArticleResponseDto,
     lang?: 'en' | 'fr' | 'rw',
   ): ArticleResponseDto {
-    if (!lang) return article;
-
-    // Feed is filtered by originalLanguage; pick the best summary for that language
-    // with same fallback chain as the mobile app (rw catalog is smaller — avoid
-    // empty cards while summaryRw is still queued).
-    let requestedSummary: string | null;
-    if (lang === 'rw') {
-      requestedSummary =
-        article.summaryRw ?? article.summary ?? article.summaryFr ?? null;
-    } else if (lang === 'fr') {
-      requestedSummary =
-        article.summaryFr ?? article.summary ?? article.summaryRw ?? null;
-    } else {
-      requestedSummary =
-        article.summary ?? article.summaryFr ?? article.summaryRw ?? null;
-    }
-
-    return { ...article, summary: requestedSummary };
+    return applyLanguageViewUtil(article, lang);
   }
 
   private toSupportedLang(lang: string): SupportedLang {
@@ -833,15 +857,7 @@ export class ArticlesService {
     article: ArticleResponseDto,
     lang?: SupportedLang,
   ): ArticleResponseDto {
-    return {
-      ...article,
-      imageUrl: this.normalizeImageUrl(article.imageUrl),
-      category: localizeCategory(article.category, lang),
-    };
-  }
-
-  private normalizeImageUrl(url: string | null | undefined): string | null {
-    return sanitizeImageUrl(url);
+    return normalizeArticleResponseUtil(article, lang);
   }
 
   private async fetchArticleHtmlBrief(url: string): Promise<string | null> {
@@ -886,7 +902,7 @@ export class ArticlesService {
 
     const byFp = new Map<string, typeof rows>();
     for (const r of rows) {
-      const fp = fingerprintCanonicalImageUrl(r.imageUrl!);
+      const fp = fingerprintCanonicalImageUrl(r.imageUrl);
       const list = byFp.get(fp) ?? [];
       list.push(r);
       byFp.set(fp, list);
