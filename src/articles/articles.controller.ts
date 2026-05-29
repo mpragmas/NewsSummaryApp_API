@@ -147,6 +147,20 @@ export class ArticlesController {
     return this.articlesService.summarizeOne(id, lang);
   }
 
+  /** Related coverage — sibling source articles in the same story cluster. */
+  @Get(':id/related')
+  findRelated(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang?: 'en' | 'fr' | 'rw',
+    @Query('limit') limit?: number,
+  ) {
+    return this.articlesService.findRelated(
+      id,
+      lang,
+      limit !== undefined ? Number(limit) : undefined,
+    );
+  }
+
   @Get(':id')
   @UseGuards(OptionalJwtGuard)
   async findOne(
@@ -172,7 +186,7 @@ export class ArticlesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req: AuthRequest,
   ) {
-    return this.usersService.saveArticle(req.user!.userId, id);
+    return this.usersService.saveArticle(req.user.userId, id);
   }
 
   @Delete(':id/save')
@@ -182,6 +196,6 @@ export class ArticlesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req: AuthRequest,
   ) {
-    return this.usersService.unsaveArticle(req.user!.userId, id);
+    return this.usersService.unsaveArticle(req.user.userId, id);
   }
 }

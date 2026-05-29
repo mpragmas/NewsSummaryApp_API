@@ -193,6 +193,28 @@ exports.Prisma.ArticleScalarFieldEnum = {
   country: 'country',
   publishedAt: 'publishedAt',
   createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  clusterId: 'clusterId'
+};
+
+exports.Prisma.StoryClusterScalarFieldEnum = {
+  id: 'id',
+  canonicalTitle: 'canonicalTitle',
+  canonicalSummary: 'canonicalSummary',
+  imageUrl: 'imageUrl',
+  category: 'category',
+  continent: 'continent',
+  region: 'region',
+  country: 'country',
+  language: 'language',
+  entityKeys: 'entityKeys',
+  titleTokens: 'titleTokens',
+  sourceCount: 'sourceCount',
+  articleCount: 'articleCount',
+  languages: 'languages',
+  leadArticleId: 'leadArticleId',
+  latestPublishedAt: 'latestPublishedAt',
+  createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
 
@@ -228,7 +250,8 @@ exports.Prisma.ModelName = {
   GuestReadingHistory: 'GuestReadingHistory',
   SavedArticle: 'SavedArticle',
   ReadingHistory: 'ReadingHistory',
-  Article: 'Article'
+  Article: 'Article',
+  StoryCluster: 'StoryCluster'
 };
 
 /**

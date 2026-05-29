@@ -6,9 +6,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { Cacheable, CacheableMemory } from 'cacheable';
 
 import configuration from './config/configuration';
-import { describeRedisTarget, getRedisKeyvUri } from './config/redis-connection';
+import {
+  describeRedisTarget,
+  getRedisKeyvUri,
+} from './config/redis-connection';
 import { PrismaModule } from './prisma/prisma.module';
 import { ArticlesModule } from './articles/articles.module';
+import { StoriesModule } from './stories/stories.module';
 import { RssModule } from './rss/rss.module';
 import { AiModule } from './ai/ai.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
@@ -57,7 +61,9 @@ const cacheLogger = new Logger('CacheModule');
           });
 
           redisStore.on?.('error', (err: Error) =>
-            cacheLogger.warn(`Redis error — operating with memory cache only: ${err.message}`),
+            cacheLogger.warn(
+              `Redis error — operating with memory cache only: ${err.message}`,
+            ),
           );
 
           secondary = redisStore;
@@ -65,7 +71,9 @@ const cacheLogger = new Logger('CacheModule');
             `Redis secondary cache: ${describeRedisTarget(config)}`,
           );
         } catch (err) {
-          cacheLogger.warn(`Redis unavailable, memory-only cache active: ${(err as Error).message}`);
+          cacheLogger.warn(
+            `Redis unavailable, memory-only cache active: ${(err as Error).message}`,
+          );
         }
 
         // Cacheable passes the isCacheable() guard in @nestjs/cache-manager
@@ -76,8 +84,7 @@ const cacheLogger = new Logger('CacheModule');
         };
         if (secondary) cacheableOptions.secondary = secondary;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const store = new Cacheable(cacheableOptions as any);
+        const store = new Cacheable(cacheableOptions);
 
         return { stores: store, ttl };
       },
@@ -87,6 +94,7 @@ const cacheLogger = new Logger('CacheModule');
     AiModule,
     QueueModule,
     ArticlesModule,
+    StoriesModule,
     SchedulerModule,
     AuthModule,
     UsersModule,

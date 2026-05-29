@@ -53,6 +53,13 @@ export type ReadingHistory = $Result.DefaultSelection<Prisma.$ReadingHistoryPayl
  * 
  */
 export type Article = $Result.DefaultSelection<Prisma.$ArticlePayload>
+/**
+ * Model StoryCluster
+ * A real-world story covered by one or more sources. Articles from BBC,
+ * France24, CNN, Al Jazeera, etc. about the same event are kept and grouped
+ * here (never deduplicated away). Grouping is same-language only.
+ */
+export type StoryCluster = $Result.DefaultSelection<Prisma.$StoryClusterPayload>
 
 /**
  * Enums
@@ -283,6 +290,16 @@ export class PrismaClient<
     * ```
     */
   get article(): Prisma.ArticleDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.storyCluster`: Exposes CRUD operations for the **StoryCluster** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more StoryClusters
+    * const storyClusters = await prisma.storyCluster.findMany()
+    * ```
+    */
+  get storyCluster(): Prisma.StoryClusterDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -724,7 +741,8 @@ export namespace Prisma {
     GuestReadingHistory: 'GuestReadingHistory',
     SavedArticle: 'SavedArticle',
     ReadingHistory: 'ReadingHistory',
-    Article: 'Article'
+    Article: 'Article',
+    StoryCluster: 'StoryCluster'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -740,7 +758,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "oAuthAccount" | "guestSession" | "guestSavedArticle" | "guestReadingHistory" | "savedArticle" | "readingHistory" | "article"
+      modelProps: "user" | "oAuthAccount" | "guestSession" | "guestSavedArticle" | "guestReadingHistory" | "savedArticle" | "readingHistory" | "article" | "storyCluster"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1336,6 +1354,80 @@ export namespace Prisma {
           }
         }
       }
+      StoryCluster: {
+        payload: Prisma.$StoryClusterPayload<ExtArgs>
+        fields: Prisma.StoryClusterFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.StoryClusterFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.StoryClusterFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          findFirst: {
+            args: Prisma.StoryClusterFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.StoryClusterFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          findMany: {
+            args: Prisma.StoryClusterFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>[]
+          }
+          create: {
+            args: Prisma.StoryClusterCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          createMany: {
+            args: Prisma.StoryClusterCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.StoryClusterCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>[]
+          }
+          delete: {
+            args: Prisma.StoryClusterDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          update: {
+            args: Prisma.StoryClusterUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          deleteMany: {
+            args: Prisma.StoryClusterDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.StoryClusterUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.StoryClusterUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>[]
+          }
+          upsert: {
+            args: Prisma.StoryClusterUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryClusterPayload>
+          }
+          aggregate: {
+            args: Prisma.StoryClusterAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateStoryCluster>
+          }
+          groupBy: {
+            args: Prisma.StoryClusterGroupByArgs<ExtArgs>
+            result: $Utils.Optional<StoryClusterGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.StoryClusterCountArgs<ExtArgs>
+            result: $Utils.Optional<StoryClusterCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1452,6 +1544,7 @@ export namespace Prisma {
     savedArticle?: SavedArticleOmit
     readingHistory?: ReadingHistoryOmit
     article?: ArticleOmit
+    storyCluster?: StoryClusterOmit
   }
 
   /* Types for Logging */
@@ -1671,6 +1764,37 @@ export namespace Prisma {
    */
   export type ArticleCountOutputTypeCountGuestReadingHistoryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: GuestReadingHistoryWhereInput
+  }
+
+
+  /**
+   * Count Type StoryClusterCountOutputType
+   */
+
+  export type StoryClusterCountOutputType = {
+    articles: number
+  }
+
+  export type StoryClusterCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    articles?: boolean | StoryClusterCountOutputTypeCountArticlesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * StoryClusterCountOutputType without action
+   */
+  export type StoryClusterCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryClusterCountOutputType
+     */
+    select?: StoryClusterCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * StoryClusterCountOutputType without action
+   */
+  export type StoryClusterCountOutputTypeCountArticlesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ArticleWhereInput
   }
 
 
@@ -9286,6 +9410,7 @@ export namespace Prisma {
     publishedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    clusterId: string | null
   }
 
   export type ArticleMaxAggregateOutputType = {
@@ -9306,6 +9431,7 @@ export namespace Prisma {
     publishedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    clusterId: string | null
   }
 
   export type ArticleCountAggregateOutputType = {
@@ -9326,6 +9452,7 @@ export namespace Prisma {
     publishedAt: number
     createdAt: number
     updatedAt: number
+    clusterId: number
     _all: number
   }
 
@@ -9348,6 +9475,7 @@ export namespace Prisma {
     publishedAt?: true
     createdAt?: true
     updatedAt?: true
+    clusterId?: true
   }
 
   export type ArticleMaxAggregateInputType = {
@@ -9368,6 +9496,7 @@ export namespace Prisma {
     publishedAt?: true
     createdAt?: true
     updatedAt?: true
+    clusterId?: true
   }
 
   export type ArticleCountAggregateInputType = {
@@ -9388,6 +9517,7 @@ export namespace Prisma {
     publishedAt?: true
     createdAt?: true
     updatedAt?: true
+    clusterId?: true
     _all?: true
   }
 
@@ -9481,6 +9611,7 @@ export namespace Prisma {
     publishedAt: Date
     createdAt: Date
     updatedAt: Date
+    clusterId: string | null
     _count: ArticleCountAggregateOutputType | null
     _min: ArticleMinAggregateOutputType | null
     _max: ArticleMaxAggregateOutputType | null
@@ -9518,6 +9649,8 @@ export namespace Prisma {
     publishedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    clusterId?: boolean
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
     savedBy?: boolean | Article$savedByArgs<ExtArgs>
     readingHistory?: boolean | Article$readingHistoryArgs<ExtArgs>
     guestSaves?: boolean | Article$guestSavesArgs<ExtArgs>
@@ -9543,6 +9676,8 @@ export namespace Prisma {
     publishedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    clusterId?: boolean
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
   }, ExtArgs["result"]["article"]>
 
   export type ArticleSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -9563,6 +9698,8 @@ export namespace Prisma {
     publishedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    clusterId?: boolean
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
   }, ExtArgs["result"]["article"]>
 
   export type ArticleSelectScalar = {
@@ -9583,22 +9720,29 @@ export namespace Prisma {
     publishedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    clusterId?: boolean
   }
 
-  export type ArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "content" | "summary" | "summaryFr" | "summaryRw" | "imageUrl" | "originalLanguage" | "source" | "url" | "category" | "continent" | "region" | "country" | "publishedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["article"]>
+  export type ArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "content" | "summary" | "summaryFr" | "summaryRw" | "imageUrl" | "originalLanguage" | "source" | "url" | "category" | "continent" | "region" | "country" | "publishedAt" | "createdAt" | "updatedAt" | "clusterId", ExtArgs["result"]["article"]>
   export type ArticleInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
     savedBy?: boolean | Article$savedByArgs<ExtArgs>
     readingHistory?: boolean | Article$readingHistoryArgs<ExtArgs>
     guestSaves?: boolean | Article$guestSavesArgs<ExtArgs>
     guestReadingHistory?: boolean | Article$guestReadingHistoryArgs<ExtArgs>
     _count?: boolean | ArticleCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type ArticleIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
-  export type ArticleIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type ArticleIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
+  }
+  export type ArticleIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cluster?: boolean | Article$clusterArgs<ExtArgs>
+  }
 
   export type $ArticlePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Article"
     objects: {
+      cluster: Prisma.$StoryClusterPayload<ExtArgs> | null
       savedBy: Prisma.$SavedArticlePayload<ExtArgs>[]
       readingHistory: Prisma.$ReadingHistoryPayload<ExtArgs>[]
       guestSaves: Prisma.$GuestSavedArticlePayload<ExtArgs>[]
@@ -9622,6 +9766,10 @@ export namespace Prisma {
       publishedAt: Date
       createdAt: Date
       updatedAt: Date
+      /**
+       * Multi-source story grouping. Null until the clustering engine assigns it.
+       */
+      clusterId: string | null
     }, ExtArgs["result"]["article"]>
     composites: {}
   }
@@ -10016,6 +10164,7 @@ export namespace Prisma {
    */
   export interface Prisma__ArticleClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    cluster<T extends Article$clusterArgs<ExtArgs> = {}>(args?: Subset<T, Article$clusterArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     savedBy<T extends Article$savedByArgs<ExtArgs> = {}>(args?: Subset<T, Article$savedByArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SavedArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     readingHistory<T extends Article$readingHistoryArgs<ExtArgs> = {}>(args?: Subset<T, Article$readingHistoryArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ReadingHistoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     guestSaves<T extends Article$guestSavesArgs<ExtArgs> = {}>(args?: Subset<T, Article$guestSavesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$GuestSavedArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -10066,6 +10215,7 @@ export namespace Prisma {
     readonly publishedAt: FieldRef<"Article", 'DateTime'>
     readonly createdAt: FieldRef<"Article", 'DateTime'>
     readonly updatedAt: FieldRef<"Article", 'DateTime'>
+    readonly clusterId: FieldRef<"Article", 'String'>
   }
     
 
@@ -10320,6 +10470,10 @@ export namespace Prisma {
      */
     data: ArticleCreateManyInput | ArticleCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ArticleIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -10390,6 +10544,10 @@ export namespace Prisma {
      * Limit how many Articles to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ArticleIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -10456,6 +10614,25 @@ export namespace Prisma {
      * Limit how many Articles to delete.
      */
     limit?: number
+  }
+
+  /**
+   * Article.cluster
+   */
+  export type Article$clusterArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    where?: StoryClusterWhereInput
   }
 
   /**
@@ -10574,6 +10751,1294 @@ export namespace Prisma {
 
 
   /**
+   * Model StoryCluster
+   */
+
+  export type AggregateStoryCluster = {
+    _count: StoryClusterCountAggregateOutputType | null
+    _avg: StoryClusterAvgAggregateOutputType | null
+    _sum: StoryClusterSumAggregateOutputType | null
+    _min: StoryClusterMinAggregateOutputType | null
+    _max: StoryClusterMaxAggregateOutputType | null
+  }
+
+  export type StoryClusterAvgAggregateOutputType = {
+    sourceCount: number | null
+    articleCount: number | null
+  }
+
+  export type StoryClusterSumAggregateOutputType = {
+    sourceCount: number | null
+    articleCount: number | null
+  }
+
+  export type StoryClusterMinAggregateOutputType = {
+    id: string | null
+    canonicalTitle: string | null
+    canonicalSummary: string | null
+    imageUrl: string | null
+    category: string | null
+    continent: string | null
+    region: string | null
+    country: string | null
+    language: string | null
+    sourceCount: number | null
+    articleCount: number | null
+    leadArticleId: string | null
+    latestPublishedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type StoryClusterMaxAggregateOutputType = {
+    id: string | null
+    canonicalTitle: string | null
+    canonicalSummary: string | null
+    imageUrl: string | null
+    category: string | null
+    continent: string | null
+    region: string | null
+    country: string | null
+    language: string | null
+    sourceCount: number | null
+    articleCount: number | null
+    leadArticleId: string | null
+    latestPublishedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type StoryClusterCountAggregateOutputType = {
+    id: number
+    canonicalTitle: number
+    canonicalSummary: number
+    imageUrl: number
+    category: number
+    continent: number
+    region: number
+    country: number
+    language: number
+    entityKeys: number
+    titleTokens: number
+    sourceCount: number
+    articleCount: number
+    languages: number
+    leadArticleId: number
+    latestPublishedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type StoryClusterAvgAggregateInputType = {
+    sourceCount?: true
+    articleCount?: true
+  }
+
+  export type StoryClusterSumAggregateInputType = {
+    sourceCount?: true
+    articleCount?: true
+  }
+
+  export type StoryClusterMinAggregateInputType = {
+    id?: true
+    canonicalTitle?: true
+    canonicalSummary?: true
+    imageUrl?: true
+    category?: true
+    continent?: true
+    region?: true
+    country?: true
+    language?: true
+    sourceCount?: true
+    articleCount?: true
+    leadArticleId?: true
+    latestPublishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type StoryClusterMaxAggregateInputType = {
+    id?: true
+    canonicalTitle?: true
+    canonicalSummary?: true
+    imageUrl?: true
+    category?: true
+    continent?: true
+    region?: true
+    country?: true
+    language?: true
+    sourceCount?: true
+    articleCount?: true
+    leadArticleId?: true
+    latestPublishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type StoryClusterCountAggregateInputType = {
+    id?: true
+    canonicalTitle?: true
+    canonicalSummary?: true
+    imageUrl?: true
+    category?: true
+    continent?: true
+    region?: true
+    country?: true
+    language?: true
+    entityKeys?: true
+    titleTokens?: true
+    sourceCount?: true
+    articleCount?: true
+    languages?: true
+    leadArticleId?: true
+    latestPublishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type StoryClusterAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which StoryCluster to aggregate.
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryClusters to fetch.
+     */
+    orderBy?: StoryClusterOrderByWithRelationInput | StoryClusterOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: StoryClusterWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryClusters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryClusters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned StoryClusters
+    **/
+    _count?: true | StoryClusterCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: StoryClusterAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: StoryClusterSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: StoryClusterMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: StoryClusterMaxAggregateInputType
+  }
+
+  export type GetStoryClusterAggregateType<T extends StoryClusterAggregateArgs> = {
+        [P in keyof T & keyof AggregateStoryCluster]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateStoryCluster[P]>
+      : GetScalarType<T[P], AggregateStoryCluster[P]>
+  }
+
+
+
+
+  export type StoryClusterGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: StoryClusterWhereInput
+    orderBy?: StoryClusterOrderByWithAggregationInput | StoryClusterOrderByWithAggregationInput[]
+    by: StoryClusterScalarFieldEnum[] | StoryClusterScalarFieldEnum
+    having?: StoryClusterScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: StoryClusterCountAggregateInputType | true
+    _avg?: StoryClusterAvgAggregateInputType
+    _sum?: StoryClusterSumAggregateInputType
+    _min?: StoryClusterMinAggregateInputType
+    _max?: StoryClusterMaxAggregateInputType
+  }
+
+  export type StoryClusterGroupByOutputType = {
+    id: string
+    canonicalTitle: string
+    canonicalSummary: string | null
+    imageUrl: string | null
+    category: string | null
+    continent: string | null
+    region: string | null
+    country: string | null
+    language: string
+    entityKeys: string[]
+    titleTokens: string[]
+    sourceCount: number
+    articleCount: number
+    languages: string[]
+    leadArticleId: string | null
+    latestPublishedAt: Date
+    createdAt: Date
+    updatedAt: Date
+    _count: StoryClusterCountAggregateOutputType | null
+    _avg: StoryClusterAvgAggregateOutputType | null
+    _sum: StoryClusterSumAggregateOutputType | null
+    _min: StoryClusterMinAggregateOutputType | null
+    _max: StoryClusterMaxAggregateOutputType | null
+  }
+
+  type GetStoryClusterGroupByPayload<T extends StoryClusterGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<StoryClusterGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof StoryClusterGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], StoryClusterGroupByOutputType[P]>
+            : GetScalarType<T[P], StoryClusterGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type StoryClusterSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    canonicalTitle?: boolean
+    canonicalSummary?: boolean
+    imageUrl?: boolean
+    category?: boolean
+    continent?: boolean
+    region?: boolean
+    country?: boolean
+    language?: boolean
+    entityKeys?: boolean
+    titleTokens?: boolean
+    sourceCount?: boolean
+    articleCount?: boolean
+    languages?: boolean
+    leadArticleId?: boolean
+    latestPublishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    articles?: boolean | StoryCluster$articlesArgs<ExtArgs>
+    _count?: boolean | StoryClusterCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["storyCluster"]>
+
+  export type StoryClusterSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    canonicalTitle?: boolean
+    canonicalSummary?: boolean
+    imageUrl?: boolean
+    category?: boolean
+    continent?: boolean
+    region?: boolean
+    country?: boolean
+    language?: boolean
+    entityKeys?: boolean
+    titleTokens?: boolean
+    sourceCount?: boolean
+    articleCount?: boolean
+    languages?: boolean
+    leadArticleId?: boolean
+    latestPublishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["storyCluster"]>
+
+  export type StoryClusterSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    canonicalTitle?: boolean
+    canonicalSummary?: boolean
+    imageUrl?: boolean
+    category?: boolean
+    continent?: boolean
+    region?: boolean
+    country?: boolean
+    language?: boolean
+    entityKeys?: boolean
+    titleTokens?: boolean
+    sourceCount?: boolean
+    articleCount?: boolean
+    languages?: boolean
+    leadArticleId?: boolean
+    latestPublishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["storyCluster"]>
+
+  export type StoryClusterSelectScalar = {
+    id?: boolean
+    canonicalTitle?: boolean
+    canonicalSummary?: boolean
+    imageUrl?: boolean
+    category?: boolean
+    continent?: boolean
+    region?: boolean
+    country?: boolean
+    language?: boolean
+    entityKeys?: boolean
+    titleTokens?: boolean
+    sourceCount?: boolean
+    articleCount?: boolean
+    languages?: boolean
+    leadArticleId?: boolean
+    latestPublishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type StoryClusterOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "canonicalTitle" | "canonicalSummary" | "imageUrl" | "category" | "continent" | "region" | "country" | "language" | "entityKeys" | "titleTokens" | "sourceCount" | "articleCount" | "languages" | "leadArticleId" | "latestPublishedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["storyCluster"]>
+  export type StoryClusterInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    articles?: boolean | StoryCluster$articlesArgs<ExtArgs>
+    _count?: boolean | StoryClusterCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type StoryClusterIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type StoryClusterIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $StoryClusterPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "StoryCluster"
+    objects: {
+      articles: Prisma.$ArticlePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      canonicalTitle: string
+      canonicalSummary: string | null
+      imageUrl: string | null
+      category: string | null
+      continent: string | null
+      region: string | null
+      country: string | null
+      /**
+       * Language of the cluster — grouping never crosses languages.
+       */
+      language: string
+      /**
+       * Top entities/keywords used for bounded candidate retrieval (GIN-indexed).
+       */
+      entityKeys: string[]
+      /**
+       * Normalized title tokens used for similarity scoring.
+       */
+      titleTokens: string[]
+      /**
+       * Distinct source count (BBC, CNN, …).
+       */
+      sourceCount: number
+      articleCount: number
+      /**
+       * Languages present among member articles (variants).
+       */
+      languages: string[]
+      /**
+       * Canonical / lead source article shown as the story headline.
+       */
+      leadArticleId: string | null
+      latestPublishedAt: Date
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["storyCluster"]>
+    composites: {}
+  }
+
+  type StoryClusterGetPayload<S extends boolean | null | undefined | StoryClusterDefaultArgs> = $Result.GetResult<Prisma.$StoryClusterPayload, S>
+
+  type StoryClusterCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<StoryClusterFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: StoryClusterCountAggregateInputType | true
+    }
+
+  export interface StoryClusterDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['StoryCluster'], meta: { name: 'StoryCluster' } }
+    /**
+     * Find zero or one StoryCluster that matches the filter.
+     * @param {StoryClusterFindUniqueArgs} args - Arguments to find a StoryCluster
+     * @example
+     * // Get one StoryCluster
+     * const storyCluster = await prisma.storyCluster.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends StoryClusterFindUniqueArgs>(args: SelectSubset<T, StoryClusterFindUniqueArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one StoryCluster that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {StoryClusterFindUniqueOrThrowArgs} args - Arguments to find a StoryCluster
+     * @example
+     * // Get one StoryCluster
+     * const storyCluster = await prisma.storyCluster.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends StoryClusterFindUniqueOrThrowArgs>(args: SelectSubset<T, StoryClusterFindUniqueOrThrowArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first StoryCluster that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterFindFirstArgs} args - Arguments to find a StoryCluster
+     * @example
+     * // Get one StoryCluster
+     * const storyCluster = await prisma.storyCluster.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends StoryClusterFindFirstArgs>(args?: SelectSubset<T, StoryClusterFindFirstArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first StoryCluster that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterFindFirstOrThrowArgs} args - Arguments to find a StoryCluster
+     * @example
+     * // Get one StoryCluster
+     * const storyCluster = await prisma.storyCluster.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends StoryClusterFindFirstOrThrowArgs>(args?: SelectSubset<T, StoryClusterFindFirstOrThrowArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more StoryClusters that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all StoryClusters
+     * const storyClusters = await prisma.storyCluster.findMany()
+     * 
+     * // Get first 10 StoryClusters
+     * const storyClusters = await prisma.storyCluster.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const storyClusterWithIdOnly = await prisma.storyCluster.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends StoryClusterFindManyArgs>(args?: SelectSubset<T, StoryClusterFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a StoryCluster.
+     * @param {StoryClusterCreateArgs} args - Arguments to create a StoryCluster.
+     * @example
+     * // Create one StoryCluster
+     * const StoryCluster = await prisma.storyCluster.create({
+     *   data: {
+     *     // ... data to create a StoryCluster
+     *   }
+     * })
+     * 
+     */
+    create<T extends StoryClusterCreateArgs>(args: SelectSubset<T, StoryClusterCreateArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many StoryClusters.
+     * @param {StoryClusterCreateManyArgs} args - Arguments to create many StoryClusters.
+     * @example
+     * // Create many StoryClusters
+     * const storyCluster = await prisma.storyCluster.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends StoryClusterCreateManyArgs>(args?: SelectSubset<T, StoryClusterCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many StoryClusters and returns the data saved in the database.
+     * @param {StoryClusterCreateManyAndReturnArgs} args - Arguments to create many StoryClusters.
+     * @example
+     * // Create many StoryClusters
+     * const storyCluster = await prisma.storyCluster.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many StoryClusters and only return the `id`
+     * const storyClusterWithIdOnly = await prisma.storyCluster.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends StoryClusterCreateManyAndReturnArgs>(args?: SelectSubset<T, StoryClusterCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a StoryCluster.
+     * @param {StoryClusterDeleteArgs} args - Arguments to delete one StoryCluster.
+     * @example
+     * // Delete one StoryCluster
+     * const StoryCluster = await prisma.storyCluster.delete({
+     *   where: {
+     *     // ... filter to delete one StoryCluster
+     *   }
+     * })
+     * 
+     */
+    delete<T extends StoryClusterDeleteArgs>(args: SelectSubset<T, StoryClusterDeleteArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one StoryCluster.
+     * @param {StoryClusterUpdateArgs} args - Arguments to update one StoryCluster.
+     * @example
+     * // Update one StoryCluster
+     * const storyCluster = await prisma.storyCluster.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends StoryClusterUpdateArgs>(args: SelectSubset<T, StoryClusterUpdateArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more StoryClusters.
+     * @param {StoryClusterDeleteManyArgs} args - Arguments to filter StoryClusters to delete.
+     * @example
+     * // Delete a few StoryClusters
+     * const { count } = await prisma.storyCluster.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends StoryClusterDeleteManyArgs>(args?: SelectSubset<T, StoryClusterDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more StoryClusters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many StoryClusters
+     * const storyCluster = await prisma.storyCluster.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends StoryClusterUpdateManyArgs>(args: SelectSubset<T, StoryClusterUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more StoryClusters and returns the data updated in the database.
+     * @param {StoryClusterUpdateManyAndReturnArgs} args - Arguments to update many StoryClusters.
+     * @example
+     * // Update many StoryClusters
+     * const storyCluster = await prisma.storyCluster.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more StoryClusters and only return the `id`
+     * const storyClusterWithIdOnly = await prisma.storyCluster.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends StoryClusterUpdateManyAndReturnArgs>(args: SelectSubset<T, StoryClusterUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one StoryCluster.
+     * @param {StoryClusterUpsertArgs} args - Arguments to update or create a StoryCluster.
+     * @example
+     * // Update or create a StoryCluster
+     * const storyCluster = await prisma.storyCluster.upsert({
+     *   create: {
+     *     // ... data to create a StoryCluster
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the StoryCluster we want to update
+     *   }
+     * })
+     */
+    upsert<T extends StoryClusterUpsertArgs>(args: SelectSubset<T, StoryClusterUpsertArgs<ExtArgs>>): Prisma__StoryClusterClient<$Result.GetResult<Prisma.$StoryClusterPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of StoryClusters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterCountArgs} args - Arguments to filter StoryClusters to count.
+     * @example
+     * // Count the number of StoryClusters
+     * const count = await prisma.storyCluster.count({
+     *   where: {
+     *     // ... the filter for the StoryClusters we want to count
+     *   }
+     * })
+    **/
+    count<T extends StoryClusterCountArgs>(
+      args?: Subset<T, StoryClusterCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], StoryClusterCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a StoryCluster.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends StoryClusterAggregateArgs>(args: Subset<T, StoryClusterAggregateArgs>): Prisma.PrismaPromise<GetStoryClusterAggregateType<T>>
+
+    /**
+     * Group by StoryCluster.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryClusterGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends StoryClusterGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: StoryClusterGroupByArgs['orderBy'] }
+        : { orderBy?: StoryClusterGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, StoryClusterGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetStoryClusterGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the StoryCluster model
+   */
+  readonly fields: StoryClusterFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for StoryCluster.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__StoryClusterClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    articles<T extends StoryCluster$articlesArgs<ExtArgs> = {}>(args?: Subset<T, StoryCluster$articlesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the StoryCluster model
+   */
+  interface StoryClusterFieldRefs {
+    readonly id: FieldRef<"StoryCluster", 'String'>
+    readonly canonicalTitle: FieldRef<"StoryCluster", 'String'>
+    readonly canonicalSummary: FieldRef<"StoryCluster", 'String'>
+    readonly imageUrl: FieldRef<"StoryCluster", 'String'>
+    readonly category: FieldRef<"StoryCluster", 'String'>
+    readonly continent: FieldRef<"StoryCluster", 'String'>
+    readonly region: FieldRef<"StoryCluster", 'String'>
+    readonly country: FieldRef<"StoryCluster", 'String'>
+    readonly language: FieldRef<"StoryCluster", 'String'>
+    readonly entityKeys: FieldRef<"StoryCluster", 'String[]'>
+    readonly titleTokens: FieldRef<"StoryCluster", 'String[]'>
+    readonly sourceCount: FieldRef<"StoryCluster", 'Int'>
+    readonly articleCount: FieldRef<"StoryCluster", 'Int'>
+    readonly languages: FieldRef<"StoryCluster", 'String[]'>
+    readonly leadArticleId: FieldRef<"StoryCluster", 'String'>
+    readonly latestPublishedAt: FieldRef<"StoryCluster", 'DateTime'>
+    readonly createdAt: FieldRef<"StoryCluster", 'DateTime'>
+    readonly updatedAt: FieldRef<"StoryCluster", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * StoryCluster findUnique
+   */
+  export type StoryClusterFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter, which StoryCluster to fetch.
+     */
+    where: StoryClusterWhereUniqueInput
+  }
+
+  /**
+   * StoryCluster findUniqueOrThrow
+   */
+  export type StoryClusterFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter, which StoryCluster to fetch.
+     */
+    where: StoryClusterWhereUniqueInput
+  }
+
+  /**
+   * StoryCluster findFirst
+   */
+  export type StoryClusterFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter, which StoryCluster to fetch.
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryClusters to fetch.
+     */
+    orderBy?: StoryClusterOrderByWithRelationInput | StoryClusterOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for StoryClusters.
+     */
+    cursor?: StoryClusterWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryClusters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryClusters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryClusters.
+     */
+    distinct?: StoryClusterScalarFieldEnum | StoryClusterScalarFieldEnum[]
+  }
+
+  /**
+   * StoryCluster findFirstOrThrow
+   */
+  export type StoryClusterFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter, which StoryCluster to fetch.
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryClusters to fetch.
+     */
+    orderBy?: StoryClusterOrderByWithRelationInput | StoryClusterOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for StoryClusters.
+     */
+    cursor?: StoryClusterWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryClusters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryClusters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryClusters.
+     */
+    distinct?: StoryClusterScalarFieldEnum | StoryClusterScalarFieldEnum[]
+  }
+
+  /**
+   * StoryCluster findMany
+   */
+  export type StoryClusterFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter, which StoryClusters to fetch.
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryClusters to fetch.
+     */
+    orderBy?: StoryClusterOrderByWithRelationInput | StoryClusterOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing StoryClusters.
+     */
+    cursor?: StoryClusterWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryClusters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryClusters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryClusters.
+     */
+    distinct?: StoryClusterScalarFieldEnum | StoryClusterScalarFieldEnum[]
+  }
+
+  /**
+   * StoryCluster create
+   */
+  export type StoryClusterCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * The data needed to create a StoryCluster.
+     */
+    data: XOR<StoryClusterCreateInput, StoryClusterUncheckedCreateInput>
+  }
+
+  /**
+   * StoryCluster createMany
+   */
+  export type StoryClusterCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many StoryClusters.
+     */
+    data: StoryClusterCreateManyInput | StoryClusterCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * StoryCluster createManyAndReturn
+   */
+  export type StoryClusterCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * The data used to create many StoryClusters.
+     */
+    data: StoryClusterCreateManyInput | StoryClusterCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * StoryCluster update
+   */
+  export type StoryClusterUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * The data needed to update a StoryCluster.
+     */
+    data: XOR<StoryClusterUpdateInput, StoryClusterUncheckedUpdateInput>
+    /**
+     * Choose, which StoryCluster to update.
+     */
+    where: StoryClusterWhereUniqueInput
+  }
+
+  /**
+   * StoryCluster updateMany
+   */
+  export type StoryClusterUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update StoryClusters.
+     */
+    data: XOR<StoryClusterUpdateManyMutationInput, StoryClusterUncheckedUpdateManyInput>
+    /**
+     * Filter which StoryClusters to update
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * Limit how many StoryClusters to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryCluster updateManyAndReturn
+   */
+  export type StoryClusterUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * The data used to update StoryClusters.
+     */
+    data: XOR<StoryClusterUpdateManyMutationInput, StoryClusterUncheckedUpdateManyInput>
+    /**
+     * Filter which StoryClusters to update
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * Limit how many StoryClusters to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryCluster upsert
+   */
+  export type StoryClusterUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * The filter to search for the StoryCluster to update in case it exists.
+     */
+    where: StoryClusterWhereUniqueInput
+    /**
+     * In case the StoryCluster found by the `where` argument doesn't exist, create a new StoryCluster with this data.
+     */
+    create: XOR<StoryClusterCreateInput, StoryClusterUncheckedCreateInput>
+    /**
+     * In case the StoryCluster was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<StoryClusterUpdateInput, StoryClusterUncheckedUpdateInput>
+  }
+
+  /**
+   * StoryCluster delete
+   */
+  export type StoryClusterDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+    /**
+     * Filter which StoryCluster to delete.
+     */
+    where: StoryClusterWhereUniqueInput
+  }
+
+  /**
+   * StoryCluster deleteMany
+   */
+  export type StoryClusterDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which StoryClusters to delete
+     */
+    where?: StoryClusterWhereInput
+    /**
+     * Limit how many StoryClusters to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryCluster.articles
+   */
+  export type StoryCluster$articlesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Article
+     */
+    select?: ArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Article
+     */
+    omit?: ArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ArticleInclude<ExtArgs> | null
+    where?: ArticleWhereInput
+    orderBy?: ArticleOrderByWithRelationInput | ArticleOrderByWithRelationInput[]
+    cursor?: ArticleWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ArticleScalarFieldEnum | ArticleScalarFieldEnum[]
+  }
+
+  /**
+   * StoryCluster without action
+   */
+  export type StoryClusterDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryCluster
+     */
+    select?: StoryClusterSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryCluster
+     */
+    omit?: StoryClusterOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: StoryClusterInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -10681,10 +12146,35 @@ export namespace Prisma {
     country: 'country',
     publishedAt: 'publishedAt',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    clusterId: 'clusterId'
   };
 
   export type ArticleScalarFieldEnum = (typeof ArticleScalarFieldEnum)[keyof typeof ArticleScalarFieldEnum]
+
+
+  export const StoryClusterScalarFieldEnum: {
+    id: 'id',
+    canonicalTitle: 'canonicalTitle',
+    canonicalSummary: 'canonicalSummary',
+    imageUrl: 'imageUrl',
+    category: 'category',
+    continent: 'continent',
+    region: 'region',
+    country: 'country',
+    language: 'language',
+    entityKeys: 'entityKeys',
+    titleTokens: 'titleTokens',
+    sourceCount: 'sourceCount',
+    articleCount: 'articleCount',
+    languages: 'languages',
+    leadArticleId: 'leadArticleId',
+    latestPublishedAt: 'latestPublishedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type StoryClusterScalarFieldEnum = (typeof StoryClusterScalarFieldEnum)[keyof typeof StoryClusterScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -10790,6 +12280,20 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float[]'
+   */
+  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
   /**
    * Deep Input Types
@@ -11228,6 +12732,8 @@ export namespace Prisma {
     publishedAt?: DateTimeFilter<"Article"> | Date | string
     createdAt?: DateTimeFilter<"Article"> | Date | string
     updatedAt?: DateTimeFilter<"Article"> | Date | string
+    clusterId?: StringNullableFilter<"Article"> | string | null
+    cluster?: XOR<StoryClusterNullableScalarRelationFilter, StoryClusterWhereInput> | null
     savedBy?: SavedArticleListRelationFilter
     readingHistory?: ReadingHistoryListRelationFilter
     guestSaves?: GuestSavedArticleListRelationFilter
@@ -11252,6 +12758,8 @@ export namespace Prisma {
     publishedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    cluster?: StoryClusterOrderByWithRelationInput
     savedBy?: SavedArticleOrderByRelationAggregateInput
     readingHistory?: ReadingHistoryOrderByRelationAggregateInput
     guestSaves?: GuestSavedArticleOrderByRelationAggregateInput
@@ -11279,6 +12787,8 @@ export namespace Prisma {
     publishedAt?: DateTimeFilter<"Article"> | Date | string
     createdAt?: DateTimeFilter<"Article"> | Date | string
     updatedAt?: DateTimeFilter<"Article"> | Date | string
+    clusterId?: StringNullableFilter<"Article"> | string | null
+    cluster?: XOR<StoryClusterNullableScalarRelationFilter, StoryClusterWhereInput> | null
     savedBy?: SavedArticleListRelationFilter
     readingHistory?: ReadingHistoryListRelationFilter
     guestSaves?: GuestSavedArticleListRelationFilter
@@ -11303,6 +12813,7 @@ export namespace Prisma {
     publishedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
     _count?: ArticleCountOrderByAggregateInput
     _max?: ArticleMaxOrderByAggregateInput
     _min?: ArticleMinOrderByAggregateInput
@@ -11329,6 +12840,129 @@ export namespace Prisma {
     publishedAt?: DateTimeWithAggregatesFilter<"Article"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"Article"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Article"> | Date | string
+    clusterId?: StringNullableWithAggregatesFilter<"Article"> | string | null
+  }
+
+  export type StoryClusterWhereInput = {
+    AND?: StoryClusterWhereInput | StoryClusterWhereInput[]
+    OR?: StoryClusterWhereInput[]
+    NOT?: StoryClusterWhereInput | StoryClusterWhereInput[]
+    id?: StringFilter<"StoryCluster"> | string
+    canonicalTitle?: StringFilter<"StoryCluster"> | string
+    canonicalSummary?: StringNullableFilter<"StoryCluster"> | string | null
+    imageUrl?: StringNullableFilter<"StoryCluster"> | string | null
+    category?: StringNullableFilter<"StoryCluster"> | string | null
+    continent?: StringNullableFilter<"StoryCluster"> | string | null
+    region?: StringNullableFilter<"StoryCluster"> | string | null
+    country?: StringNullableFilter<"StoryCluster"> | string | null
+    language?: StringFilter<"StoryCluster"> | string
+    entityKeys?: StringNullableListFilter<"StoryCluster">
+    titleTokens?: StringNullableListFilter<"StoryCluster">
+    sourceCount?: IntFilter<"StoryCluster"> | number
+    articleCount?: IntFilter<"StoryCluster"> | number
+    languages?: StringNullableListFilter<"StoryCluster">
+    leadArticleId?: StringNullableFilter<"StoryCluster"> | string | null
+    latestPublishedAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    createdAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    updatedAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    articles?: ArticleListRelationFilter
+  }
+
+  export type StoryClusterOrderByWithRelationInput = {
+    id?: SortOrder
+    canonicalTitle?: SortOrder
+    canonicalSummary?: SortOrderInput | SortOrder
+    imageUrl?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    continent?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    language?: SortOrder
+    entityKeys?: SortOrder
+    titleTokens?: SortOrder
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+    languages?: SortOrder
+    leadArticleId?: SortOrderInput | SortOrder
+    latestPublishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    articles?: ArticleOrderByRelationAggregateInput
+  }
+
+  export type StoryClusterWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: StoryClusterWhereInput | StoryClusterWhereInput[]
+    OR?: StoryClusterWhereInput[]
+    NOT?: StoryClusterWhereInput | StoryClusterWhereInput[]
+    canonicalTitle?: StringFilter<"StoryCluster"> | string
+    canonicalSummary?: StringNullableFilter<"StoryCluster"> | string | null
+    imageUrl?: StringNullableFilter<"StoryCluster"> | string | null
+    category?: StringNullableFilter<"StoryCluster"> | string | null
+    continent?: StringNullableFilter<"StoryCluster"> | string | null
+    region?: StringNullableFilter<"StoryCluster"> | string | null
+    country?: StringNullableFilter<"StoryCluster"> | string | null
+    language?: StringFilter<"StoryCluster"> | string
+    entityKeys?: StringNullableListFilter<"StoryCluster">
+    titleTokens?: StringNullableListFilter<"StoryCluster">
+    sourceCount?: IntFilter<"StoryCluster"> | number
+    articleCount?: IntFilter<"StoryCluster"> | number
+    languages?: StringNullableListFilter<"StoryCluster">
+    leadArticleId?: StringNullableFilter<"StoryCluster"> | string | null
+    latestPublishedAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    createdAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    updatedAt?: DateTimeFilter<"StoryCluster"> | Date | string
+    articles?: ArticleListRelationFilter
+  }, "id">
+
+  export type StoryClusterOrderByWithAggregationInput = {
+    id?: SortOrder
+    canonicalTitle?: SortOrder
+    canonicalSummary?: SortOrderInput | SortOrder
+    imageUrl?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    continent?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    language?: SortOrder
+    entityKeys?: SortOrder
+    titleTokens?: SortOrder
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+    languages?: SortOrder
+    leadArticleId?: SortOrderInput | SortOrder
+    latestPublishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: StoryClusterCountOrderByAggregateInput
+    _avg?: StoryClusterAvgOrderByAggregateInput
+    _max?: StoryClusterMaxOrderByAggregateInput
+    _min?: StoryClusterMinOrderByAggregateInput
+    _sum?: StoryClusterSumOrderByAggregateInput
+  }
+
+  export type StoryClusterScalarWhereWithAggregatesInput = {
+    AND?: StoryClusterScalarWhereWithAggregatesInput | StoryClusterScalarWhereWithAggregatesInput[]
+    OR?: StoryClusterScalarWhereWithAggregatesInput[]
+    NOT?: StoryClusterScalarWhereWithAggregatesInput | StoryClusterScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"StoryCluster"> | string
+    canonicalTitle?: StringWithAggregatesFilter<"StoryCluster"> | string
+    canonicalSummary?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    imageUrl?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    category?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    continent?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    region?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    country?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    language?: StringWithAggregatesFilter<"StoryCluster"> | string
+    entityKeys?: StringNullableListFilter<"StoryCluster">
+    titleTokens?: StringNullableListFilter<"StoryCluster">
+    sourceCount?: IntWithAggregatesFilter<"StoryCluster"> | number
+    articleCount?: IntWithAggregatesFilter<"StoryCluster"> | number
+    languages?: StringNullableListFilter<"StoryCluster">
+    leadArticleId?: StringNullableWithAggregatesFilter<"StoryCluster"> | string | null
+    latestPublishedAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
+    createdAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
   }
 
   export type UserCreateInput = {
@@ -11752,6 +13386,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    cluster?: StoryClusterCreateNestedOneWithoutArticlesInput
     savedBy?: SavedArticleCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleCreateNestedManyWithoutArticleInput
@@ -11776,6 +13411,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
     savedBy?: SavedArticleUncheckedCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleUncheckedCreateNestedManyWithoutArticleInput
@@ -11800,6 +13436,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cluster?: StoryClusterUpdateOneWithoutArticlesNestedInput
     savedBy?: SavedArticleUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUpdateManyWithoutArticleNestedInput
@@ -11824,6 +13461,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
     savedBy?: SavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUncheckedUpdateManyWithoutArticleNestedInput
@@ -11848,6 +13486,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
   }
 
   export type ArticleUpdateManyMutationInput = {
@@ -11886,6 +13525,158 @@ export namespace Prisma {
     region?: NullableStringFieldUpdateOperationsInput | string | null
     country?: NullableStringFieldUpdateOperationsInput | string | null
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type StoryClusterCreateInput = {
+    id?: string
+    canonicalTitle: string
+    canonicalSummary?: string | null
+    imageUrl?: string | null
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    language?: string
+    entityKeys?: StoryClusterCreateentityKeysInput | string[]
+    titleTokens?: StoryClusterCreatetitleTokensInput | string[]
+    sourceCount?: number
+    articleCount?: number
+    languages?: StoryClusterCreatelanguagesInput | string[]
+    leadArticleId?: string | null
+    latestPublishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    articles?: ArticleCreateNestedManyWithoutClusterInput
+  }
+
+  export type StoryClusterUncheckedCreateInput = {
+    id?: string
+    canonicalTitle: string
+    canonicalSummary?: string | null
+    imageUrl?: string | null
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    language?: string
+    entityKeys?: StoryClusterCreateentityKeysInput | string[]
+    titleTokens?: StoryClusterCreatetitleTokensInput | string[]
+    sourceCount?: number
+    articleCount?: number
+    languages?: StoryClusterCreatelanguagesInput | string[]
+    leadArticleId?: string | null
+    latestPublishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    articles?: ArticleUncheckedCreateNestedManyWithoutClusterInput
+  }
+
+  export type StoryClusterUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    articles?: ArticleUpdateManyWithoutClusterNestedInput
+  }
+
+  export type StoryClusterUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    articles?: ArticleUncheckedUpdateManyWithoutClusterNestedInput
+  }
+
+  export type StoryClusterCreateManyInput = {
+    id?: string
+    canonicalTitle: string
+    canonicalSummary?: string | null
+    imageUrl?: string | null
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    language?: string
+    entityKeys?: StoryClusterCreateentityKeysInput | string[]
+    titleTokens?: StoryClusterCreatetitleTokensInput | string[]
+    sourceCount?: number
+    articleCount?: number
+    languages?: StoryClusterCreatelanguagesInput | string[]
+    leadArticleId?: string | null
+    latestPublishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type StoryClusterUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type StoryClusterUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -12322,6 +14113,11 @@ export namespace Prisma {
     readAt?: SortOrder
   }
 
+  export type StoryClusterNullableScalarRelationFilter = {
+    is?: StoryClusterWhereInput | null
+    isNot?: StoryClusterWhereInput | null
+  }
+
   export type ArticleCountOrderByAggregateInput = {
     id?: SortOrder
     title?: SortOrder
@@ -12340,6 +14136,7 @@ export namespace Prisma {
     publishedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    clusterId?: SortOrder
   }
 
   export type ArticleMaxOrderByAggregateInput = {
@@ -12360,6 +14157,7 @@ export namespace Prisma {
     publishedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    clusterId?: SortOrder
   }
 
   export type ArticleMinOrderByAggregateInput = {
@@ -12380,6 +14178,111 @@ export namespace Prisma {
     publishedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    clusterId?: SortOrder
+  }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type ArticleListRelationFilter = {
+    every?: ArticleWhereInput
+    some?: ArticleWhereInput
+    none?: ArticleWhereInput
+  }
+
+  export type ArticleOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type StoryClusterCountOrderByAggregateInput = {
+    id?: SortOrder
+    canonicalTitle?: SortOrder
+    canonicalSummary?: SortOrder
+    imageUrl?: SortOrder
+    category?: SortOrder
+    continent?: SortOrder
+    region?: SortOrder
+    country?: SortOrder
+    language?: SortOrder
+    entityKeys?: SortOrder
+    titleTokens?: SortOrder
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+    languages?: SortOrder
+    leadArticleId?: SortOrder
+    latestPublishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type StoryClusterAvgOrderByAggregateInput = {
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+  }
+
+  export type StoryClusterMaxOrderByAggregateInput = {
+    id?: SortOrder
+    canonicalTitle?: SortOrder
+    canonicalSummary?: SortOrder
+    imageUrl?: SortOrder
+    category?: SortOrder
+    continent?: SortOrder
+    region?: SortOrder
+    country?: SortOrder
+    language?: SortOrder
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+    leadArticleId?: SortOrder
+    latestPublishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type StoryClusterMinOrderByAggregateInput = {
+    id?: SortOrder
+    canonicalTitle?: SortOrder
+    canonicalSummary?: SortOrder
+    imageUrl?: SortOrder
+    category?: SortOrder
+    continent?: SortOrder
+    region?: SortOrder
+    country?: SortOrder
+    language?: SortOrder
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+    leadArticleId?: SortOrder
+    latestPublishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type StoryClusterSumOrderByAggregateInput = {
+    sourceCount?: SortOrder
+    articleCount?: SortOrder
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type UserCreatefavoriteTopicsInput = {
@@ -12755,6 +14658,12 @@ export namespace Prisma {
     update?: XOR<XOR<ArticleUpdateToOneWithWhereWithoutReadingHistoryInput, ArticleUpdateWithoutReadingHistoryInput>, ArticleUncheckedUpdateWithoutReadingHistoryInput>
   }
 
+  export type StoryClusterCreateNestedOneWithoutArticlesInput = {
+    create?: XOR<StoryClusterCreateWithoutArticlesInput, StoryClusterUncheckedCreateWithoutArticlesInput>
+    connectOrCreate?: StoryClusterCreateOrConnectWithoutArticlesInput
+    connect?: StoryClusterWhereUniqueInput
+  }
+
   export type SavedArticleCreateNestedManyWithoutArticleInput = {
     create?: XOR<SavedArticleCreateWithoutArticleInput, SavedArticleUncheckedCreateWithoutArticleInput> | SavedArticleCreateWithoutArticleInput[] | SavedArticleUncheckedCreateWithoutArticleInput[]
     connectOrCreate?: SavedArticleCreateOrConnectWithoutArticleInput | SavedArticleCreateOrConnectWithoutArticleInput[]
@@ -12809,6 +14718,16 @@ export namespace Prisma {
     connectOrCreate?: GuestReadingHistoryCreateOrConnectWithoutArticleInput | GuestReadingHistoryCreateOrConnectWithoutArticleInput[]
     createMany?: GuestReadingHistoryCreateManyArticleInputEnvelope
     connect?: GuestReadingHistoryWhereUniqueInput | GuestReadingHistoryWhereUniqueInput[]
+  }
+
+  export type StoryClusterUpdateOneWithoutArticlesNestedInput = {
+    create?: XOR<StoryClusterCreateWithoutArticlesInput, StoryClusterUncheckedCreateWithoutArticlesInput>
+    connectOrCreate?: StoryClusterCreateOrConnectWithoutArticlesInput
+    upsert?: StoryClusterUpsertWithoutArticlesInput
+    disconnect?: StoryClusterWhereInput | boolean
+    delete?: StoryClusterWhereInput | boolean
+    connect?: StoryClusterWhereUniqueInput
+    update?: XOR<XOR<StoryClusterUpdateToOneWithWhereWithoutArticlesInput, StoryClusterUpdateWithoutArticlesInput>, StoryClusterUncheckedUpdateWithoutArticlesInput>
   }
 
   export type SavedArticleUpdateManyWithoutArticleNestedInput = {
@@ -12921,6 +14840,83 @@ export namespace Prisma {
     update?: GuestReadingHistoryUpdateWithWhereUniqueWithoutArticleInput | GuestReadingHistoryUpdateWithWhereUniqueWithoutArticleInput[]
     updateMany?: GuestReadingHistoryUpdateManyWithWhereWithoutArticleInput | GuestReadingHistoryUpdateManyWithWhereWithoutArticleInput[]
     deleteMany?: GuestReadingHistoryScalarWhereInput | GuestReadingHistoryScalarWhereInput[]
+  }
+
+  export type StoryClusterCreateentityKeysInput = {
+    set: string[]
+  }
+
+  export type StoryClusterCreatetitleTokensInput = {
+    set: string[]
+  }
+
+  export type StoryClusterCreatelanguagesInput = {
+    set: string[]
+  }
+
+  export type ArticleCreateNestedManyWithoutClusterInput = {
+    create?: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput> | ArticleCreateWithoutClusterInput[] | ArticleUncheckedCreateWithoutClusterInput[]
+    connectOrCreate?: ArticleCreateOrConnectWithoutClusterInput | ArticleCreateOrConnectWithoutClusterInput[]
+    createMany?: ArticleCreateManyClusterInputEnvelope
+    connect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+  }
+
+  export type ArticleUncheckedCreateNestedManyWithoutClusterInput = {
+    create?: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput> | ArticleCreateWithoutClusterInput[] | ArticleUncheckedCreateWithoutClusterInput[]
+    connectOrCreate?: ArticleCreateOrConnectWithoutClusterInput | ArticleCreateOrConnectWithoutClusterInput[]
+    createMany?: ArticleCreateManyClusterInputEnvelope
+    connect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+  }
+
+  export type StoryClusterUpdateentityKeysInput = {
+    set?: string[]
+    push?: string | string[]
+  }
+
+  export type StoryClusterUpdatetitleTokensInput = {
+    set?: string[]
+    push?: string | string[]
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type StoryClusterUpdatelanguagesInput = {
+    set?: string[]
+    push?: string | string[]
+  }
+
+  export type ArticleUpdateManyWithoutClusterNestedInput = {
+    create?: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput> | ArticleCreateWithoutClusterInput[] | ArticleUncheckedCreateWithoutClusterInput[]
+    connectOrCreate?: ArticleCreateOrConnectWithoutClusterInput | ArticleCreateOrConnectWithoutClusterInput[]
+    upsert?: ArticleUpsertWithWhereUniqueWithoutClusterInput | ArticleUpsertWithWhereUniqueWithoutClusterInput[]
+    createMany?: ArticleCreateManyClusterInputEnvelope
+    set?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    disconnect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    delete?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    connect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    update?: ArticleUpdateWithWhereUniqueWithoutClusterInput | ArticleUpdateWithWhereUniqueWithoutClusterInput[]
+    updateMany?: ArticleUpdateManyWithWhereWithoutClusterInput | ArticleUpdateManyWithWhereWithoutClusterInput[]
+    deleteMany?: ArticleScalarWhereInput | ArticleScalarWhereInput[]
+  }
+
+  export type ArticleUncheckedUpdateManyWithoutClusterNestedInput = {
+    create?: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput> | ArticleCreateWithoutClusterInput[] | ArticleUncheckedCreateWithoutClusterInput[]
+    connectOrCreate?: ArticleCreateOrConnectWithoutClusterInput | ArticleCreateOrConnectWithoutClusterInput[]
+    upsert?: ArticleUpsertWithWhereUniqueWithoutClusterInput | ArticleUpsertWithWhereUniqueWithoutClusterInput[]
+    createMany?: ArticleCreateManyClusterInputEnvelope
+    set?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    disconnect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    delete?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    connect?: ArticleWhereUniqueInput | ArticleWhereUniqueInput[]
+    update?: ArticleUpdateWithWhereUniqueWithoutClusterInput | ArticleUpdateWithWhereUniqueWithoutClusterInput[]
+    updateMany?: ArticleUpdateManyWithWhereWithoutClusterInput | ArticleUpdateManyWithWhereWithoutClusterInput[]
+    deleteMany?: ArticleScalarWhereInput | ArticleScalarWhereInput[]
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -13102,6 +15098,33 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
   }
 
   export type SavedArticleCreateWithoutUserInput = {
@@ -13463,6 +15486,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    cluster?: StoryClusterCreateNestedOneWithoutArticlesInput
     savedBy?: SavedArticleCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryCreateNestedManyWithoutArticleInput
@@ -13486,6 +15510,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
     savedBy?: SavedArticleUncheckedCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
@@ -13550,6 +15575,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cluster?: StoryClusterUpdateOneWithoutArticlesNestedInput
     savedBy?: SavedArticleUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUpdateManyWithoutArticleNestedInput
@@ -13573,6 +15599,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
     savedBy?: SavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
@@ -13615,6 +15642,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    cluster?: StoryClusterCreateNestedOneWithoutArticlesInput
     savedBy?: SavedArticleCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleCreateNestedManyWithoutArticleInput
@@ -13638,6 +15666,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
     savedBy?: SavedArticleUncheckedCreateNestedManyWithoutArticleInput
     readingHistory?: ReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleUncheckedCreateNestedManyWithoutArticleInput
@@ -13702,6 +15731,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cluster?: StoryClusterUpdateOneWithoutArticlesNestedInput
     savedBy?: SavedArticleUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUpdateManyWithoutArticleNestedInput
@@ -13725,6 +15755,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
     savedBy?: SavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     readingHistory?: ReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUncheckedUpdateManyWithoutArticleNestedInput
@@ -13783,6 +15814,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    cluster?: StoryClusterCreateNestedOneWithoutArticlesInput
     readingHistory?: ReadingHistoryCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryCreateNestedManyWithoutArticleInput
@@ -13806,6 +15838,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
     readingHistory?: ReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleUncheckedCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
@@ -13886,6 +15919,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cluster?: StoryClusterUpdateOneWithoutArticlesNestedInput
     readingHistory?: ReadingHistoryUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUpdateManyWithoutArticleNestedInput
@@ -13909,6 +15943,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
     readingHistory?: ReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
@@ -13967,6 +16002,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    cluster?: StoryClusterCreateNestedOneWithoutArticlesInput
     savedBy?: SavedArticleCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryCreateNestedManyWithoutArticleInput
@@ -13990,6 +16026,7 @@ export namespace Prisma {
     publishedAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    clusterId?: string | null
     savedBy?: SavedArticleUncheckedCreateNestedManyWithoutArticleInput
     guestSaves?: GuestSavedArticleUncheckedCreateNestedManyWithoutArticleInput
     guestReadingHistory?: GuestReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
@@ -14070,6 +16107,7 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cluster?: StoryClusterUpdateOneWithoutArticlesNestedInput
     savedBy?: SavedArticleUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUpdateManyWithoutArticleNestedInput
@@ -14093,9 +16131,57 @@ export namespace Prisma {
     publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
     savedBy?: SavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     guestSaves?: GuestSavedArticleUncheckedUpdateManyWithoutArticleNestedInput
     guestReadingHistory?: GuestReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
+  }
+
+  export type StoryClusterCreateWithoutArticlesInput = {
+    id?: string
+    canonicalTitle: string
+    canonicalSummary?: string | null
+    imageUrl?: string | null
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    language?: string
+    entityKeys?: StoryClusterCreateentityKeysInput | string[]
+    titleTokens?: StoryClusterCreatetitleTokensInput | string[]
+    sourceCount?: number
+    articleCount?: number
+    languages?: StoryClusterCreatelanguagesInput | string[]
+    leadArticleId?: string | null
+    latestPublishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type StoryClusterUncheckedCreateWithoutArticlesInput = {
+    id?: string
+    canonicalTitle: string
+    canonicalSummary?: string | null
+    imageUrl?: string | null
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    language?: string
+    entityKeys?: StoryClusterCreateentityKeysInput | string[]
+    titleTokens?: StoryClusterCreatetitleTokensInput | string[]
+    sourceCount?: number
+    articleCount?: number
+    languages?: StoryClusterCreatelanguagesInput | string[]
+    leadArticleId?: string | null
+    latestPublishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type StoryClusterCreateOrConnectWithoutArticlesInput = {
+    where: StoryClusterWhereUniqueInput
+    create: XOR<StoryClusterCreateWithoutArticlesInput, StoryClusterUncheckedCreateWithoutArticlesInput>
   }
 
   export type SavedArticleCreateWithoutArticleInput = {
@@ -14186,6 +16272,59 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type StoryClusterUpsertWithoutArticlesInput = {
+    update: XOR<StoryClusterUpdateWithoutArticlesInput, StoryClusterUncheckedUpdateWithoutArticlesInput>
+    create: XOR<StoryClusterCreateWithoutArticlesInput, StoryClusterUncheckedCreateWithoutArticlesInput>
+    where?: StoryClusterWhereInput
+  }
+
+  export type StoryClusterUpdateToOneWithWhereWithoutArticlesInput = {
+    where?: StoryClusterWhereInput
+    data: XOR<StoryClusterUpdateWithoutArticlesInput, StoryClusterUncheckedUpdateWithoutArticlesInput>
+  }
+
+  export type StoryClusterUpdateWithoutArticlesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type StoryClusterUncheckedUpdateWithoutArticlesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    canonicalTitle?: StringFieldUpdateOperationsInput | string
+    canonicalSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: StringFieldUpdateOperationsInput | string
+    entityKeys?: StoryClusterUpdateentityKeysInput | string[]
+    titleTokens?: StoryClusterUpdatetitleTokensInput | string[]
+    sourceCount?: IntFieldUpdateOperationsInput | number
+    articleCount?: IntFieldUpdateOperationsInput | number
+    languages?: StoryClusterUpdatelanguagesInput | string[]
+    leadArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    latestPublishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SavedArticleUpsertWithWhereUniqueWithoutArticleInput = {
     where: SavedArticleWhereUniqueInput
     update: XOR<SavedArticleUpdateWithoutArticleInput, SavedArticleUncheckedUpdateWithoutArticleInput>
@@ -14248,6 +16387,104 @@ export namespace Prisma {
   export type GuestReadingHistoryUpdateManyWithWhereWithoutArticleInput = {
     where: GuestReadingHistoryScalarWhereInput
     data: XOR<GuestReadingHistoryUpdateManyMutationInput, GuestReadingHistoryUncheckedUpdateManyWithoutArticleInput>
+  }
+
+  export type ArticleCreateWithoutClusterInput = {
+    id?: string
+    title: string
+    content: string
+    summary?: string | null
+    summaryFr?: string | null
+    summaryRw?: string | null
+    imageUrl?: string | null
+    originalLanguage?: string
+    source: string
+    url: string
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    publishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    savedBy?: SavedArticleCreateNestedManyWithoutArticleInput
+    readingHistory?: ReadingHistoryCreateNestedManyWithoutArticleInput
+    guestSaves?: GuestSavedArticleCreateNestedManyWithoutArticleInput
+    guestReadingHistory?: GuestReadingHistoryCreateNestedManyWithoutArticleInput
+  }
+
+  export type ArticleUncheckedCreateWithoutClusterInput = {
+    id?: string
+    title: string
+    content: string
+    summary?: string | null
+    summaryFr?: string | null
+    summaryRw?: string | null
+    imageUrl?: string | null
+    originalLanguage?: string
+    source: string
+    url: string
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    publishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    savedBy?: SavedArticleUncheckedCreateNestedManyWithoutArticleInput
+    readingHistory?: ReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
+    guestSaves?: GuestSavedArticleUncheckedCreateNestedManyWithoutArticleInput
+    guestReadingHistory?: GuestReadingHistoryUncheckedCreateNestedManyWithoutArticleInput
+  }
+
+  export type ArticleCreateOrConnectWithoutClusterInput = {
+    where: ArticleWhereUniqueInput
+    create: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput>
+  }
+
+  export type ArticleCreateManyClusterInputEnvelope = {
+    data: ArticleCreateManyClusterInput | ArticleCreateManyClusterInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ArticleUpsertWithWhereUniqueWithoutClusterInput = {
+    where: ArticleWhereUniqueInput
+    update: XOR<ArticleUpdateWithoutClusterInput, ArticleUncheckedUpdateWithoutClusterInput>
+    create: XOR<ArticleCreateWithoutClusterInput, ArticleUncheckedCreateWithoutClusterInput>
+  }
+
+  export type ArticleUpdateWithWhereUniqueWithoutClusterInput = {
+    where: ArticleWhereUniqueInput
+    data: XOR<ArticleUpdateWithoutClusterInput, ArticleUncheckedUpdateWithoutClusterInput>
+  }
+
+  export type ArticleUpdateManyWithWhereWithoutClusterInput = {
+    where: ArticleScalarWhereInput
+    data: XOR<ArticleUpdateManyMutationInput, ArticleUncheckedUpdateManyWithoutClusterInput>
+  }
+
+  export type ArticleScalarWhereInput = {
+    AND?: ArticleScalarWhereInput | ArticleScalarWhereInput[]
+    OR?: ArticleScalarWhereInput[]
+    NOT?: ArticleScalarWhereInput | ArticleScalarWhereInput[]
+    id?: StringFilter<"Article"> | string
+    title?: StringFilter<"Article"> | string
+    content?: StringFilter<"Article"> | string
+    summary?: StringNullableFilter<"Article"> | string | null
+    summaryFr?: StringNullableFilter<"Article"> | string | null
+    summaryRw?: StringNullableFilter<"Article"> | string | null
+    imageUrl?: StringNullableFilter<"Article"> | string | null
+    originalLanguage?: StringFilter<"Article"> | string
+    source?: StringFilter<"Article"> | string
+    url?: StringFilter<"Article"> | string
+    category?: StringNullableFilter<"Article"> | string | null
+    continent?: StringNullableFilter<"Article"> | string | null
+    region?: StringNullableFilter<"Article"> | string | null
+    country?: StringNullableFilter<"Article"> | string | null
+    publishedAt?: DateTimeFilter<"Article"> | Date | string
+    createdAt?: DateTimeFilter<"Article"> | Date | string
+    updatedAt?: DateTimeFilter<"Article"> | Date | string
+    clusterId?: StringNullableFilter<"Article"> | string | null
   }
 
   export type SavedArticleCreateManyUserInput = {
@@ -14472,6 +16709,94 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     guestSessionId?: StringFieldUpdateOperationsInput | string
     readAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ArticleCreateManyClusterInput = {
+    id?: string
+    title: string
+    content: string
+    summary?: string | null
+    summaryFr?: string | null
+    summaryRw?: string | null
+    imageUrl?: string | null
+    originalLanguage?: string
+    source: string
+    url: string
+    category?: string | null
+    continent?: string | null
+    region?: string | null
+    country?: string | null
+    publishedAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ArticleUpdateWithoutClusterInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryFr?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryRw?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    originalLanguage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    url?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    savedBy?: SavedArticleUpdateManyWithoutArticleNestedInput
+    readingHistory?: ReadingHistoryUpdateManyWithoutArticleNestedInput
+    guestSaves?: GuestSavedArticleUpdateManyWithoutArticleNestedInput
+    guestReadingHistory?: GuestReadingHistoryUpdateManyWithoutArticleNestedInput
+  }
+
+  export type ArticleUncheckedUpdateWithoutClusterInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryFr?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryRw?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    originalLanguage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    url?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    savedBy?: SavedArticleUncheckedUpdateManyWithoutArticleNestedInput
+    readingHistory?: ReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
+    guestSaves?: GuestSavedArticleUncheckedUpdateManyWithoutArticleNestedInput
+    guestReadingHistory?: GuestReadingHistoryUncheckedUpdateManyWithoutArticleNestedInput
+  }
+
+  export type ArticleUncheckedUpdateManyWithoutClusterInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryFr?: NullableStringFieldUpdateOperationsInput | string | null
+    summaryRw?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    originalLanguage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    url?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    continent?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 
