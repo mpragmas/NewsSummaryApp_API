@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import type { NormalizedArticle } from '../rss/rss.service';
+import type { SupportedLanguage } from '../rss/rss-feeds.config';
 import {
   getContentQualityScore,
   hasRealJournalisticContent,
@@ -15,8 +16,17 @@ import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util'
 
 const SOURCE = 'Igihe';
 const BASE_URL = 'https://igihe.com';
-const LISTING_URL = 'https://igihe.com/amakuru/';
-const SCRAPE_LIMIT = 20;
+
+// Each section maps to one of Igihe's three language editions.
+const LANGUAGE_SECTIONS: Array<{
+  listingUrl: string;
+  lang: SupportedLanguage;
+  limit: number;
+}> = [
+  { listingUrl: 'https://igihe.com/amakuru/', lang: 'rw', limit: 15 },
+  { listingUrl: 'https://igihe.com/en/', lang: 'en', limit: 12 },
+  { listingUrl: 'https://igihe.com/fr/', lang: 'fr', limit: 12 },
+];
 
 export interface RwScrapeResult {
   articles: NormalizedArticle[];
@@ -29,8 +39,6 @@ function fetchHtml(url: string, logger: Logger): Promise<string | null> {
   return resilientFetchHtml(url, SOURCE, logger, {
     timeoutMs: 15_000,
     maxRetries: 2,
-    // Igihe doesn't use Cloudflare today, but keep the curl fallback armed in
-    // case they enable it — it's a no-op when fetch succeeds.
     curlFallback: true,
   });
 }
@@ -42,9 +50,72 @@ function resolveUrl(href: string): string {
   return `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
 }
 
+/**
+ * Detect article language from its URL path.
+ * Falls back to the section language when the URL doesn't carry a clear signal.
+ */
+function detectLang(
+  url: string,
+  sectionLang: SupportedLanguage,
+): SupportedLanguage {
+  const path = url.replace(/^https?:\/\/[^/]+/, '');
+  if (/^\/en(\/|$)/.test(path)) return 'en';
+  if (/^\/fr(\/|$)/.test(path)) return 'fr';
+  return sectionLang;
+}
+
+/**
+ * Returns true when `href` looks like a real article link rather than a nav /
+ * category link. Accepts the `/article/` pattern and also any multi-segment
+ * path under the section prefix (e.g. `/en/sport/12345-title.html`).
+ */
+function isArticleHref(href: string, lang: SupportedLanguage): boolean {
+  if (/\/article\//.test(href)) return true;
+  // EN / FR section: any link with at least 3 path segments under the prefix
+  if (lang === 'en' && /\/en\/[^/]+\/[^/]/.test(href)) return true;
+  if (lang === 'fr' && /\/fr\/[^/]+\/[^/]/.test(href)) return true;
+  return false;
+}
+
 export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
-  const html = await fetchHtml(LISTING_URL, logger);
+  // Scrape all language sections concurrently.
+  const sectionResults = await Promise.all(
+    LANGUAGE_SECTIONS.map((sec) =>
+      scrapeSection(sec.listingUrl, sec.lang, sec.limit, logger),
+    ),
+  );
+
+  const articles = sectionResults.flatMap((r) => r.articles);
+  const scrapedTotal = sectionResults.reduce(
+    (acc, r) => acc + r.scrapedTotal,
+    0,
+  );
+  const rejectedInvalid = sectionResults.reduce(
+    (acc, r) => acc + r.rejectedInvalid,
+    0,
+  );
+  const rejectedLowQuality = sectionResults.reduce(
+    (acc, r) => acc + r.rejectedLowQuality,
+    0,
+  );
+
+  const [rw, en, fr] = sectionResults.map((r) => r.articles.length);
+  logger.log(
+    `${SOURCE}: accepted rw=${rw} en=${en} fr=${fr} total=${articles.length}`,
+  );
+
+  return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
+}
+
+async function scrapeSection(
+  listingUrl: string,
+  lang: SupportedLanguage,
+  limit: number,
+  logger: Logger,
+): Promise<RwScrapeResult> {
+  const html = await fetchHtml(listingUrl, logger);
   if (!html) {
+    logger.warn(`${SOURCE} [${lang}]: could not fetch listing page ${listingUrl}`);
     return {
       articles: [],
       scrapedTotal: 0,
@@ -60,9 +131,6 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
   let rejectedInvalid = 0;
   let rejectedLowQuality = 0;
 
-  // Igihe wraps each news card in `.article-wrap > .homenews`. We prefer the
-  // narrower `.homenews` container because `.article-wrap` is also used inside
-  // article detail pages (gallery wrappers).
   const selectors = [
     '.homenews',
     '.article-wrap .homenews-title',
@@ -78,30 +146,39 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
       .map((sel) => $(sel).toArray())
       .find((found) => found.length >= 2) ?? [];
 
-  // Fallback: grab parent containers of article-style heading links
+  // Broader fallback: any heading link that looks like an article
   if (elements.length === 0) {
-    elements = $('h2 a[href*="/article/"], h3 a[href*="/article/"], a[href*="/article/"]')
+    elements = $(
+      'h2 a[href], h3 a[href], h4 a[href], .headline a[href], a[href*="/article/"]',
+    )
       .toArray()
-      .map((a) => $(a).closest('div, li, section').get(0))
+      .map((a) => $(a).closest('div, li, section, article').get(0))
       .filter((el): el is NonNullable<typeof el> => el != null);
   }
 
-  for (const el of elements.slice(0, SCRAPE_LIMIT)) {
+  for (const el of elements.slice(0, limit)) {
     try {
       const $el = $(el);
 
-      // Prefer the first link that points to an actual article page; this avoids
-      // picking up navigation or category links on the listing.
-      const linkEl =
-        $el.find('a[href*="/article/"]').first().length > 0
-          ? $el.find('a[href*="/article/"]').first()
-          : $el.find('a[href]').first();
+      // Prefer a link that matches the article URL pattern, then any link.
+      let linkEl = $el.find(`a[href*="/article/"]`).first();
+      if (!linkEl.length) {
+        // For EN/FR sections the path may not include /article/
+        linkEl = $el.find('a[href]').filter((_, a) => {
+          const h = $(a).attr('href') ?? '';
+          return isArticleHref(h, lang) && !h.includes('#');
+        }).first();
+      }
+      if (!linkEl.length) {
+        linkEl = $el.find('a[href]').first();
+      }
+
       const href = linkEl.attr('href') ?? '';
       if (!href) continue;
-      if (!/\/article\//.test(href)) continue;
 
       const articleUrl = resolveUrl(href);
-      if (!articleUrl) continue;
+      if (!articleUrl.startsWith(BASE_URL)) continue;
+      if (!isArticleHref(href, lang) && !/\/article\//.test(href)) continue;
       if (seenUrls.has(articleUrl)) continue;
       seenUrls.add(articleUrl);
       scrapedTotal++;
@@ -109,7 +186,8 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
       const listingFallbackTitle = normalizeText(
         $el.find('h1, h2, h3, h4').first().text() || linkEl.text(),
       );
-      const detail = await scrapeIgiheArticleDetail(
+
+      const detail = await scrapeArticleDetail(
         articleUrl,
         logger,
         listingFallbackTitle,
@@ -119,41 +197,37 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
         continue;
       }
 
+      const articleLang = detectLang(articleUrl, lang);
+
       const candidate: NormalizedArticle = {
         title: detail.title.substring(0, 500),
         content: sanitizeContentForAI(detail.content),
         imageUrl: detail.imageUrl,
         url: articleUrl,
         source: SOURCE,
-        originalLanguage: 'rw',
+        originalLanguage: articleLang,
         publishedAt: detail.publishedAt,
         continent: 'Africa',
         region: 'East Africa',
         country: 'Rwanda',
       };
 
-      // Hard safety gate: invalid RW scraped article must never be saved.
       if (!isValidArticle(candidate, { minContentLength: 250 })) {
         logger.warn(
-          `${SOURCE}: skipped invalid article (${articleUrl}) title="${candidate.title}" contentLen=${candidate.content.length}`,
+          `${SOURCE} [${articleLang}]: skipped invalid article (${articleUrl}) contentLen=${candidate.content.length}`,
         );
         rejectedInvalid++;
         continue;
       }
 
-      const quality = getContentQualityScore(
-        candidate.title,
-        candidate.content,
-        {
-          minContentLength: 250,
-        },
-      );
+      const quality = getContentQualityScore(candidate.title, candidate.content, {
+        minContentLength: 250,
+      });
       if (!quality.ok) {
         rejectedLowQuality++;
         continue;
       }
 
-      // Hard Igihe body rule after fallback extraction.
       if (candidate.content.length < 300) {
         rejectedLowQuality++;
         continue;
@@ -166,17 +240,14 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
 
       articles.push(candidate);
     } catch (err) {
-      logger.warn(
-        `${SOURCE}: failed to parse element — ${(err as Error).message}`,
-      );
+      logger.warn(`${SOURCE} [${lang}]: failed to parse element — ${(err as Error).message}`);
     }
   }
 
-  logger.log(`${SOURCE}: scraped ${articles.length} accepted articles`);
   return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
 }
 
-async function scrapeIgiheArticleDetail(
+async function scrapeArticleDetail(
   articleUrl: string,
   logger: Logger,
   listingFallbackTitle: string,
@@ -191,10 +262,6 @@ async function scrapeIgiheArticleDetail(
 
   const $ = cheerio.load(html);
 
-  // Required extraction order:
-  // 1) h1 headline
-  // 2) title meta tag
-  // 3) fallback only if valid (>5 chars, not date-like)
   const titleCandidates = [
     normalizeText(
       $('h1.headline, h1.article-title, article h1, .article-title h1, h1')
@@ -209,11 +276,9 @@ async function scrapeIgiheArticleDetail(
     ),
     normalizeText(listingFallbackTitle),
   ];
-  const title = titleCandidates.find((value) => isMeaningfulTitle(value));
+  const title = titleCandidates.find((v) => isMeaningfulTitle(v));
   if (!title) {
-    logger.warn(
-      `${SOURCE}: rejected detail page with invalid title (${articleUrl})`,
-    );
+    logger.warn(`${SOURCE}: rejected detail page with no valid title (${articleUrl})`);
     return null;
   }
 
@@ -227,8 +292,6 @@ async function scrapeIgiheArticleDetail(
     $('time').first().text();
   const publishedAt = parsePublishedAt(publishedAtRaw);
 
-  // Igihe stores the lead in `.surtitre` and the main body in `.fulltext`.
-  // Fall back to the outer wrapper `.text-article` then to broad `p`.
   const contentSelectors = [
     '.fulltext p',
     '.surtitre p, .fulltext p',
@@ -248,39 +311,27 @@ async function scrapeIgiheArticleDetail(
 
   let content = normalizeText((paragraphBucket ?? []).join(' '));
 
-  // Igihe content fallback strategy: if body is too short, try broader DOM extraction.
   if (content.length < 300) {
     const refetched = await fetchHtml(articleUrl, logger);
     if (refetched) {
       const $$ = cheerio.load(refetched);
-      const fallbackBody = extractFallbackBody($$);
-      if (fallbackBody.length > content.length) {
-        content = fallbackBody;
-      }
+      const fallback = extractFallbackBody($$);
+      if (fallback.length > content.length) content = fallback;
     }
   }
 
-  return {
-    title,
-    content,
-    imageUrl,
-    publishedAt,
-  };
+  return { title, content, imageUrl, publishedAt };
 }
 
 function extractFallbackBody($: cheerio.CheerioAPI): string {
-  const fallbackSelectors = [
+  const candidates = [
     '.fulltext',
     '.text-article',
     '.surtitre',
     'article',
     '#content',
     'main',
-  ];
+  ].map((sel) => normalizeText($(sel).first().text()));
 
-  const best = fallbackSelectors
-    .map((selector) => normalizeText($(selector).first().text()))
-    .sort((a, b) => b.length - a.length)[0];
-
-  return normalizeText(best);
+  return candidates.sort((a, b) => b.length - a.length)[0] ?? '';
 }

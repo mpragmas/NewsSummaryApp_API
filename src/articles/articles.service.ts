@@ -831,9 +831,9 @@ export class ArticlesService {
   }
 
   private isValidArticleForInsert(article: NormalizedArticle): boolean {
-    // Keep strict hard validation for RW scraped sources only; RSS sources
-    // may be shorter but still valid according to their feed contracts.
-    if (!this.isRwScrapedSource(article)) return true;
+    // Apply strict quality gates to scraped sources (any language); RSS feeds
+    // may be shorter but are still valid according to their feed contracts.
+    if (!this.isScrapedSource(article)) return true;
 
     if (!isValidArticle(article, { minContentLength: 250 })) return false;
 
@@ -846,11 +846,8 @@ export class ArticlesService {
     return hasRealJournalisticContent(sanitized, article.title);
   }
 
-  private isRwScrapedSource(article: NormalizedArticle): boolean {
-    return (
-      article.originalLanguage === 'rw' &&
-      (article.source === 'Igihe' || article.source === 'Kigali Today')
-    );
+  private isScrapedSource(article: NormalizedArticle): boolean {
+    return article.source === 'Igihe' || article.source === 'Kigali Today';
   }
 
   private normalizeArticleResponse(

@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma';
 import { UsersService } from '../users/users.service';
 import { ClusteringQueueService } from '../queue/clustering.queue';
+import { StoryClusteringService } from '../articles/clustering/story-clustering.service';
 import { ArticleResponseDto } from '../articles/dto/article-response.dto';
 import { toArticleView } from '../articles/article-view.util';
 import { localizeCategory } from '../articles/category-i18n.util';
@@ -36,6 +37,7 @@ export class StoriesService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly clusteringQueue: ClusteringQueueService,
+    private readonly clusteringService: StoryClusteringService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -194,13 +196,20 @@ export class StoriesService {
     return members.map((m) => toArticleView(m as ArticleResponseDto, lang));
   }
 
-  /** Enqueue a clustering pass (admin/manual). */
-  async recluster(rebuild = false): Promise<{ enqueued: boolean }> {
-    await this.clusteringQueue.enqueueClusterRecent({
-      trigger: 'manual',
-      rebuild,
-    });
-    return { enqueued: true };
+  /** Run a clustering pass synchronously (admin/manual) and also enqueue for background follow-up. */
+  async recluster(rebuild = false): Promise<{ enqueued: boolean; result: unknown }> {
+    const result = rebuild
+      ? await this.clusteringService.rebuildAll()
+      : await this.clusteringService.clusterUnassigned();
+
+    // Also enqueue so any articles that arrive while this run was processing get picked up.
+    try {
+      await this.clusteringQueue.enqueueClusterRecent({ trigger: 'manual', rebuild: false });
+    } catch {
+      // Non-fatal: queue may be unavailable (no Redis), sync run already completed above.
+    }
+
+    return { enqueued: true, result };
   }
 
   // ─── helpers ───────────────────────────────────────────────────────────

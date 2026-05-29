@@ -10,26 +10,26 @@ export interface RssFeedConfig {
 }
 
 export const RSS_FEEDS: RssFeedConfig[] = [
-  // ── English feeds ──────────────────────────────────────────────────────────
+  // ── English — Global ────────────────────────────────────────────────────────
   {
     name: 'BBC News',
-    url: 'http://feeds.bbci.co.uk/news/rss.xml',
+    url: 'https://feeds.bbci.co.uk/news/rss.xml',
     language: 'en',
-    continent: 'Europe',
-    region: 'Western Europe',
+    continent: 'Global',
+    region: 'Global',
     country: 'United Kingdom',
   },
   {
     name: 'BBC World',
-    url: 'http://feeds.bbci.co.uk/news/world/rss.xml',
+    url: 'https://feeds.bbci.co.uk/news/world/rss.xml',
     language: 'en',
     continent: 'Global',
     region: 'Global',
     country: 'Global',
   },
   {
-    name: 'BBC World',
-    url: 'http://feeds.bbci.co.uk/sport/football/rss.xml',
+    name: 'BBC Sport Football',
+    url: 'https://feeds.bbci.co.uk/sport/football/rss.xml',
     language: 'en',
     continent: 'Global',
     region: 'Global',
@@ -39,13 +39,47 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     name: 'Al Jazeera',
     url: 'https://www.aljazeera.com/xml/rss/all.xml',
     language: 'en',
-    continent: 'Asia',
-    region: 'Middle East',
+    continent: 'Global',
+    region: 'Global',
     country: 'Qatar',
   },
   {
+    name: 'The Guardian World',
+    url: 'https://www.theguardian.com/world/rss',
+    language: 'en',
+    continent: 'Global',
+    region: 'Global',
+    country: 'United Kingdom',
+  },
+  {
+    name: 'CNN World',
+    url: 'http://rss.cnn.com/rss/edition_world.rss',
+    language: 'en',
+    continent: 'Global',
+    region: 'Global',
+    country: 'United States',
+  },
+  {
+    name: 'TechCrunch',
+    url: 'https://techcrunch.com/feed/',
+    language: 'en',
+    continent: 'North America',
+    region: 'North America',
+    country: 'United States',
+  },
+
+  // ── English — Africa ────────────────────────────────────────────────────────
+  {
     name: 'AllAfrica',
     url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf',
+    language: 'en',
+    continent: 'Africa',
+    region: 'Africa',
+    country: 'Africa',
+  },
+  {
+    name: 'The Guardian Africa',
+    url: 'https://www.theguardian.com/world/africa/rss',
     language: 'en',
     continent: 'Africa',
     region: 'Africa',
@@ -58,22 +92,6 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     continent: 'Africa',
     region: 'East Africa',
     country: 'Kenya',
-  },
-  {
-    name: 'The New Times Rwanda',
-    url: 'https://www.newtimes.co.rw/rss.xml',
-    language: 'en',
-    continent: 'Africa',
-    region: 'East Africa',
-    country: 'Rwanda',
-  },
-  {
-    name: 'KT Press Rwanda',
-    url: 'https://ktpress.rw/feed/',
-    language: 'en',
-    continent: 'Africa',
-    region: 'East Africa',
-    country: 'Rwanda',
   },
   {
     name: 'Nation Africa',
@@ -91,24 +109,26 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     region: 'East Africa',
     country: 'Uganda',
   },
+
+  // ── English — Rwanda ────────────────────────────────────────────────────────
   {
-    name: 'Reuters',
-    url: 'https://feeds.reuters.com/reuters/topNews',
+    name: 'The New Times Rwanda',
+    url: 'https://www.newtimes.co.rw/rss.xml',
     language: 'en',
-    continent: 'North America',
-    region: 'North America',
-    country: 'United States',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
   },
   {
-    name: 'TechCrunch',
-    url: 'https://techcrunch.com/feed/',
+    name: 'KT Press Rwanda',
+    url: 'https://ktpress.rw/feed/',
     language: 'en',
-    continent: 'North America',
-    region: 'North America',
-    country: 'United States',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
   },
 
-  // ── French feeds ───────────────────────────────────────────────────────────
+  // ── French — Global ─────────────────────────────────────────────────────────
   {
     name: 'RFI',
     url: 'https://www.rfi.fr/fr/rss',
@@ -126,8 +146,34 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     country: 'France',
   },
   {
+    name: 'Le Monde',
+    url: 'https://www.lemonde.fr/rss/une.xml',
+    language: 'fr',
+    continent: 'Global',
+    region: 'Global',
+    country: 'France',
+  },
+
+  // ── French — Africa ─────────────────────────────────────────────────────────
+  {
+    name: 'RFI Afrique',
+    url: 'https://www.rfi.fr/fr/afrique/rss',
+    language: 'fr',
+    continent: 'Africa',
+    region: 'Africa',
+    country: 'Africa',
+  },
+  {
     name: 'Jeune Afrique',
     url: 'https://www.jeuneafrique.com/feed/',
+    language: 'fr',
+    continent: 'Africa',
+    region: 'Africa',
+    country: 'Africa',
+  },
+  {
+    name: 'Africa News FR',
+    url: 'https://fr.africanews.com/rss',
     language: 'fr',
     continent: 'Africa',
     region: 'Africa',

@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { QueueModule } from '../queue/queue.module';
+import { ClusteringModule } from '../articles/clustering/clustering.module';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
 
 @Module({
@@ -13,6 +14,7 @@ import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
     forwardRef(() => UsersModule),
     AuthModule,
     QueueModule,
+    ClusteringModule,
   ],
   controllers: [StoriesController],
   providers: [StoriesService, AdminApiKeyGuard],
