@@ -18,6 +18,34 @@ enum AuthProvider {
   google
 }
 
+/// Kinds of analytics events tracked across the platform. Append new variants
+/// via migration — never reorder or remove (historical rows reference them).
+enum AnalyticsEventType {
+  STORY_IMPRESSION
+  ARTICLE_OPEN
+  SOURCE_SWITCH
+  EXTERNAL_CLICK
+  BOOKMARK
+  UNBOOKMARK
+  SHARE
+  SEARCH
+  SESSION_START
+  SESSION_HEARTBEAT
+  LANGUAGE_USAGE
+  CATEGORY_INTEREST
+  REGION_INTEREST
+}
+
+/// Coarse device class inferred from the User-Agent (privacy-preserving — no
+/// fingerprinting). `unknown` when the UA is absent or unrecognized.
+enum DeviceType {
+  mobile
+  tablet
+  desktop
+  bot
+  unknown
+}
+
 model User {
   id                String    @id @default(uuid())
   /// Nullable — may be absent for anonymous-origin accounts.
@@ -198,4 +226,158 @@ model StoryCluster {
   @@index([latestPublishedAt])
   @@index([entityKeys], type: Gin)
   @@map("story_clusters")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// ANALYTICS
+//
+// Append-only event tables for product, publisher and advertiser analytics.
+// Intentionally NOT related to User/Article via foreign keys:
+//   • writes stay cheap (no FK locking/validation on the hot path)
+//   • events survive article / user deletion for accurate historical reporting
+//   • guest (anonymous) and authenticated traffic share one schema
+// Personally identifying data is never stored — guests are keyed by a random
+// client id, IPs are reduced to a country/region, and User-Agents to a device
+// class (GDPR-ready, see analytics/request-context.util.ts).
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Generic firehose of product events. Specialized high-volume events
+/// (impressions, outbound clicks) also land in their own tables below for
+/// efficient publisher aggregation; this table powers flexible breakdowns.
+model AnalyticsEvent {
+  id          String             @id @default(uuid())
+  type        AnalyticsEventType
+  /// Stable per-device anonymous id (or merged guest/session id). Always set.
+  sessionId   String
+  /// Set only for authenticated users; null for guests.
+  userId      String?
+  anonymous   Boolean            @default(true)
+  articleId   String?
+  clusterId   String?
+  /// Publisher / source name (e.g. "Igihe", "BBC") for source + click events.
+  source      String?
+  category    String?
+  language    String?
+  country     String?
+  region      String?
+  device      DeviceType         @default(unknown)
+  referrer    String?
+  /// Raw search text for SEARCH events (lower-cased, trimmed).
+  query       String?
+  /// Result count for SEARCH events; lets us flag "failed" (zero-result) searches.
+  resultCount Int?
+  /// Duration in ms for SESSION_HEARTBEAT / reading-time events.
+  durationMs  Int?
+  /// Free-form extra context (kept small — never store PII here).
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+  @@index([source])
+  @@index([articleId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([clusterId])
+  @@index([type, createdAt])
+  @@index([category, createdAt])
+  @@map("analytics_events")
+}
+
+/// One row per browsing session. Drives DAU/WAU/MAU, returning-user, session
+/// depth and average-session-time metrics. Upserted by anonId + rolling window.
+model UserSession {
+  id         String     @id @default(uuid())
+  /// Anonymous client id from the device (localStorage). Stable across sessions.
+  anonId     String
+  /// Set when the session belongs to a signed-in user.
+  userId     String?
+  device     DeviceType @default(unknown)
+  country    String?
+  region     String?
+  referrer   String?
+  language   String?
+  startedAt  DateTime   @default(now())
+  lastSeenAt DateTime   @default(now())
+  endedAt    DateTime?
+  durationMs Int        @default(0)
+  eventCount Int        @default(0)
+  pageviews  Int        @default(0)
+
+  @@index([anonId])
+  @@index([userId])
+  @@index([startedAt])
+  @@index([lastSeenAt])
+  @@map("user_sessions")
+}
+
+/// A story/article shown to a user (viewport impression). Powers CTR
+/// (clicks ÷ impressions) per story and per publisher.
+model StoryImpression {
+  id        String     @id @default(uuid())
+  clusterId String?
+  articleId String?
+  sessionId String
+  userId    String?
+  source    String?
+  category  String?
+  language  String?
+  country   String?
+  device    DeviceType @default(unknown)
+  createdAt DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([clusterId])
+  @@index([articleId])
+  @@index([sessionId])
+  @@index([source])
+  @@index([source, createdAt])
+  @@map("story_impressions")
+}
+
+/// An outbound click to a publisher's website (the "Read full article on Igihe"
+/// action). This is the core publisher-partnership metric: "we sent you N readers".
+model ExternalClick {
+  id        String     @id @default(uuid())
+  articleId String
+  clusterId String?
+  /// Publisher the reader was sent to (e.g. "Igihe").
+  source    String
+  targetUrl String     @db.Text
+  sessionId String?
+  userId    String?
+  anonymous Boolean    @default(true)
+  device    DeviceType @default(unknown)
+  country   String?
+  region    String?
+  referrer  String?
+  createdAt DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([source])
+  @@index([articleId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([source, createdAt])
+  @@map("external_clicks")
+}
+
+/// Pre-aggregated per-publisher daily rollup produced by the aggregation cron.
+/// Keeps publisher dashboards fast regardless of raw event volume.
+model PublisherDailyStat {
+  id             String   @id @default(uuid())
+  date           DateTime @db.Date
+  publisher      String
+  clicks         Int      @default(0)
+  impressions    Int      @default(0)
+  opens          Int      @default(0)
+  uniqueSessions Int      @default(0)
+  uniqueUsers    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, publisher])
+  @@index([date])
+  @@index([publisher])
+  @@map("publisher_daily_stats")
 }

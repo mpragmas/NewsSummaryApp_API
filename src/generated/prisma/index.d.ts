@@ -60,6 +60,37 @@ export type Article = $Result.DefaultSelection<Prisma.$ArticlePayload>
  * here (never deduplicated away). Grouping is same-language only.
  */
 export type StoryCluster = $Result.DefaultSelection<Prisma.$StoryClusterPayload>
+/**
+ * Model AnalyticsEvent
+ * Generic firehose of product events. Specialized high-volume events
+ * (impressions, outbound clicks) also land in their own tables below for
+ * efficient publisher aggregation; this table powers flexible breakdowns.
+ */
+export type AnalyticsEvent = $Result.DefaultSelection<Prisma.$AnalyticsEventPayload>
+/**
+ * Model UserSession
+ * One row per browsing session. Drives DAU/WAU/MAU, returning-user, session
+ * depth and average-session-time metrics. Upserted by anonId + rolling window.
+ */
+export type UserSession = $Result.DefaultSelection<Prisma.$UserSessionPayload>
+/**
+ * Model StoryImpression
+ * A story/article shown to a user (viewport impression). Powers CTR
+ * (clicks ÷ impressions) per story and per publisher.
+ */
+export type StoryImpression = $Result.DefaultSelection<Prisma.$StoryImpressionPayload>
+/**
+ * Model ExternalClick
+ * An outbound click to a publisher's website (the "Read full article on Igihe"
+ * action). This is the core publisher-partnership metric: "we sent you N readers".
+ */
+export type ExternalClick = $Result.DefaultSelection<Prisma.$ExternalClickPayload>
+/**
+ * Model PublisherDailyStat
+ * Pre-aggregated per-publisher daily rollup produced by the aggregation cron.
+ * Keeps publisher dashboards fast regardless of raw event volume.
+ */
+export type PublisherDailyStat = $Result.DefaultSelection<Prisma.$PublisherDailyStatPayload>
 
 /**
  * Enums
@@ -80,6 +111,36 @@ export const AuthProvider: {
 
 export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider]
 
+
+export const AnalyticsEventType: {
+  STORY_IMPRESSION: 'STORY_IMPRESSION',
+  ARTICLE_OPEN: 'ARTICLE_OPEN',
+  SOURCE_SWITCH: 'SOURCE_SWITCH',
+  EXTERNAL_CLICK: 'EXTERNAL_CLICK',
+  BOOKMARK: 'BOOKMARK',
+  UNBOOKMARK: 'UNBOOKMARK',
+  SHARE: 'SHARE',
+  SEARCH: 'SEARCH',
+  SESSION_START: 'SESSION_START',
+  SESSION_HEARTBEAT: 'SESSION_HEARTBEAT',
+  LANGUAGE_USAGE: 'LANGUAGE_USAGE',
+  CATEGORY_INTEREST: 'CATEGORY_INTEREST',
+  REGION_INTEREST: 'REGION_INTEREST'
+};
+
+export type AnalyticsEventType = (typeof AnalyticsEventType)[keyof typeof AnalyticsEventType]
+
+
+export const DeviceType: {
+  mobile: 'mobile',
+  tablet: 'tablet',
+  desktop: 'desktop',
+  bot: 'bot',
+  unknown: 'unknown'
+};
+
+export type DeviceType = (typeof DeviceType)[keyof typeof DeviceType]
+
 }
 
 export type AppLocale = $Enums.AppLocale
@@ -89,6 +150,14 @@ export const AppLocale: typeof $Enums.AppLocale
 export type AuthProvider = $Enums.AuthProvider
 
 export const AuthProvider: typeof $Enums.AuthProvider
+
+export type AnalyticsEventType = $Enums.AnalyticsEventType
+
+export const AnalyticsEventType: typeof $Enums.AnalyticsEventType
+
+export type DeviceType = $Enums.DeviceType
+
+export const DeviceType: typeof $Enums.DeviceType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -300,6 +369,56 @@ export class PrismaClient<
     * ```
     */
   get storyCluster(): Prisma.StoryClusterDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.analyticsEvent`: Exposes CRUD operations for the **AnalyticsEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AnalyticsEvents
+    * const analyticsEvents = await prisma.analyticsEvent.findMany()
+    * ```
+    */
+  get analyticsEvent(): Prisma.AnalyticsEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.userSession`: Exposes CRUD operations for the **UserSession** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more UserSessions
+    * const userSessions = await prisma.userSession.findMany()
+    * ```
+    */
+  get userSession(): Prisma.UserSessionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.storyImpression`: Exposes CRUD operations for the **StoryImpression** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more StoryImpressions
+    * const storyImpressions = await prisma.storyImpression.findMany()
+    * ```
+    */
+  get storyImpression(): Prisma.StoryImpressionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.externalClick`: Exposes CRUD operations for the **ExternalClick** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ExternalClicks
+    * const externalClicks = await prisma.externalClick.findMany()
+    * ```
+    */
+  get externalClick(): Prisma.ExternalClickDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.publisherDailyStat`: Exposes CRUD operations for the **PublisherDailyStat** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PublisherDailyStats
+    * const publisherDailyStats = await prisma.publisherDailyStat.findMany()
+    * ```
+    */
+  get publisherDailyStat(): Prisma.PublisherDailyStatDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -742,7 +861,12 @@ export namespace Prisma {
     SavedArticle: 'SavedArticle',
     ReadingHistory: 'ReadingHistory',
     Article: 'Article',
-    StoryCluster: 'StoryCluster'
+    StoryCluster: 'StoryCluster',
+    AnalyticsEvent: 'AnalyticsEvent',
+    UserSession: 'UserSession',
+    StoryImpression: 'StoryImpression',
+    ExternalClick: 'ExternalClick',
+    PublisherDailyStat: 'PublisherDailyStat'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -758,7 +882,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "oAuthAccount" | "guestSession" | "guestSavedArticle" | "guestReadingHistory" | "savedArticle" | "readingHistory" | "article" | "storyCluster"
+      modelProps: "user" | "oAuthAccount" | "guestSession" | "guestSavedArticle" | "guestReadingHistory" | "savedArticle" | "readingHistory" | "article" | "storyCluster" | "analyticsEvent" | "userSession" | "storyImpression" | "externalClick" | "publisherDailyStat"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1428,6 +1552,376 @@ export namespace Prisma {
           }
         }
       }
+      AnalyticsEvent: {
+        payload: Prisma.$AnalyticsEventPayload<ExtArgs>
+        fields: Prisma.AnalyticsEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AnalyticsEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AnalyticsEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          findFirst: {
+            args: Prisma.AnalyticsEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AnalyticsEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          findMany: {
+            args: Prisma.AnalyticsEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>[]
+          }
+          create: {
+            args: Prisma.AnalyticsEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          createMany: {
+            args: Prisma.AnalyticsEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AnalyticsEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>[]
+          }
+          delete: {
+            args: Prisma.AnalyticsEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          update: {
+            args: Prisma.AnalyticsEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.AnalyticsEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AnalyticsEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AnalyticsEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.AnalyticsEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AnalyticsEventPayload>
+          }
+          aggregate: {
+            args: Prisma.AnalyticsEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAnalyticsEvent>
+          }
+          groupBy: {
+            args: Prisma.AnalyticsEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AnalyticsEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AnalyticsEventCountArgs<ExtArgs>
+            result: $Utils.Optional<AnalyticsEventCountAggregateOutputType> | number
+          }
+        }
+      }
+      UserSession: {
+        payload: Prisma.$UserSessionPayload<ExtArgs>
+        fields: Prisma.UserSessionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.UserSessionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.UserSessionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          findFirst: {
+            args: Prisma.UserSessionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.UserSessionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          findMany: {
+            args: Prisma.UserSessionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>[]
+          }
+          create: {
+            args: Prisma.UserSessionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          createMany: {
+            args: Prisma.UserSessionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.UserSessionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>[]
+          }
+          delete: {
+            args: Prisma.UserSessionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          update: {
+            args: Prisma.UserSessionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          deleteMany: {
+            args: Prisma.UserSessionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.UserSessionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.UserSessionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>[]
+          }
+          upsert: {
+            args: Prisma.UserSessionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserSessionPayload>
+          }
+          aggregate: {
+            args: Prisma.UserSessionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateUserSession>
+          }
+          groupBy: {
+            args: Prisma.UserSessionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<UserSessionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.UserSessionCountArgs<ExtArgs>
+            result: $Utils.Optional<UserSessionCountAggregateOutputType> | number
+          }
+        }
+      }
+      StoryImpression: {
+        payload: Prisma.$StoryImpressionPayload<ExtArgs>
+        fields: Prisma.StoryImpressionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.StoryImpressionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.StoryImpressionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          findFirst: {
+            args: Prisma.StoryImpressionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.StoryImpressionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          findMany: {
+            args: Prisma.StoryImpressionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>[]
+          }
+          create: {
+            args: Prisma.StoryImpressionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          createMany: {
+            args: Prisma.StoryImpressionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.StoryImpressionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>[]
+          }
+          delete: {
+            args: Prisma.StoryImpressionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          update: {
+            args: Prisma.StoryImpressionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          deleteMany: {
+            args: Prisma.StoryImpressionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.StoryImpressionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.StoryImpressionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>[]
+          }
+          upsert: {
+            args: Prisma.StoryImpressionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$StoryImpressionPayload>
+          }
+          aggregate: {
+            args: Prisma.StoryImpressionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateStoryImpression>
+          }
+          groupBy: {
+            args: Prisma.StoryImpressionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<StoryImpressionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.StoryImpressionCountArgs<ExtArgs>
+            result: $Utils.Optional<StoryImpressionCountAggregateOutputType> | number
+          }
+        }
+      }
+      ExternalClick: {
+        payload: Prisma.$ExternalClickPayload<ExtArgs>
+        fields: Prisma.ExternalClickFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ExternalClickFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ExternalClickFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          findFirst: {
+            args: Prisma.ExternalClickFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ExternalClickFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          findMany: {
+            args: Prisma.ExternalClickFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>[]
+          }
+          create: {
+            args: Prisma.ExternalClickCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          createMany: {
+            args: Prisma.ExternalClickCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ExternalClickCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>[]
+          }
+          delete: {
+            args: Prisma.ExternalClickDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          update: {
+            args: Prisma.ExternalClickUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          deleteMany: {
+            args: Prisma.ExternalClickDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ExternalClickUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ExternalClickUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>[]
+          }
+          upsert: {
+            args: Prisma.ExternalClickUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExternalClickPayload>
+          }
+          aggregate: {
+            args: Prisma.ExternalClickAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateExternalClick>
+          }
+          groupBy: {
+            args: Prisma.ExternalClickGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ExternalClickGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ExternalClickCountArgs<ExtArgs>
+            result: $Utils.Optional<ExternalClickCountAggregateOutputType> | number
+          }
+        }
+      }
+      PublisherDailyStat: {
+        payload: Prisma.$PublisherDailyStatPayload<ExtArgs>
+        fields: Prisma.PublisherDailyStatFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PublisherDailyStatFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PublisherDailyStatFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          findFirst: {
+            args: Prisma.PublisherDailyStatFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PublisherDailyStatFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          findMany: {
+            args: Prisma.PublisherDailyStatFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>[]
+          }
+          create: {
+            args: Prisma.PublisherDailyStatCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          createMany: {
+            args: Prisma.PublisherDailyStatCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PublisherDailyStatCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>[]
+          }
+          delete: {
+            args: Prisma.PublisherDailyStatDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          update: {
+            args: Prisma.PublisherDailyStatUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          deleteMany: {
+            args: Prisma.PublisherDailyStatDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PublisherDailyStatUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.PublisherDailyStatUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>[]
+          }
+          upsert: {
+            args: Prisma.PublisherDailyStatUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PublisherDailyStatPayload>
+          }
+          aggregate: {
+            args: Prisma.PublisherDailyStatAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePublisherDailyStat>
+          }
+          groupBy: {
+            args: Prisma.PublisherDailyStatGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PublisherDailyStatGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PublisherDailyStatCountArgs<ExtArgs>
+            result: $Utils.Optional<PublisherDailyStatCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1545,6 +2039,11 @@ export namespace Prisma {
     readingHistory?: ReadingHistoryOmit
     article?: ArticleOmit
     storyCluster?: StoryClusterOmit
+    analyticsEvent?: AnalyticsEventOmit
+    userSession?: UserSessionOmit
+    storyImpression?: StoryImpressionOmit
+    externalClick?: ExternalClickOmit
+    publisherDailyStat?: PublisherDailyStatOmit
   }
 
   /* Types for Logging */
@@ -12039,6 +12538,5708 @@ export namespace Prisma {
 
 
   /**
+   * Model AnalyticsEvent
+   */
+
+  export type AggregateAnalyticsEvent = {
+    _count: AnalyticsEventCountAggregateOutputType | null
+    _avg: AnalyticsEventAvgAggregateOutputType | null
+    _sum: AnalyticsEventSumAggregateOutputType | null
+    _min: AnalyticsEventMinAggregateOutputType | null
+    _max: AnalyticsEventMaxAggregateOutputType | null
+  }
+
+  export type AnalyticsEventAvgAggregateOutputType = {
+    resultCount: number | null
+    durationMs: number | null
+  }
+
+  export type AnalyticsEventSumAggregateOutputType = {
+    resultCount: number | null
+    durationMs: number | null
+  }
+
+  export type AnalyticsEventMinAggregateOutputType = {
+    id: string | null
+    type: $Enums.AnalyticsEventType | null
+    sessionId: string | null
+    userId: string | null
+    anonymous: boolean | null
+    articleId: string | null
+    clusterId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    region: string | null
+    device: $Enums.DeviceType | null
+    referrer: string | null
+    query: string | null
+    resultCount: number | null
+    durationMs: number | null
+    createdAt: Date | null
+  }
+
+  export type AnalyticsEventMaxAggregateOutputType = {
+    id: string | null
+    type: $Enums.AnalyticsEventType | null
+    sessionId: string | null
+    userId: string | null
+    anonymous: boolean | null
+    articleId: string | null
+    clusterId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    region: string | null
+    device: $Enums.DeviceType | null
+    referrer: string | null
+    query: string | null
+    resultCount: number | null
+    durationMs: number | null
+    createdAt: Date | null
+  }
+
+  export type AnalyticsEventCountAggregateOutputType = {
+    id: number
+    type: number
+    sessionId: number
+    userId: number
+    anonymous: number
+    articleId: number
+    clusterId: number
+    source: number
+    category: number
+    language: number
+    country: number
+    region: number
+    device: number
+    referrer: number
+    query: number
+    resultCount: number
+    durationMs: number
+    metadata: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type AnalyticsEventAvgAggregateInputType = {
+    resultCount?: true
+    durationMs?: true
+  }
+
+  export type AnalyticsEventSumAggregateInputType = {
+    resultCount?: true
+    durationMs?: true
+  }
+
+  export type AnalyticsEventMinAggregateInputType = {
+    id?: true
+    type?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    region?: true
+    device?: true
+    referrer?: true
+    query?: true
+    resultCount?: true
+    durationMs?: true
+    createdAt?: true
+  }
+
+  export type AnalyticsEventMaxAggregateInputType = {
+    id?: true
+    type?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    region?: true
+    device?: true
+    referrer?: true
+    query?: true
+    resultCount?: true
+    durationMs?: true
+    createdAt?: true
+  }
+
+  export type AnalyticsEventCountAggregateInputType = {
+    id?: true
+    type?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    region?: true
+    device?: true
+    referrer?: true
+    query?: true
+    resultCount?: true
+    durationMs?: true
+    metadata?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type AnalyticsEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AnalyticsEvent to aggregate.
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AnalyticsEvents to fetch.
+     */
+    orderBy?: AnalyticsEventOrderByWithRelationInput | AnalyticsEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AnalyticsEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AnalyticsEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AnalyticsEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AnalyticsEvents
+    **/
+    _count?: true | AnalyticsEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AnalyticsEventAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AnalyticsEventSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AnalyticsEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AnalyticsEventMaxAggregateInputType
+  }
+
+  export type GetAnalyticsEventAggregateType<T extends AnalyticsEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateAnalyticsEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAnalyticsEvent[P]>
+      : GetScalarType<T[P], AggregateAnalyticsEvent[P]>
+  }
+
+
+
+
+  export type AnalyticsEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AnalyticsEventWhereInput
+    orderBy?: AnalyticsEventOrderByWithAggregationInput | AnalyticsEventOrderByWithAggregationInput[]
+    by: AnalyticsEventScalarFieldEnum[] | AnalyticsEventScalarFieldEnum
+    having?: AnalyticsEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AnalyticsEventCountAggregateInputType | true
+    _avg?: AnalyticsEventAvgAggregateInputType
+    _sum?: AnalyticsEventSumAggregateInputType
+    _min?: AnalyticsEventMinAggregateInputType
+    _max?: AnalyticsEventMaxAggregateInputType
+  }
+
+  export type AnalyticsEventGroupByOutputType = {
+    id: string
+    type: $Enums.AnalyticsEventType
+    sessionId: string
+    userId: string | null
+    anonymous: boolean
+    articleId: string | null
+    clusterId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    region: string | null
+    device: $Enums.DeviceType
+    referrer: string | null
+    query: string | null
+    resultCount: number | null
+    durationMs: number | null
+    metadata: JsonValue | null
+    createdAt: Date
+    _count: AnalyticsEventCountAggregateOutputType | null
+    _avg: AnalyticsEventAvgAggregateOutputType | null
+    _sum: AnalyticsEventSumAggregateOutputType | null
+    _min: AnalyticsEventMinAggregateOutputType | null
+    _max: AnalyticsEventMaxAggregateOutputType | null
+  }
+
+  type GetAnalyticsEventGroupByPayload<T extends AnalyticsEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AnalyticsEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AnalyticsEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AnalyticsEventGroupByOutputType[P]>
+            : GetScalarType<T[P], AnalyticsEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AnalyticsEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    region?: boolean
+    device?: boolean
+    referrer?: boolean
+    query?: boolean
+    resultCount?: boolean
+    durationMs?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["analyticsEvent"]>
+
+  export type AnalyticsEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    region?: boolean
+    device?: boolean
+    referrer?: boolean
+    query?: boolean
+    resultCount?: boolean
+    durationMs?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["analyticsEvent"]>
+
+  export type AnalyticsEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    region?: boolean
+    device?: boolean
+    referrer?: boolean
+    query?: boolean
+    resultCount?: boolean
+    durationMs?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["analyticsEvent"]>
+
+  export type AnalyticsEventSelectScalar = {
+    id?: boolean
+    type?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    region?: boolean
+    device?: boolean
+    referrer?: boolean
+    query?: boolean
+    resultCount?: boolean
+    durationMs?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }
+
+  export type AnalyticsEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "type" | "sessionId" | "userId" | "anonymous" | "articleId" | "clusterId" | "source" | "category" | "language" | "country" | "region" | "device" | "referrer" | "query" | "resultCount" | "durationMs" | "metadata" | "createdAt", ExtArgs["result"]["analyticsEvent"]>
+
+  export type $AnalyticsEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AnalyticsEvent"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      type: $Enums.AnalyticsEventType
+      /**
+       * Stable per-device anonymous id (or merged guest/session id). Always set.
+       */
+      sessionId: string
+      /**
+       * Set only for authenticated users; null for guests.
+       */
+      userId: string | null
+      anonymous: boolean
+      articleId: string | null
+      clusterId: string | null
+      /**
+       * Publisher / source name (e.g. "Igihe", "BBC") for source + click events.
+       */
+      source: string | null
+      category: string | null
+      language: string | null
+      country: string | null
+      region: string | null
+      device: $Enums.DeviceType
+      referrer: string | null
+      /**
+       * Raw search text for SEARCH events (lower-cased, trimmed).
+       */
+      query: string | null
+      /**
+       * Result count for SEARCH events; lets us flag "failed" (zero-result) searches.
+       */
+      resultCount: number | null
+      /**
+       * Duration in ms for SESSION_HEARTBEAT / reading-time events.
+       */
+      durationMs: number | null
+      /**
+       * Free-form extra context (kept small — never store PII here).
+       */
+      metadata: Prisma.JsonValue | null
+      createdAt: Date
+    }, ExtArgs["result"]["analyticsEvent"]>
+    composites: {}
+  }
+
+  type AnalyticsEventGetPayload<S extends boolean | null | undefined | AnalyticsEventDefaultArgs> = $Result.GetResult<Prisma.$AnalyticsEventPayload, S>
+
+  type AnalyticsEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AnalyticsEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AnalyticsEventCountAggregateInputType | true
+    }
+
+  export interface AnalyticsEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AnalyticsEvent'], meta: { name: 'AnalyticsEvent' } }
+    /**
+     * Find zero or one AnalyticsEvent that matches the filter.
+     * @param {AnalyticsEventFindUniqueArgs} args - Arguments to find a AnalyticsEvent
+     * @example
+     * // Get one AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AnalyticsEventFindUniqueArgs>(args: SelectSubset<T, AnalyticsEventFindUniqueArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AnalyticsEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AnalyticsEventFindUniqueOrThrowArgs} args - Arguments to find a AnalyticsEvent
+     * @example
+     * // Get one AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AnalyticsEventFindUniqueOrThrowArgs>(args: SelectSubset<T, AnalyticsEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AnalyticsEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventFindFirstArgs} args - Arguments to find a AnalyticsEvent
+     * @example
+     * // Get one AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AnalyticsEventFindFirstArgs>(args?: SelectSubset<T, AnalyticsEventFindFirstArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AnalyticsEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventFindFirstOrThrowArgs} args - Arguments to find a AnalyticsEvent
+     * @example
+     * // Get one AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AnalyticsEventFindFirstOrThrowArgs>(args?: SelectSubset<T, AnalyticsEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AnalyticsEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AnalyticsEvents
+     * const analyticsEvents = await prisma.analyticsEvent.findMany()
+     * 
+     * // Get first 10 AnalyticsEvents
+     * const analyticsEvents = await prisma.analyticsEvent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const analyticsEventWithIdOnly = await prisma.analyticsEvent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AnalyticsEventFindManyArgs>(args?: SelectSubset<T, AnalyticsEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AnalyticsEvent.
+     * @param {AnalyticsEventCreateArgs} args - Arguments to create a AnalyticsEvent.
+     * @example
+     * // Create one AnalyticsEvent
+     * const AnalyticsEvent = await prisma.analyticsEvent.create({
+     *   data: {
+     *     // ... data to create a AnalyticsEvent
+     *   }
+     * })
+     * 
+     */
+    create<T extends AnalyticsEventCreateArgs>(args: SelectSubset<T, AnalyticsEventCreateArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AnalyticsEvents.
+     * @param {AnalyticsEventCreateManyArgs} args - Arguments to create many AnalyticsEvents.
+     * @example
+     * // Create many AnalyticsEvents
+     * const analyticsEvent = await prisma.analyticsEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AnalyticsEventCreateManyArgs>(args?: SelectSubset<T, AnalyticsEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AnalyticsEvents and returns the data saved in the database.
+     * @param {AnalyticsEventCreateManyAndReturnArgs} args - Arguments to create many AnalyticsEvents.
+     * @example
+     * // Create many AnalyticsEvents
+     * const analyticsEvent = await prisma.analyticsEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AnalyticsEvents and only return the `id`
+     * const analyticsEventWithIdOnly = await prisma.analyticsEvent.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AnalyticsEventCreateManyAndReturnArgs>(args?: SelectSubset<T, AnalyticsEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AnalyticsEvent.
+     * @param {AnalyticsEventDeleteArgs} args - Arguments to delete one AnalyticsEvent.
+     * @example
+     * // Delete one AnalyticsEvent
+     * const AnalyticsEvent = await prisma.analyticsEvent.delete({
+     *   where: {
+     *     // ... filter to delete one AnalyticsEvent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AnalyticsEventDeleteArgs>(args: SelectSubset<T, AnalyticsEventDeleteArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AnalyticsEvent.
+     * @param {AnalyticsEventUpdateArgs} args - Arguments to update one AnalyticsEvent.
+     * @example
+     * // Update one AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AnalyticsEventUpdateArgs>(args: SelectSubset<T, AnalyticsEventUpdateArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AnalyticsEvents.
+     * @param {AnalyticsEventDeleteManyArgs} args - Arguments to filter AnalyticsEvents to delete.
+     * @example
+     * // Delete a few AnalyticsEvents
+     * const { count } = await prisma.analyticsEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AnalyticsEventDeleteManyArgs>(args?: SelectSubset<T, AnalyticsEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AnalyticsEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AnalyticsEvents
+     * const analyticsEvent = await prisma.analyticsEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AnalyticsEventUpdateManyArgs>(args: SelectSubset<T, AnalyticsEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AnalyticsEvents and returns the data updated in the database.
+     * @param {AnalyticsEventUpdateManyAndReturnArgs} args - Arguments to update many AnalyticsEvents.
+     * @example
+     * // Update many AnalyticsEvents
+     * const analyticsEvent = await prisma.analyticsEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AnalyticsEvents and only return the `id`
+     * const analyticsEventWithIdOnly = await prisma.analyticsEvent.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AnalyticsEventUpdateManyAndReturnArgs>(args: SelectSubset<T, AnalyticsEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AnalyticsEvent.
+     * @param {AnalyticsEventUpsertArgs} args - Arguments to update or create a AnalyticsEvent.
+     * @example
+     * // Update or create a AnalyticsEvent
+     * const analyticsEvent = await prisma.analyticsEvent.upsert({
+     *   create: {
+     *     // ... data to create a AnalyticsEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AnalyticsEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AnalyticsEventUpsertArgs>(args: SelectSubset<T, AnalyticsEventUpsertArgs<ExtArgs>>): Prisma__AnalyticsEventClient<$Result.GetResult<Prisma.$AnalyticsEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AnalyticsEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventCountArgs} args - Arguments to filter AnalyticsEvents to count.
+     * @example
+     * // Count the number of AnalyticsEvents
+     * const count = await prisma.analyticsEvent.count({
+     *   where: {
+     *     // ... the filter for the AnalyticsEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends AnalyticsEventCountArgs>(
+      args?: Subset<T, AnalyticsEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AnalyticsEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AnalyticsEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AnalyticsEventAggregateArgs>(args: Subset<T, AnalyticsEventAggregateArgs>): Prisma.PrismaPromise<GetAnalyticsEventAggregateType<T>>
+
+    /**
+     * Group by AnalyticsEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AnalyticsEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AnalyticsEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AnalyticsEventGroupByArgs['orderBy'] }
+        : { orderBy?: AnalyticsEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AnalyticsEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAnalyticsEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AnalyticsEvent model
+   */
+  readonly fields: AnalyticsEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AnalyticsEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AnalyticsEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AnalyticsEvent model
+   */
+  interface AnalyticsEventFieldRefs {
+    readonly id: FieldRef<"AnalyticsEvent", 'String'>
+    readonly type: FieldRef<"AnalyticsEvent", 'AnalyticsEventType'>
+    readonly sessionId: FieldRef<"AnalyticsEvent", 'String'>
+    readonly userId: FieldRef<"AnalyticsEvent", 'String'>
+    readonly anonymous: FieldRef<"AnalyticsEvent", 'Boolean'>
+    readonly articleId: FieldRef<"AnalyticsEvent", 'String'>
+    readonly clusterId: FieldRef<"AnalyticsEvent", 'String'>
+    readonly source: FieldRef<"AnalyticsEvent", 'String'>
+    readonly category: FieldRef<"AnalyticsEvent", 'String'>
+    readonly language: FieldRef<"AnalyticsEvent", 'String'>
+    readonly country: FieldRef<"AnalyticsEvent", 'String'>
+    readonly region: FieldRef<"AnalyticsEvent", 'String'>
+    readonly device: FieldRef<"AnalyticsEvent", 'DeviceType'>
+    readonly referrer: FieldRef<"AnalyticsEvent", 'String'>
+    readonly query: FieldRef<"AnalyticsEvent", 'String'>
+    readonly resultCount: FieldRef<"AnalyticsEvent", 'Int'>
+    readonly durationMs: FieldRef<"AnalyticsEvent", 'Int'>
+    readonly metadata: FieldRef<"AnalyticsEvent", 'Json'>
+    readonly createdAt: FieldRef<"AnalyticsEvent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AnalyticsEvent findUnique
+   */
+  export type AnalyticsEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter, which AnalyticsEvent to fetch.
+     */
+    where: AnalyticsEventWhereUniqueInput
+  }
+
+  /**
+   * AnalyticsEvent findUniqueOrThrow
+   */
+  export type AnalyticsEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter, which AnalyticsEvent to fetch.
+     */
+    where: AnalyticsEventWhereUniqueInput
+  }
+
+  /**
+   * AnalyticsEvent findFirst
+   */
+  export type AnalyticsEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter, which AnalyticsEvent to fetch.
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AnalyticsEvents to fetch.
+     */
+    orderBy?: AnalyticsEventOrderByWithRelationInput | AnalyticsEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AnalyticsEvents.
+     */
+    cursor?: AnalyticsEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AnalyticsEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AnalyticsEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AnalyticsEvents.
+     */
+    distinct?: AnalyticsEventScalarFieldEnum | AnalyticsEventScalarFieldEnum[]
+  }
+
+  /**
+   * AnalyticsEvent findFirstOrThrow
+   */
+  export type AnalyticsEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter, which AnalyticsEvent to fetch.
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AnalyticsEvents to fetch.
+     */
+    orderBy?: AnalyticsEventOrderByWithRelationInput | AnalyticsEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AnalyticsEvents.
+     */
+    cursor?: AnalyticsEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AnalyticsEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AnalyticsEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AnalyticsEvents.
+     */
+    distinct?: AnalyticsEventScalarFieldEnum | AnalyticsEventScalarFieldEnum[]
+  }
+
+  /**
+   * AnalyticsEvent findMany
+   */
+  export type AnalyticsEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter, which AnalyticsEvents to fetch.
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AnalyticsEvents to fetch.
+     */
+    orderBy?: AnalyticsEventOrderByWithRelationInput | AnalyticsEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AnalyticsEvents.
+     */
+    cursor?: AnalyticsEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AnalyticsEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AnalyticsEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AnalyticsEvents.
+     */
+    distinct?: AnalyticsEventScalarFieldEnum | AnalyticsEventScalarFieldEnum[]
+  }
+
+  /**
+   * AnalyticsEvent create
+   */
+  export type AnalyticsEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * The data needed to create a AnalyticsEvent.
+     */
+    data: XOR<AnalyticsEventCreateInput, AnalyticsEventUncheckedCreateInput>
+  }
+
+  /**
+   * AnalyticsEvent createMany
+   */
+  export type AnalyticsEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AnalyticsEvents.
+     */
+    data: AnalyticsEventCreateManyInput | AnalyticsEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AnalyticsEvent createManyAndReturn
+   */
+  export type AnalyticsEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many AnalyticsEvents.
+     */
+    data: AnalyticsEventCreateManyInput | AnalyticsEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AnalyticsEvent update
+   */
+  export type AnalyticsEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * The data needed to update a AnalyticsEvent.
+     */
+    data: XOR<AnalyticsEventUpdateInput, AnalyticsEventUncheckedUpdateInput>
+    /**
+     * Choose, which AnalyticsEvent to update.
+     */
+    where: AnalyticsEventWhereUniqueInput
+  }
+
+  /**
+   * AnalyticsEvent updateMany
+   */
+  export type AnalyticsEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AnalyticsEvents.
+     */
+    data: XOR<AnalyticsEventUpdateManyMutationInput, AnalyticsEventUncheckedUpdateManyInput>
+    /**
+     * Filter which AnalyticsEvents to update
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * Limit how many AnalyticsEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AnalyticsEvent updateManyAndReturn
+   */
+  export type AnalyticsEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * The data used to update AnalyticsEvents.
+     */
+    data: XOR<AnalyticsEventUpdateManyMutationInput, AnalyticsEventUncheckedUpdateManyInput>
+    /**
+     * Filter which AnalyticsEvents to update
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * Limit how many AnalyticsEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AnalyticsEvent upsert
+   */
+  export type AnalyticsEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * The filter to search for the AnalyticsEvent to update in case it exists.
+     */
+    where: AnalyticsEventWhereUniqueInput
+    /**
+     * In case the AnalyticsEvent found by the `where` argument doesn't exist, create a new AnalyticsEvent with this data.
+     */
+    create: XOR<AnalyticsEventCreateInput, AnalyticsEventUncheckedCreateInput>
+    /**
+     * In case the AnalyticsEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AnalyticsEventUpdateInput, AnalyticsEventUncheckedUpdateInput>
+  }
+
+  /**
+   * AnalyticsEvent delete
+   */
+  export type AnalyticsEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+    /**
+     * Filter which AnalyticsEvent to delete.
+     */
+    where: AnalyticsEventWhereUniqueInput
+  }
+
+  /**
+   * AnalyticsEvent deleteMany
+   */
+  export type AnalyticsEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AnalyticsEvents to delete
+     */
+    where?: AnalyticsEventWhereInput
+    /**
+     * Limit how many AnalyticsEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AnalyticsEvent without action
+   */
+  export type AnalyticsEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnalyticsEvent
+     */
+    select?: AnalyticsEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AnalyticsEvent
+     */
+    omit?: AnalyticsEventOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model UserSession
+   */
+
+  export type AggregateUserSession = {
+    _count: UserSessionCountAggregateOutputType | null
+    _avg: UserSessionAvgAggregateOutputType | null
+    _sum: UserSessionSumAggregateOutputType | null
+    _min: UserSessionMinAggregateOutputType | null
+    _max: UserSessionMaxAggregateOutputType | null
+  }
+
+  export type UserSessionAvgAggregateOutputType = {
+    durationMs: number | null
+    eventCount: number | null
+    pageviews: number | null
+  }
+
+  export type UserSessionSumAggregateOutputType = {
+    durationMs: number | null
+    eventCount: number | null
+    pageviews: number | null
+  }
+
+  export type UserSessionMinAggregateOutputType = {
+    id: string | null
+    anonId: string | null
+    userId: string | null
+    device: $Enums.DeviceType | null
+    country: string | null
+    region: string | null
+    referrer: string | null
+    language: string | null
+    startedAt: Date | null
+    lastSeenAt: Date | null
+    endedAt: Date | null
+    durationMs: number | null
+    eventCount: number | null
+    pageviews: number | null
+  }
+
+  export type UserSessionMaxAggregateOutputType = {
+    id: string | null
+    anonId: string | null
+    userId: string | null
+    device: $Enums.DeviceType | null
+    country: string | null
+    region: string | null
+    referrer: string | null
+    language: string | null
+    startedAt: Date | null
+    lastSeenAt: Date | null
+    endedAt: Date | null
+    durationMs: number | null
+    eventCount: number | null
+    pageviews: number | null
+  }
+
+  export type UserSessionCountAggregateOutputType = {
+    id: number
+    anonId: number
+    userId: number
+    device: number
+    country: number
+    region: number
+    referrer: number
+    language: number
+    startedAt: number
+    lastSeenAt: number
+    endedAt: number
+    durationMs: number
+    eventCount: number
+    pageviews: number
+    _all: number
+  }
+
+
+  export type UserSessionAvgAggregateInputType = {
+    durationMs?: true
+    eventCount?: true
+    pageviews?: true
+  }
+
+  export type UserSessionSumAggregateInputType = {
+    durationMs?: true
+    eventCount?: true
+    pageviews?: true
+  }
+
+  export type UserSessionMinAggregateInputType = {
+    id?: true
+    anonId?: true
+    userId?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    language?: true
+    startedAt?: true
+    lastSeenAt?: true
+    endedAt?: true
+    durationMs?: true
+    eventCount?: true
+    pageviews?: true
+  }
+
+  export type UserSessionMaxAggregateInputType = {
+    id?: true
+    anonId?: true
+    userId?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    language?: true
+    startedAt?: true
+    lastSeenAt?: true
+    endedAt?: true
+    durationMs?: true
+    eventCount?: true
+    pageviews?: true
+  }
+
+  export type UserSessionCountAggregateInputType = {
+    id?: true
+    anonId?: true
+    userId?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    language?: true
+    startedAt?: true
+    lastSeenAt?: true
+    endedAt?: true
+    durationMs?: true
+    eventCount?: true
+    pageviews?: true
+    _all?: true
+  }
+
+  export type UserSessionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserSession to aggregate.
+     */
+    where?: UserSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserSessions to fetch.
+     */
+    orderBy?: UserSessionOrderByWithRelationInput | UserSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: UserSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned UserSessions
+    **/
+    _count?: true | UserSessionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: UserSessionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: UserSessionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: UserSessionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: UserSessionMaxAggregateInputType
+  }
+
+  export type GetUserSessionAggregateType<T extends UserSessionAggregateArgs> = {
+        [P in keyof T & keyof AggregateUserSession]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateUserSession[P]>
+      : GetScalarType<T[P], AggregateUserSession[P]>
+  }
+
+
+
+
+  export type UserSessionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserSessionWhereInput
+    orderBy?: UserSessionOrderByWithAggregationInput | UserSessionOrderByWithAggregationInput[]
+    by: UserSessionScalarFieldEnum[] | UserSessionScalarFieldEnum
+    having?: UserSessionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: UserSessionCountAggregateInputType | true
+    _avg?: UserSessionAvgAggregateInputType
+    _sum?: UserSessionSumAggregateInputType
+    _min?: UserSessionMinAggregateInputType
+    _max?: UserSessionMaxAggregateInputType
+  }
+
+  export type UserSessionGroupByOutputType = {
+    id: string
+    anonId: string
+    userId: string | null
+    device: $Enums.DeviceType
+    country: string | null
+    region: string | null
+    referrer: string | null
+    language: string | null
+    startedAt: Date
+    lastSeenAt: Date
+    endedAt: Date | null
+    durationMs: number
+    eventCount: number
+    pageviews: number
+    _count: UserSessionCountAggregateOutputType | null
+    _avg: UserSessionAvgAggregateOutputType | null
+    _sum: UserSessionSumAggregateOutputType | null
+    _min: UserSessionMinAggregateOutputType | null
+    _max: UserSessionMaxAggregateOutputType | null
+  }
+
+  type GetUserSessionGroupByPayload<T extends UserSessionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<UserSessionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof UserSessionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], UserSessionGroupByOutputType[P]>
+            : GetScalarType<T[P], UserSessionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type UserSessionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    anonId?: boolean
+    userId?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    language?: boolean
+    startedAt?: boolean
+    lastSeenAt?: boolean
+    endedAt?: boolean
+    durationMs?: boolean
+    eventCount?: boolean
+    pageviews?: boolean
+  }, ExtArgs["result"]["userSession"]>
+
+  export type UserSessionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    anonId?: boolean
+    userId?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    language?: boolean
+    startedAt?: boolean
+    lastSeenAt?: boolean
+    endedAt?: boolean
+    durationMs?: boolean
+    eventCount?: boolean
+    pageviews?: boolean
+  }, ExtArgs["result"]["userSession"]>
+
+  export type UserSessionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    anonId?: boolean
+    userId?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    language?: boolean
+    startedAt?: boolean
+    lastSeenAt?: boolean
+    endedAt?: boolean
+    durationMs?: boolean
+    eventCount?: boolean
+    pageviews?: boolean
+  }, ExtArgs["result"]["userSession"]>
+
+  export type UserSessionSelectScalar = {
+    id?: boolean
+    anonId?: boolean
+    userId?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    language?: boolean
+    startedAt?: boolean
+    lastSeenAt?: boolean
+    endedAt?: boolean
+    durationMs?: boolean
+    eventCount?: boolean
+    pageviews?: boolean
+  }
+
+  export type UserSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "anonId" | "userId" | "device" | "country" | "region" | "referrer" | "language" | "startedAt" | "lastSeenAt" | "endedAt" | "durationMs" | "eventCount" | "pageviews", ExtArgs["result"]["userSession"]>
+
+  export type $UserSessionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "UserSession"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      /**
+       * Anonymous client id from the device (localStorage). Stable across sessions.
+       */
+      anonId: string
+      /**
+       * Set when the session belongs to a signed-in user.
+       */
+      userId: string | null
+      device: $Enums.DeviceType
+      country: string | null
+      region: string | null
+      referrer: string | null
+      language: string | null
+      startedAt: Date
+      lastSeenAt: Date
+      endedAt: Date | null
+      durationMs: number
+      eventCount: number
+      pageviews: number
+    }, ExtArgs["result"]["userSession"]>
+    composites: {}
+  }
+
+  type UserSessionGetPayload<S extends boolean | null | undefined | UserSessionDefaultArgs> = $Result.GetResult<Prisma.$UserSessionPayload, S>
+
+  type UserSessionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<UserSessionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: UserSessionCountAggregateInputType | true
+    }
+
+  export interface UserSessionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['UserSession'], meta: { name: 'UserSession' } }
+    /**
+     * Find zero or one UserSession that matches the filter.
+     * @param {UserSessionFindUniqueArgs} args - Arguments to find a UserSession
+     * @example
+     * // Get one UserSession
+     * const userSession = await prisma.userSession.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends UserSessionFindUniqueArgs>(args: SelectSubset<T, UserSessionFindUniqueArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one UserSession that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {UserSessionFindUniqueOrThrowArgs} args - Arguments to find a UserSession
+     * @example
+     * // Get one UserSession
+     * const userSession = await prisma.userSession.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends UserSessionFindUniqueOrThrowArgs>(args: SelectSubset<T, UserSessionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UserSession that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionFindFirstArgs} args - Arguments to find a UserSession
+     * @example
+     * // Get one UserSession
+     * const userSession = await prisma.userSession.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends UserSessionFindFirstArgs>(args?: SelectSubset<T, UserSessionFindFirstArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UserSession that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionFindFirstOrThrowArgs} args - Arguments to find a UserSession
+     * @example
+     * // Get one UserSession
+     * const userSession = await prisma.userSession.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends UserSessionFindFirstOrThrowArgs>(args?: SelectSubset<T, UserSessionFindFirstOrThrowArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more UserSessions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all UserSessions
+     * const userSessions = await prisma.userSession.findMany()
+     * 
+     * // Get first 10 UserSessions
+     * const userSessions = await prisma.userSession.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const userSessionWithIdOnly = await prisma.userSession.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends UserSessionFindManyArgs>(args?: SelectSubset<T, UserSessionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a UserSession.
+     * @param {UserSessionCreateArgs} args - Arguments to create a UserSession.
+     * @example
+     * // Create one UserSession
+     * const UserSession = await prisma.userSession.create({
+     *   data: {
+     *     // ... data to create a UserSession
+     *   }
+     * })
+     * 
+     */
+    create<T extends UserSessionCreateArgs>(args: SelectSubset<T, UserSessionCreateArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many UserSessions.
+     * @param {UserSessionCreateManyArgs} args - Arguments to create many UserSessions.
+     * @example
+     * // Create many UserSessions
+     * const userSession = await prisma.userSession.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends UserSessionCreateManyArgs>(args?: SelectSubset<T, UserSessionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many UserSessions and returns the data saved in the database.
+     * @param {UserSessionCreateManyAndReturnArgs} args - Arguments to create many UserSessions.
+     * @example
+     * // Create many UserSessions
+     * const userSession = await prisma.userSession.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many UserSessions and only return the `id`
+     * const userSessionWithIdOnly = await prisma.userSession.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends UserSessionCreateManyAndReturnArgs>(args?: SelectSubset<T, UserSessionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a UserSession.
+     * @param {UserSessionDeleteArgs} args - Arguments to delete one UserSession.
+     * @example
+     * // Delete one UserSession
+     * const UserSession = await prisma.userSession.delete({
+     *   where: {
+     *     // ... filter to delete one UserSession
+     *   }
+     * })
+     * 
+     */
+    delete<T extends UserSessionDeleteArgs>(args: SelectSubset<T, UserSessionDeleteArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one UserSession.
+     * @param {UserSessionUpdateArgs} args - Arguments to update one UserSession.
+     * @example
+     * // Update one UserSession
+     * const userSession = await prisma.userSession.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends UserSessionUpdateArgs>(args: SelectSubset<T, UserSessionUpdateArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more UserSessions.
+     * @param {UserSessionDeleteManyArgs} args - Arguments to filter UserSessions to delete.
+     * @example
+     * // Delete a few UserSessions
+     * const { count } = await prisma.userSession.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends UserSessionDeleteManyArgs>(args?: SelectSubset<T, UserSessionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UserSessions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many UserSessions
+     * const userSession = await prisma.userSession.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends UserSessionUpdateManyArgs>(args: SelectSubset<T, UserSessionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UserSessions and returns the data updated in the database.
+     * @param {UserSessionUpdateManyAndReturnArgs} args - Arguments to update many UserSessions.
+     * @example
+     * // Update many UserSessions
+     * const userSession = await prisma.userSession.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more UserSessions and only return the `id`
+     * const userSessionWithIdOnly = await prisma.userSession.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends UserSessionUpdateManyAndReturnArgs>(args: SelectSubset<T, UserSessionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one UserSession.
+     * @param {UserSessionUpsertArgs} args - Arguments to update or create a UserSession.
+     * @example
+     * // Update or create a UserSession
+     * const userSession = await prisma.userSession.upsert({
+     *   create: {
+     *     // ... data to create a UserSession
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the UserSession we want to update
+     *   }
+     * })
+     */
+    upsert<T extends UserSessionUpsertArgs>(args: SelectSubset<T, UserSessionUpsertArgs<ExtArgs>>): Prisma__UserSessionClient<$Result.GetResult<Prisma.$UserSessionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of UserSessions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionCountArgs} args - Arguments to filter UserSessions to count.
+     * @example
+     * // Count the number of UserSessions
+     * const count = await prisma.userSession.count({
+     *   where: {
+     *     // ... the filter for the UserSessions we want to count
+     *   }
+     * })
+    **/
+    count<T extends UserSessionCountArgs>(
+      args?: Subset<T, UserSessionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], UserSessionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a UserSession.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends UserSessionAggregateArgs>(args: Subset<T, UserSessionAggregateArgs>): Prisma.PrismaPromise<GetUserSessionAggregateType<T>>
+
+    /**
+     * Group by UserSession.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserSessionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends UserSessionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: UserSessionGroupByArgs['orderBy'] }
+        : { orderBy?: UserSessionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, UserSessionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUserSessionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the UserSession model
+   */
+  readonly fields: UserSessionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for UserSession.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__UserSessionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the UserSession model
+   */
+  interface UserSessionFieldRefs {
+    readonly id: FieldRef<"UserSession", 'String'>
+    readonly anonId: FieldRef<"UserSession", 'String'>
+    readonly userId: FieldRef<"UserSession", 'String'>
+    readonly device: FieldRef<"UserSession", 'DeviceType'>
+    readonly country: FieldRef<"UserSession", 'String'>
+    readonly region: FieldRef<"UserSession", 'String'>
+    readonly referrer: FieldRef<"UserSession", 'String'>
+    readonly language: FieldRef<"UserSession", 'String'>
+    readonly startedAt: FieldRef<"UserSession", 'DateTime'>
+    readonly lastSeenAt: FieldRef<"UserSession", 'DateTime'>
+    readonly endedAt: FieldRef<"UserSession", 'DateTime'>
+    readonly durationMs: FieldRef<"UserSession", 'Int'>
+    readonly eventCount: FieldRef<"UserSession", 'Int'>
+    readonly pageviews: FieldRef<"UserSession", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * UserSession findUnique
+   */
+  export type UserSessionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter, which UserSession to fetch.
+     */
+    where: UserSessionWhereUniqueInput
+  }
+
+  /**
+   * UserSession findUniqueOrThrow
+   */
+  export type UserSessionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter, which UserSession to fetch.
+     */
+    where: UserSessionWhereUniqueInput
+  }
+
+  /**
+   * UserSession findFirst
+   */
+  export type UserSessionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter, which UserSession to fetch.
+     */
+    where?: UserSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserSessions to fetch.
+     */
+    orderBy?: UserSessionOrderByWithRelationInput | UserSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserSessions.
+     */
+    cursor?: UserSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserSessions.
+     */
+    distinct?: UserSessionScalarFieldEnum | UserSessionScalarFieldEnum[]
+  }
+
+  /**
+   * UserSession findFirstOrThrow
+   */
+  export type UserSessionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter, which UserSession to fetch.
+     */
+    where?: UserSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserSessions to fetch.
+     */
+    orderBy?: UserSessionOrderByWithRelationInput | UserSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserSessions.
+     */
+    cursor?: UserSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserSessions.
+     */
+    distinct?: UserSessionScalarFieldEnum | UserSessionScalarFieldEnum[]
+  }
+
+  /**
+   * UserSession findMany
+   */
+  export type UserSessionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter, which UserSessions to fetch.
+     */
+    where?: UserSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserSessions to fetch.
+     */
+    orderBy?: UserSessionOrderByWithRelationInput | UserSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing UserSessions.
+     */
+    cursor?: UserSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserSessions.
+     */
+    distinct?: UserSessionScalarFieldEnum | UserSessionScalarFieldEnum[]
+  }
+
+  /**
+   * UserSession create
+   */
+  export type UserSessionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * The data needed to create a UserSession.
+     */
+    data: XOR<UserSessionCreateInput, UserSessionUncheckedCreateInput>
+  }
+
+  /**
+   * UserSession createMany
+   */
+  export type UserSessionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many UserSessions.
+     */
+    data: UserSessionCreateManyInput | UserSessionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * UserSession createManyAndReturn
+   */
+  export type UserSessionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * The data used to create many UserSessions.
+     */
+    data: UserSessionCreateManyInput | UserSessionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * UserSession update
+   */
+  export type UserSessionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * The data needed to update a UserSession.
+     */
+    data: XOR<UserSessionUpdateInput, UserSessionUncheckedUpdateInput>
+    /**
+     * Choose, which UserSession to update.
+     */
+    where: UserSessionWhereUniqueInput
+  }
+
+  /**
+   * UserSession updateMany
+   */
+  export type UserSessionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update UserSessions.
+     */
+    data: XOR<UserSessionUpdateManyMutationInput, UserSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which UserSessions to update
+     */
+    where?: UserSessionWhereInput
+    /**
+     * Limit how many UserSessions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * UserSession updateManyAndReturn
+   */
+  export type UserSessionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * The data used to update UserSessions.
+     */
+    data: XOR<UserSessionUpdateManyMutationInput, UserSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which UserSessions to update
+     */
+    where?: UserSessionWhereInput
+    /**
+     * Limit how many UserSessions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * UserSession upsert
+   */
+  export type UserSessionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * The filter to search for the UserSession to update in case it exists.
+     */
+    where: UserSessionWhereUniqueInput
+    /**
+     * In case the UserSession found by the `where` argument doesn't exist, create a new UserSession with this data.
+     */
+    create: XOR<UserSessionCreateInput, UserSessionUncheckedCreateInput>
+    /**
+     * In case the UserSession was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<UserSessionUpdateInput, UserSessionUncheckedUpdateInput>
+  }
+
+  /**
+   * UserSession delete
+   */
+  export type UserSessionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+    /**
+     * Filter which UserSession to delete.
+     */
+    where: UserSessionWhereUniqueInput
+  }
+
+  /**
+   * UserSession deleteMany
+   */
+  export type UserSessionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserSessions to delete
+     */
+    where?: UserSessionWhereInput
+    /**
+     * Limit how many UserSessions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * UserSession without action
+   */
+  export type UserSessionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserSession
+     */
+    select?: UserSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserSession
+     */
+    omit?: UserSessionOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model StoryImpression
+   */
+
+  export type AggregateStoryImpression = {
+    _count: StoryImpressionCountAggregateOutputType | null
+    _min: StoryImpressionMinAggregateOutputType | null
+    _max: StoryImpressionMaxAggregateOutputType | null
+  }
+
+  export type StoryImpressionMinAggregateOutputType = {
+    id: string | null
+    clusterId: string | null
+    articleId: string | null
+    sessionId: string | null
+    userId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    device: $Enums.DeviceType | null
+    createdAt: Date | null
+  }
+
+  export type StoryImpressionMaxAggregateOutputType = {
+    id: string | null
+    clusterId: string | null
+    articleId: string | null
+    sessionId: string | null
+    userId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    device: $Enums.DeviceType | null
+    createdAt: Date | null
+  }
+
+  export type StoryImpressionCountAggregateOutputType = {
+    id: number
+    clusterId: number
+    articleId: number
+    sessionId: number
+    userId: number
+    source: number
+    category: number
+    language: number
+    country: number
+    device: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type StoryImpressionMinAggregateInputType = {
+    id?: true
+    clusterId?: true
+    articleId?: true
+    sessionId?: true
+    userId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    device?: true
+    createdAt?: true
+  }
+
+  export type StoryImpressionMaxAggregateInputType = {
+    id?: true
+    clusterId?: true
+    articleId?: true
+    sessionId?: true
+    userId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    device?: true
+    createdAt?: true
+  }
+
+  export type StoryImpressionCountAggregateInputType = {
+    id?: true
+    clusterId?: true
+    articleId?: true
+    sessionId?: true
+    userId?: true
+    source?: true
+    category?: true
+    language?: true
+    country?: true
+    device?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type StoryImpressionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which StoryImpression to aggregate.
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryImpressions to fetch.
+     */
+    orderBy?: StoryImpressionOrderByWithRelationInput | StoryImpressionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: StoryImpressionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryImpressions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryImpressions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned StoryImpressions
+    **/
+    _count?: true | StoryImpressionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: StoryImpressionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: StoryImpressionMaxAggregateInputType
+  }
+
+  export type GetStoryImpressionAggregateType<T extends StoryImpressionAggregateArgs> = {
+        [P in keyof T & keyof AggregateStoryImpression]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateStoryImpression[P]>
+      : GetScalarType<T[P], AggregateStoryImpression[P]>
+  }
+
+
+
+
+  export type StoryImpressionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: StoryImpressionWhereInput
+    orderBy?: StoryImpressionOrderByWithAggregationInput | StoryImpressionOrderByWithAggregationInput[]
+    by: StoryImpressionScalarFieldEnum[] | StoryImpressionScalarFieldEnum
+    having?: StoryImpressionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: StoryImpressionCountAggregateInputType | true
+    _min?: StoryImpressionMinAggregateInputType
+    _max?: StoryImpressionMaxAggregateInputType
+  }
+
+  export type StoryImpressionGroupByOutputType = {
+    id: string
+    clusterId: string | null
+    articleId: string | null
+    sessionId: string
+    userId: string | null
+    source: string | null
+    category: string | null
+    language: string | null
+    country: string | null
+    device: $Enums.DeviceType
+    createdAt: Date
+    _count: StoryImpressionCountAggregateOutputType | null
+    _min: StoryImpressionMinAggregateOutputType | null
+    _max: StoryImpressionMaxAggregateOutputType | null
+  }
+
+  type GetStoryImpressionGroupByPayload<T extends StoryImpressionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<StoryImpressionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof StoryImpressionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], StoryImpressionGroupByOutputType[P]>
+            : GetScalarType<T[P], StoryImpressionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type StoryImpressionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    clusterId?: boolean
+    articleId?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    device?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["storyImpression"]>
+
+  export type StoryImpressionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    clusterId?: boolean
+    articleId?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    device?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["storyImpression"]>
+
+  export type StoryImpressionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    clusterId?: boolean
+    articleId?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    device?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["storyImpression"]>
+
+  export type StoryImpressionSelectScalar = {
+    id?: boolean
+    clusterId?: boolean
+    articleId?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    source?: boolean
+    category?: boolean
+    language?: boolean
+    country?: boolean
+    device?: boolean
+    createdAt?: boolean
+  }
+
+  export type StoryImpressionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "clusterId" | "articleId" | "sessionId" | "userId" | "source" | "category" | "language" | "country" | "device" | "createdAt", ExtArgs["result"]["storyImpression"]>
+
+  export type $StoryImpressionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "StoryImpression"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      clusterId: string | null
+      articleId: string | null
+      sessionId: string
+      userId: string | null
+      source: string | null
+      category: string | null
+      language: string | null
+      country: string | null
+      device: $Enums.DeviceType
+      createdAt: Date
+    }, ExtArgs["result"]["storyImpression"]>
+    composites: {}
+  }
+
+  type StoryImpressionGetPayload<S extends boolean | null | undefined | StoryImpressionDefaultArgs> = $Result.GetResult<Prisma.$StoryImpressionPayload, S>
+
+  type StoryImpressionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<StoryImpressionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: StoryImpressionCountAggregateInputType | true
+    }
+
+  export interface StoryImpressionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['StoryImpression'], meta: { name: 'StoryImpression' } }
+    /**
+     * Find zero or one StoryImpression that matches the filter.
+     * @param {StoryImpressionFindUniqueArgs} args - Arguments to find a StoryImpression
+     * @example
+     * // Get one StoryImpression
+     * const storyImpression = await prisma.storyImpression.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends StoryImpressionFindUniqueArgs>(args: SelectSubset<T, StoryImpressionFindUniqueArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one StoryImpression that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {StoryImpressionFindUniqueOrThrowArgs} args - Arguments to find a StoryImpression
+     * @example
+     * // Get one StoryImpression
+     * const storyImpression = await prisma.storyImpression.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends StoryImpressionFindUniqueOrThrowArgs>(args: SelectSubset<T, StoryImpressionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first StoryImpression that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionFindFirstArgs} args - Arguments to find a StoryImpression
+     * @example
+     * // Get one StoryImpression
+     * const storyImpression = await prisma.storyImpression.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends StoryImpressionFindFirstArgs>(args?: SelectSubset<T, StoryImpressionFindFirstArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first StoryImpression that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionFindFirstOrThrowArgs} args - Arguments to find a StoryImpression
+     * @example
+     * // Get one StoryImpression
+     * const storyImpression = await prisma.storyImpression.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends StoryImpressionFindFirstOrThrowArgs>(args?: SelectSubset<T, StoryImpressionFindFirstOrThrowArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more StoryImpressions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all StoryImpressions
+     * const storyImpressions = await prisma.storyImpression.findMany()
+     * 
+     * // Get first 10 StoryImpressions
+     * const storyImpressions = await prisma.storyImpression.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const storyImpressionWithIdOnly = await prisma.storyImpression.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends StoryImpressionFindManyArgs>(args?: SelectSubset<T, StoryImpressionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a StoryImpression.
+     * @param {StoryImpressionCreateArgs} args - Arguments to create a StoryImpression.
+     * @example
+     * // Create one StoryImpression
+     * const StoryImpression = await prisma.storyImpression.create({
+     *   data: {
+     *     // ... data to create a StoryImpression
+     *   }
+     * })
+     * 
+     */
+    create<T extends StoryImpressionCreateArgs>(args: SelectSubset<T, StoryImpressionCreateArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many StoryImpressions.
+     * @param {StoryImpressionCreateManyArgs} args - Arguments to create many StoryImpressions.
+     * @example
+     * // Create many StoryImpressions
+     * const storyImpression = await prisma.storyImpression.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends StoryImpressionCreateManyArgs>(args?: SelectSubset<T, StoryImpressionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many StoryImpressions and returns the data saved in the database.
+     * @param {StoryImpressionCreateManyAndReturnArgs} args - Arguments to create many StoryImpressions.
+     * @example
+     * // Create many StoryImpressions
+     * const storyImpression = await prisma.storyImpression.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many StoryImpressions and only return the `id`
+     * const storyImpressionWithIdOnly = await prisma.storyImpression.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends StoryImpressionCreateManyAndReturnArgs>(args?: SelectSubset<T, StoryImpressionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a StoryImpression.
+     * @param {StoryImpressionDeleteArgs} args - Arguments to delete one StoryImpression.
+     * @example
+     * // Delete one StoryImpression
+     * const StoryImpression = await prisma.storyImpression.delete({
+     *   where: {
+     *     // ... filter to delete one StoryImpression
+     *   }
+     * })
+     * 
+     */
+    delete<T extends StoryImpressionDeleteArgs>(args: SelectSubset<T, StoryImpressionDeleteArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one StoryImpression.
+     * @param {StoryImpressionUpdateArgs} args - Arguments to update one StoryImpression.
+     * @example
+     * // Update one StoryImpression
+     * const storyImpression = await prisma.storyImpression.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends StoryImpressionUpdateArgs>(args: SelectSubset<T, StoryImpressionUpdateArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more StoryImpressions.
+     * @param {StoryImpressionDeleteManyArgs} args - Arguments to filter StoryImpressions to delete.
+     * @example
+     * // Delete a few StoryImpressions
+     * const { count } = await prisma.storyImpression.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends StoryImpressionDeleteManyArgs>(args?: SelectSubset<T, StoryImpressionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more StoryImpressions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many StoryImpressions
+     * const storyImpression = await prisma.storyImpression.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends StoryImpressionUpdateManyArgs>(args: SelectSubset<T, StoryImpressionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more StoryImpressions and returns the data updated in the database.
+     * @param {StoryImpressionUpdateManyAndReturnArgs} args - Arguments to update many StoryImpressions.
+     * @example
+     * // Update many StoryImpressions
+     * const storyImpression = await prisma.storyImpression.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more StoryImpressions and only return the `id`
+     * const storyImpressionWithIdOnly = await prisma.storyImpression.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends StoryImpressionUpdateManyAndReturnArgs>(args: SelectSubset<T, StoryImpressionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one StoryImpression.
+     * @param {StoryImpressionUpsertArgs} args - Arguments to update or create a StoryImpression.
+     * @example
+     * // Update or create a StoryImpression
+     * const storyImpression = await prisma.storyImpression.upsert({
+     *   create: {
+     *     // ... data to create a StoryImpression
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the StoryImpression we want to update
+     *   }
+     * })
+     */
+    upsert<T extends StoryImpressionUpsertArgs>(args: SelectSubset<T, StoryImpressionUpsertArgs<ExtArgs>>): Prisma__StoryImpressionClient<$Result.GetResult<Prisma.$StoryImpressionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of StoryImpressions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionCountArgs} args - Arguments to filter StoryImpressions to count.
+     * @example
+     * // Count the number of StoryImpressions
+     * const count = await prisma.storyImpression.count({
+     *   where: {
+     *     // ... the filter for the StoryImpressions we want to count
+     *   }
+     * })
+    **/
+    count<T extends StoryImpressionCountArgs>(
+      args?: Subset<T, StoryImpressionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], StoryImpressionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a StoryImpression.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends StoryImpressionAggregateArgs>(args: Subset<T, StoryImpressionAggregateArgs>): Prisma.PrismaPromise<GetStoryImpressionAggregateType<T>>
+
+    /**
+     * Group by StoryImpression.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {StoryImpressionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends StoryImpressionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: StoryImpressionGroupByArgs['orderBy'] }
+        : { orderBy?: StoryImpressionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, StoryImpressionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetStoryImpressionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the StoryImpression model
+   */
+  readonly fields: StoryImpressionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for StoryImpression.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__StoryImpressionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the StoryImpression model
+   */
+  interface StoryImpressionFieldRefs {
+    readonly id: FieldRef<"StoryImpression", 'String'>
+    readonly clusterId: FieldRef<"StoryImpression", 'String'>
+    readonly articleId: FieldRef<"StoryImpression", 'String'>
+    readonly sessionId: FieldRef<"StoryImpression", 'String'>
+    readonly userId: FieldRef<"StoryImpression", 'String'>
+    readonly source: FieldRef<"StoryImpression", 'String'>
+    readonly category: FieldRef<"StoryImpression", 'String'>
+    readonly language: FieldRef<"StoryImpression", 'String'>
+    readonly country: FieldRef<"StoryImpression", 'String'>
+    readonly device: FieldRef<"StoryImpression", 'DeviceType'>
+    readonly createdAt: FieldRef<"StoryImpression", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * StoryImpression findUnique
+   */
+  export type StoryImpressionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter, which StoryImpression to fetch.
+     */
+    where: StoryImpressionWhereUniqueInput
+  }
+
+  /**
+   * StoryImpression findUniqueOrThrow
+   */
+  export type StoryImpressionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter, which StoryImpression to fetch.
+     */
+    where: StoryImpressionWhereUniqueInput
+  }
+
+  /**
+   * StoryImpression findFirst
+   */
+  export type StoryImpressionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter, which StoryImpression to fetch.
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryImpressions to fetch.
+     */
+    orderBy?: StoryImpressionOrderByWithRelationInput | StoryImpressionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for StoryImpressions.
+     */
+    cursor?: StoryImpressionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryImpressions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryImpressions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryImpressions.
+     */
+    distinct?: StoryImpressionScalarFieldEnum | StoryImpressionScalarFieldEnum[]
+  }
+
+  /**
+   * StoryImpression findFirstOrThrow
+   */
+  export type StoryImpressionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter, which StoryImpression to fetch.
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryImpressions to fetch.
+     */
+    orderBy?: StoryImpressionOrderByWithRelationInput | StoryImpressionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for StoryImpressions.
+     */
+    cursor?: StoryImpressionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryImpressions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryImpressions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryImpressions.
+     */
+    distinct?: StoryImpressionScalarFieldEnum | StoryImpressionScalarFieldEnum[]
+  }
+
+  /**
+   * StoryImpression findMany
+   */
+  export type StoryImpressionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter, which StoryImpressions to fetch.
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of StoryImpressions to fetch.
+     */
+    orderBy?: StoryImpressionOrderByWithRelationInput | StoryImpressionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing StoryImpressions.
+     */
+    cursor?: StoryImpressionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` StoryImpressions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` StoryImpressions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of StoryImpressions.
+     */
+    distinct?: StoryImpressionScalarFieldEnum | StoryImpressionScalarFieldEnum[]
+  }
+
+  /**
+   * StoryImpression create
+   */
+  export type StoryImpressionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * The data needed to create a StoryImpression.
+     */
+    data: XOR<StoryImpressionCreateInput, StoryImpressionUncheckedCreateInput>
+  }
+
+  /**
+   * StoryImpression createMany
+   */
+  export type StoryImpressionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many StoryImpressions.
+     */
+    data: StoryImpressionCreateManyInput | StoryImpressionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * StoryImpression createManyAndReturn
+   */
+  export type StoryImpressionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * The data used to create many StoryImpressions.
+     */
+    data: StoryImpressionCreateManyInput | StoryImpressionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * StoryImpression update
+   */
+  export type StoryImpressionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * The data needed to update a StoryImpression.
+     */
+    data: XOR<StoryImpressionUpdateInput, StoryImpressionUncheckedUpdateInput>
+    /**
+     * Choose, which StoryImpression to update.
+     */
+    where: StoryImpressionWhereUniqueInput
+  }
+
+  /**
+   * StoryImpression updateMany
+   */
+  export type StoryImpressionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update StoryImpressions.
+     */
+    data: XOR<StoryImpressionUpdateManyMutationInput, StoryImpressionUncheckedUpdateManyInput>
+    /**
+     * Filter which StoryImpressions to update
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * Limit how many StoryImpressions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryImpression updateManyAndReturn
+   */
+  export type StoryImpressionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * The data used to update StoryImpressions.
+     */
+    data: XOR<StoryImpressionUpdateManyMutationInput, StoryImpressionUncheckedUpdateManyInput>
+    /**
+     * Filter which StoryImpressions to update
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * Limit how many StoryImpressions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryImpression upsert
+   */
+  export type StoryImpressionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * The filter to search for the StoryImpression to update in case it exists.
+     */
+    where: StoryImpressionWhereUniqueInput
+    /**
+     * In case the StoryImpression found by the `where` argument doesn't exist, create a new StoryImpression with this data.
+     */
+    create: XOR<StoryImpressionCreateInput, StoryImpressionUncheckedCreateInput>
+    /**
+     * In case the StoryImpression was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<StoryImpressionUpdateInput, StoryImpressionUncheckedUpdateInput>
+  }
+
+  /**
+   * StoryImpression delete
+   */
+  export type StoryImpressionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+    /**
+     * Filter which StoryImpression to delete.
+     */
+    where: StoryImpressionWhereUniqueInput
+  }
+
+  /**
+   * StoryImpression deleteMany
+   */
+  export type StoryImpressionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which StoryImpressions to delete
+     */
+    where?: StoryImpressionWhereInput
+    /**
+     * Limit how many StoryImpressions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * StoryImpression without action
+   */
+  export type StoryImpressionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the StoryImpression
+     */
+    select?: StoryImpressionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the StoryImpression
+     */
+    omit?: StoryImpressionOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ExternalClick
+   */
+
+  export type AggregateExternalClick = {
+    _count: ExternalClickCountAggregateOutputType | null
+    _min: ExternalClickMinAggregateOutputType | null
+    _max: ExternalClickMaxAggregateOutputType | null
+  }
+
+  export type ExternalClickMinAggregateOutputType = {
+    id: string | null
+    articleId: string | null
+    clusterId: string | null
+    source: string | null
+    targetUrl: string | null
+    sessionId: string | null
+    userId: string | null
+    anonymous: boolean | null
+    device: $Enums.DeviceType | null
+    country: string | null
+    region: string | null
+    referrer: string | null
+    createdAt: Date | null
+  }
+
+  export type ExternalClickMaxAggregateOutputType = {
+    id: string | null
+    articleId: string | null
+    clusterId: string | null
+    source: string | null
+    targetUrl: string | null
+    sessionId: string | null
+    userId: string | null
+    anonymous: boolean | null
+    device: $Enums.DeviceType | null
+    country: string | null
+    region: string | null
+    referrer: string | null
+    createdAt: Date | null
+  }
+
+  export type ExternalClickCountAggregateOutputType = {
+    id: number
+    articleId: number
+    clusterId: number
+    source: number
+    targetUrl: number
+    sessionId: number
+    userId: number
+    anonymous: number
+    device: number
+    country: number
+    region: number
+    referrer: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type ExternalClickMinAggregateInputType = {
+    id?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    targetUrl?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    createdAt?: true
+  }
+
+  export type ExternalClickMaxAggregateInputType = {
+    id?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    targetUrl?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    createdAt?: true
+  }
+
+  export type ExternalClickCountAggregateInputType = {
+    id?: true
+    articleId?: true
+    clusterId?: true
+    source?: true
+    targetUrl?: true
+    sessionId?: true
+    userId?: true
+    anonymous?: true
+    device?: true
+    country?: true
+    region?: true
+    referrer?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type ExternalClickAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ExternalClick to aggregate.
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExternalClicks to fetch.
+     */
+    orderBy?: ExternalClickOrderByWithRelationInput | ExternalClickOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ExternalClickWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExternalClicks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExternalClicks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ExternalClicks
+    **/
+    _count?: true | ExternalClickCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ExternalClickMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ExternalClickMaxAggregateInputType
+  }
+
+  export type GetExternalClickAggregateType<T extends ExternalClickAggregateArgs> = {
+        [P in keyof T & keyof AggregateExternalClick]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateExternalClick[P]>
+      : GetScalarType<T[P], AggregateExternalClick[P]>
+  }
+
+
+
+
+  export type ExternalClickGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ExternalClickWhereInput
+    orderBy?: ExternalClickOrderByWithAggregationInput | ExternalClickOrderByWithAggregationInput[]
+    by: ExternalClickScalarFieldEnum[] | ExternalClickScalarFieldEnum
+    having?: ExternalClickScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ExternalClickCountAggregateInputType | true
+    _min?: ExternalClickMinAggregateInputType
+    _max?: ExternalClickMaxAggregateInputType
+  }
+
+  export type ExternalClickGroupByOutputType = {
+    id: string
+    articleId: string
+    clusterId: string | null
+    source: string
+    targetUrl: string
+    sessionId: string | null
+    userId: string | null
+    anonymous: boolean
+    device: $Enums.DeviceType
+    country: string | null
+    region: string | null
+    referrer: string | null
+    createdAt: Date
+    _count: ExternalClickCountAggregateOutputType | null
+    _min: ExternalClickMinAggregateOutputType | null
+    _max: ExternalClickMaxAggregateOutputType | null
+  }
+
+  type GetExternalClickGroupByPayload<T extends ExternalClickGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ExternalClickGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ExternalClickGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ExternalClickGroupByOutputType[P]>
+            : GetScalarType<T[P], ExternalClickGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ExternalClickSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    targetUrl?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["externalClick"]>
+
+  export type ExternalClickSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    targetUrl?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["externalClick"]>
+
+  export type ExternalClickSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    targetUrl?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["externalClick"]>
+
+  export type ExternalClickSelectScalar = {
+    id?: boolean
+    articleId?: boolean
+    clusterId?: boolean
+    source?: boolean
+    targetUrl?: boolean
+    sessionId?: boolean
+    userId?: boolean
+    anonymous?: boolean
+    device?: boolean
+    country?: boolean
+    region?: boolean
+    referrer?: boolean
+    createdAt?: boolean
+  }
+
+  export type ExternalClickOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "articleId" | "clusterId" | "source" | "targetUrl" | "sessionId" | "userId" | "anonymous" | "device" | "country" | "region" | "referrer" | "createdAt", ExtArgs["result"]["externalClick"]>
+
+  export type $ExternalClickPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ExternalClick"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      articleId: string
+      clusterId: string | null
+      /**
+       * Publisher the reader was sent to (e.g. "Igihe").
+       */
+      source: string
+      targetUrl: string
+      sessionId: string | null
+      userId: string | null
+      anonymous: boolean
+      device: $Enums.DeviceType
+      country: string | null
+      region: string | null
+      referrer: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["externalClick"]>
+    composites: {}
+  }
+
+  type ExternalClickGetPayload<S extends boolean | null | undefined | ExternalClickDefaultArgs> = $Result.GetResult<Prisma.$ExternalClickPayload, S>
+
+  type ExternalClickCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ExternalClickFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ExternalClickCountAggregateInputType | true
+    }
+
+  export interface ExternalClickDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ExternalClick'], meta: { name: 'ExternalClick' } }
+    /**
+     * Find zero or one ExternalClick that matches the filter.
+     * @param {ExternalClickFindUniqueArgs} args - Arguments to find a ExternalClick
+     * @example
+     * // Get one ExternalClick
+     * const externalClick = await prisma.externalClick.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ExternalClickFindUniqueArgs>(args: SelectSubset<T, ExternalClickFindUniqueArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ExternalClick that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ExternalClickFindUniqueOrThrowArgs} args - Arguments to find a ExternalClick
+     * @example
+     * // Get one ExternalClick
+     * const externalClick = await prisma.externalClick.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ExternalClickFindUniqueOrThrowArgs>(args: SelectSubset<T, ExternalClickFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ExternalClick that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickFindFirstArgs} args - Arguments to find a ExternalClick
+     * @example
+     * // Get one ExternalClick
+     * const externalClick = await prisma.externalClick.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ExternalClickFindFirstArgs>(args?: SelectSubset<T, ExternalClickFindFirstArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ExternalClick that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickFindFirstOrThrowArgs} args - Arguments to find a ExternalClick
+     * @example
+     * // Get one ExternalClick
+     * const externalClick = await prisma.externalClick.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ExternalClickFindFirstOrThrowArgs>(args?: SelectSubset<T, ExternalClickFindFirstOrThrowArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ExternalClicks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ExternalClicks
+     * const externalClicks = await prisma.externalClick.findMany()
+     * 
+     * // Get first 10 ExternalClicks
+     * const externalClicks = await prisma.externalClick.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const externalClickWithIdOnly = await prisma.externalClick.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ExternalClickFindManyArgs>(args?: SelectSubset<T, ExternalClickFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ExternalClick.
+     * @param {ExternalClickCreateArgs} args - Arguments to create a ExternalClick.
+     * @example
+     * // Create one ExternalClick
+     * const ExternalClick = await prisma.externalClick.create({
+     *   data: {
+     *     // ... data to create a ExternalClick
+     *   }
+     * })
+     * 
+     */
+    create<T extends ExternalClickCreateArgs>(args: SelectSubset<T, ExternalClickCreateArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ExternalClicks.
+     * @param {ExternalClickCreateManyArgs} args - Arguments to create many ExternalClicks.
+     * @example
+     * // Create many ExternalClicks
+     * const externalClick = await prisma.externalClick.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ExternalClickCreateManyArgs>(args?: SelectSubset<T, ExternalClickCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ExternalClicks and returns the data saved in the database.
+     * @param {ExternalClickCreateManyAndReturnArgs} args - Arguments to create many ExternalClicks.
+     * @example
+     * // Create many ExternalClicks
+     * const externalClick = await prisma.externalClick.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ExternalClicks and only return the `id`
+     * const externalClickWithIdOnly = await prisma.externalClick.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ExternalClickCreateManyAndReturnArgs>(args?: SelectSubset<T, ExternalClickCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ExternalClick.
+     * @param {ExternalClickDeleteArgs} args - Arguments to delete one ExternalClick.
+     * @example
+     * // Delete one ExternalClick
+     * const ExternalClick = await prisma.externalClick.delete({
+     *   where: {
+     *     // ... filter to delete one ExternalClick
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ExternalClickDeleteArgs>(args: SelectSubset<T, ExternalClickDeleteArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ExternalClick.
+     * @param {ExternalClickUpdateArgs} args - Arguments to update one ExternalClick.
+     * @example
+     * // Update one ExternalClick
+     * const externalClick = await prisma.externalClick.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ExternalClickUpdateArgs>(args: SelectSubset<T, ExternalClickUpdateArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ExternalClicks.
+     * @param {ExternalClickDeleteManyArgs} args - Arguments to filter ExternalClicks to delete.
+     * @example
+     * // Delete a few ExternalClicks
+     * const { count } = await prisma.externalClick.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ExternalClickDeleteManyArgs>(args?: SelectSubset<T, ExternalClickDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ExternalClicks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ExternalClicks
+     * const externalClick = await prisma.externalClick.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ExternalClickUpdateManyArgs>(args: SelectSubset<T, ExternalClickUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ExternalClicks and returns the data updated in the database.
+     * @param {ExternalClickUpdateManyAndReturnArgs} args - Arguments to update many ExternalClicks.
+     * @example
+     * // Update many ExternalClicks
+     * const externalClick = await prisma.externalClick.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ExternalClicks and only return the `id`
+     * const externalClickWithIdOnly = await prisma.externalClick.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ExternalClickUpdateManyAndReturnArgs>(args: SelectSubset<T, ExternalClickUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ExternalClick.
+     * @param {ExternalClickUpsertArgs} args - Arguments to update or create a ExternalClick.
+     * @example
+     * // Update or create a ExternalClick
+     * const externalClick = await prisma.externalClick.upsert({
+     *   create: {
+     *     // ... data to create a ExternalClick
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ExternalClick we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ExternalClickUpsertArgs>(args: SelectSubset<T, ExternalClickUpsertArgs<ExtArgs>>): Prisma__ExternalClickClient<$Result.GetResult<Prisma.$ExternalClickPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ExternalClicks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickCountArgs} args - Arguments to filter ExternalClicks to count.
+     * @example
+     * // Count the number of ExternalClicks
+     * const count = await prisma.externalClick.count({
+     *   where: {
+     *     // ... the filter for the ExternalClicks we want to count
+     *   }
+     * })
+    **/
+    count<T extends ExternalClickCountArgs>(
+      args?: Subset<T, ExternalClickCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ExternalClickCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ExternalClick.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ExternalClickAggregateArgs>(args: Subset<T, ExternalClickAggregateArgs>): Prisma.PrismaPromise<GetExternalClickAggregateType<T>>
+
+    /**
+     * Group by ExternalClick.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExternalClickGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ExternalClickGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ExternalClickGroupByArgs['orderBy'] }
+        : { orderBy?: ExternalClickGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ExternalClickGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetExternalClickGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ExternalClick model
+   */
+  readonly fields: ExternalClickFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ExternalClick.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ExternalClickClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ExternalClick model
+   */
+  interface ExternalClickFieldRefs {
+    readonly id: FieldRef<"ExternalClick", 'String'>
+    readonly articleId: FieldRef<"ExternalClick", 'String'>
+    readonly clusterId: FieldRef<"ExternalClick", 'String'>
+    readonly source: FieldRef<"ExternalClick", 'String'>
+    readonly targetUrl: FieldRef<"ExternalClick", 'String'>
+    readonly sessionId: FieldRef<"ExternalClick", 'String'>
+    readonly userId: FieldRef<"ExternalClick", 'String'>
+    readonly anonymous: FieldRef<"ExternalClick", 'Boolean'>
+    readonly device: FieldRef<"ExternalClick", 'DeviceType'>
+    readonly country: FieldRef<"ExternalClick", 'String'>
+    readonly region: FieldRef<"ExternalClick", 'String'>
+    readonly referrer: FieldRef<"ExternalClick", 'String'>
+    readonly createdAt: FieldRef<"ExternalClick", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ExternalClick findUnique
+   */
+  export type ExternalClickFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter, which ExternalClick to fetch.
+     */
+    where: ExternalClickWhereUniqueInput
+  }
+
+  /**
+   * ExternalClick findUniqueOrThrow
+   */
+  export type ExternalClickFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter, which ExternalClick to fetch.
+     */
+    where: ExternalClickWhereUniqueInput
+  }
+
+  /**
+   * ExternalClick findFirst
+   */
+  export type ExternalClickFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter, which ExternalClick to fetch.
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExternalClicks to fetch.
+     */
+    orderBy?: ExternalClickOrderByWithRelationInput | ExternalClickOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ExternalClicks.
+     */
+    cursor?: ExternalClickWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExternalClicks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExternalClicks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ExternalClicks.
+     */
+    distinct?: ExternalClickScalarFieldEnum | ExternalClickScalarFieldEnum[]
+  }
+
+  /**
+   * ExternalClick findFirstOrThrow
+   */
+  export type ExternalClickFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter, which ExternalClick to fetch.
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExternalClicks to fetch.
+     */
+    orderBy?: ExternalClickOrderByWithRelationInput | ExternalClickOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ExternalClicks.
+     */
+    cursor?: ExternalClickWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExternalClicks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExternalClicks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ExternalClicks.
+     */
+    distinct?: ExternalClickScalarFieldEnum | ExternalClickScalarFieldEnum[]
+  }
+
+  /**
+   * ExternalClick findMany
+   */
+  export type ExternalClickFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter, which ExternalClicks to fetch.
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExternalClicks to fetch.
+     */
+    orderBy?: ExternalClickOrderByWithRelationInput | ExternalClickOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ExternalClicks.
+     */
+    cursor?: ExternalClickWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExternalClicks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExternalClicks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ExternalClicks.
+     */
+    distinct?: ExternalClickScalarFieldEnum | ExternalClickScalarFieldEnum[]
+  }
+
+  /**
+   * ExternalClick create
+   */
+  export type ExternalClickCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * The data needed to create a ExternalClick.
+     */
+    data: XOR<ExternalClickCreateInput, ExternalClickUncheckedCreateInput>
+  }
+
+  /**
+   * ExternalClick createMany
+   */
+  export type ExternalClickCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ExternalClicks.
+     */
+    data: ExternalClickCreateManyInput | ExternalClickCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ExternalClick createManyAndReturn
+   */
+  export type ExternalClickCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * The data used to create many ExternalClicks.
+     */
+    data: ExternalClickCreateManyInput | ExternalClickCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ExternalClick update
+   */
+  export type ExternalClickUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * The data needed to update a ExternalClick.
+     */
+    data: XOR<ExternalClickUpdateInput, ExternalClickUncheckedUpdateInput>
+    /**
+     * Choose, which ExternalClick to update.
+     */
+    where: ExternalClickWhereUniqueInput
+  }
+
+  /**
+   * ExternalClick updateMany
+   */
+  export type ExternalClickUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ExternalClicks.
+     */
+    data: XOR<ExternalClickUpdateManyMutationInput, ExternalClickUncheckedUpdateManyInput>
+    /**
+     * Filter which ExternalClicks to update
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * Limit how many ExternalClicks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExternalClick updateManyAndReturn
+   */
+  export type ExternalClickUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * The data used to update ExternalClicks.
+     */
+    data: XOR<ExternalClickUpdateManyMutationInput, ExternalClickUncheckedUpdateManyInput>
+    /**
+     * Filter which ExternalClicks to update
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * Limit how many ExternalClicks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExternalClick upsert
+   */
+  export type ExternalClickUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * The filter to search for the ExternalClick to update in case it exists.
+     */
+    where: ExternalClickWhereUniqueInput
+    /**
+     * In case the ExternalClick found by the `where` argument doesn't exist, create a new ExternalClick with this data.
+     */
+    create: XOR<ExternalClickCreateInput, ExternalClickUncheckedCreateInput>
+    /**
+     * In case the ExternalClick was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ExternalClickUpdateInput, ExternalClickUncheckedUpdateInput>
+  }
+
+  /**
+   * ExternalClick delete
+   */
+  export type ExternalClickDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+    /**
+     * Filter which ExternalClick to delete.
+     */
+    where: ExternalClickWhereUniqueInput
+  }
+
+  /**
+   * ExternalClick deleteMany
+   */
+  export type ExternalClickDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ExternalClicks to delete
+     */
+    where?: ExternalClickWhereInput
+    /**
+     * Limit how many ExternalClicks to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExternalClick without action
+   */
+  export type ExternalClickDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExternalClick
+     */
+    select?: ExternalClickSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExternalClick
+     */
+    omit?: ExternalClickOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model PublisherDailyStat
+   */
+
+  export type AggregatePublisherDailyStat = {
+    _count: PublisherDailyStatCountAggregateOutputType | null
+    _avg: PublisherDailyStatAvgAggregateOutputType | null
+    _sum: PublisherDailyStatSumAggregateOutputType | null
+    _min: PublisherDailyStatMinAggregateOutputType | null
+    _max: PublisherDailyStatMaxAggregateOutputType | null
+  }
+
+  export type PublisherDailyStatAvgAggregateOutputType = {
+    clicks: number | null
+    impressions: number | null
+    opens: number | null
+    uniqueSessions: number | null
+    uniqueUsers: number | null
+  }
+
+  export type PublisherDailyStatSumAggregateOutputType = {
+    clicks: number | null
+    impressions: number | null
+    opens: number | null
+    uniqueSessions: number | null
+    uniqueUsers: number | null
+  }
+
+  export type PublisherDailyStatMinAggregateOutputType = {
+    id: string | null
+    date: Date | null
+    publisher: string | null
+    clicks: number | null
+    impressions: number | null
+    opens: number | null
+    uniqueSessions: number | null
+    uniqueUsers: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PublisherDailyStatMaxAggregateOutputType = {
+    id: string | null
+    date: Date | null
+    publisher: string | null
+    clicks: number | null
+    impressions: number | null
+    opens: number | null
+    uniqueSessions: number | null
+    uniqueUsers: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PublisherDailyStatCountAggregateOutputType = {
+    id: number
+    date: number
+    publisher: number
+    clicks: number
+    impressions: number
+    opens: number
+    uniqueSessions: number
+    uniqueUsers: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type PublisherDailyStatAvgAggregateInputType = {
+    clicks?: true
+    impressions?: true
+    opens?: true
+    uniqueSessions?: true
+    uniqueUsers?: true
+  }
+
+  export type PublisherDailyStatSumAggregateInputType = {
+    clicks?: true
+    impressions?: true
+    opens?: true
+    uniqueSessions?: true
+    uniqueUsers?: true
+  }
+
+  export type PublisherDailyStatMinAggregateInputType = {
+    id?: true
+    date?: true
+    publisher?: true
+    clicks?: true
+    impressions?: true
+    opens?: true
+    uniqueSessions?: true
+    uniqueUsers?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PublisherDailyStatMaxAggregateInputType = {
+    id?: true
+    date?: true
+    publisher?: true
+    clicks?: true
+    impressions?: true
+    opens?: true
+    uniqueSessions?: true
+    uniqueUsers?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PublisherDailyStatCountAggregateInputType = {
+    id?: true
+    date?: true
+    publisher?: true
+    clicks?: true
+    impressions?: true
+    opens?: true
+    uniqueSessions?: true
+    uniqueUsers?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type PublisherDailyStatAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PublisherDailyStat to aggregate.
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PublisherDailyStats to fetch.
+     */
+    orderBy?: PublisherDailyStatOrderByWithRelationInput | PublisherDailyStatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PublisherDailyStatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PublisherDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PublisherDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PublisherDailyStats
+    **/
+    _count?: true | PublisherDailyStatCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PublisherDailyStatAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PublisherDailyStatSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PublisherDailyStatMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PublisherDailyStatMaxAggregateInputType
+  }
+
+  export type GetPublisherDailyStatAggregateType<T extends PublisherDailyStatAggregateArgs> = {
+        [P in keyof T & keyof AggregatePublisherDailyStat]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePublisherDailyStat[P]>
+      : GetScalarType<T[P], AggregatePublisherDailyStat[P]>
+  }
+
+
+
+
+  export type PublisherDailyStatGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PublisherDailyStatWhereInput
+    orderBy?: PublisherDailyStatOrderByWithAggregationInput | PublisherDailyStatOrderByWithAggregationInput[]
+    by: PublisherDailyStatScalarFieldEnum[] | PublisherDailyStatScalarFieldEnum
+    having?: PublisherDailyStatScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PublisherDailyStatCountAggregateInputType | true
+    _avg?: PublisherDailyStatAvgAggregateInputType
+    _sum?: PublisherDailyStatSumAggregateInputType
+    _min?: PublisherDailyStatMinAggregateInputType
+    _max?: PublisherDailyStatMaxAggregateInputType
+  }
+
+  export type PublisherDailyStatGroupByOutputType = {
+    id: string
+    date: Date
+    publisher: string
+    clicks: number
+    impressions: number
+    opens: number
+    uniqueSessions: number
+    uniqueUsers: number
+    createdAt: Date
+    updatedAt: Date
+    _count: PublisherDailyStatCountAggregateOutputType | null
+    _avg: PublisherDailyStatAvgAggregateOutputType | null
+    _sum: PublisherDailyStatSumAggregateOutputType | null
+    _min: PublisherDailyStatMinAggregateOutputType | null
+    _max: PublisherDailyStatMaxAggregateOutputType | null
+  }
+
+  type GetPublisherDailyStatGroupByPayload<T extends PublisherDailyStatGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PublisherDailyStatGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PublisherDailyStatGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PublisherDailyStatGroupByOutputType[P]>
+            : GetScalarType<T[P], PublisherDailyStatGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PublisherDailyStatSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    date?: boolean
+    publisher?: boolean
+    clicks?: boolean
+    impressions?: boolean
+    opens?: boolean
+    uniqueSessions?: boolean
+    uniqueUsers?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["publisherDailyStat"]>
+
+  export type PublisherDailyStatSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    date?: boolean
+    publisher?: boolean
+    clicks?: boolean
+    impressions?: boolean
+    opens?: boolean
+    uniqueSessions?: boolean
+    uniqueUsers?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["publisherDailyStat"]>
+
+  export type PublisherDailyStatSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    date?: boolean
+    publisher?: boolean
+    clicks?: boolean
+    impressions?: boolean
+    opens?: boolean
+    uniqueSessions?: boolean
+    uniqueUsers?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["publisherDailyStat"]>
+
+  export type PublisherDailyStatSelectScalar = {
+    id?: boolean
+    date?: boolean
+    publisher?: boolean
+    clicks?: boolean
+    impressions?: boolean
+    opens?: boolean
+    uniqueSessions?: boolean
+    uniqueUsers?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type PublisherDailyStatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "date" | "publisher" | "clicks" | "impressions" | "opens" | "uniqueSessions" | "uniqueUsers" | "createdAt" | "updatedAt", ExtArgs["result"]["publisherDailyStat"]>
+
+  export type $PublisherDailyStatPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PublisherDailyStat"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      date: Date
+      publisher: string
+      clicks: number
+      impressions: number
+      opens: number
+      uniqueSessions: number
+      uniqueUsers: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["publisherDailyStat"]>
+    composites: {}
+  }
+
+  type PublisherDailyStatGetPayload<S extends boolean | null | undefined | PublisherDailyStatDefaultArgs> = $Result.GetResult<Prisma.$PublisherDailyStatPayload, S>
+
+  type PublisherDailyStatCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PublisherDailyStatFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PublisherDailyStatCountAggregateInputType | true
+    }
+
+  export interface PublisherDailyStatDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PublisherDailyStat'], meta: { name: 'PublisherDailyStat' } }
+    /**
+     * Find zero or one PublisherDailyStat that matches the filter.
+     * @param {PublisherDailyStatFindUniqueArgs} args - Arguments to find a PublisherDailyStat
+     * @example
+     * // Get one PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PublisherDailyStatFindUniqueArgs>(args: SelectSubset<T, PublisherDailyStatFindUniqueArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one PublisherDailyStat that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {PublisherDailyStatFindUniqueOrThrowArgs} args - Arguments to find a PublisherDailyStat
+     * @example
+     * // Get one PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PublisherDailyStatFindUniqueOrThrowArgs>(args: SelectSubset<T, PublisherDailyStatFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PublisherDailyStat that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatFindFirstArgs} args - Arguments to find a PublisherDailyStat
+     * @example
+     * // Get one PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PublisherDailyStatFindFirstArgs>(args?: SelectSubset<T, PublisherDailyStatFindFirstArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PublisherDailyStat that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatFindFirstOrThrowArgs} args - Arguments to find a PublisherDailyStat
+     * @example
+     * // Get one PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PublisherDailyStatFindFirstOrThrowArgs>(args?: SelectSubset<T, PublisherDailyStatFindFirstOrThrowArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more PublisherDailyStats that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PublisherDailyStats
+     * const publisherDailyStats = await prisma.publisherDailyStat.findMany()
+     * 
+     * // Get first 10 PublisherDailyStats
+     * const publisherDailyStats = await prisma.publisherDailyStat.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const publisherDailyStatWithIdOnly = await prisma.publisherDailyStat.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PublisherDailyStatFindManyArgs>(args?: SelectSubset<T, PublisherDailyStatFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a PublisherDailyStat.
+     * @param {PublisherDailyStatCreateArgs} args - Arguments to create a PublisherDailyStat.
+     * @example
+     * // Create one PublisherDailyStat
+     * const PublisherDailyStat = await prisma.publisherDailyStat.create({
+     *   data: {
+     *     // ... data to create a PublisherDailyStat
+     *   }
+     * })
+     * 
+     */
+    create<T extends PublisherDailyStatCreateArgs>(args: SelectSubset<T, PublisherDailyStatCreateArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many PublisherDailyStats.
+     * @param {PublisherDailyStatCreateManyArgs} args - Arguments to create many PublisherDailyStats.
+     * @example
+     * // Create many PublisherDailyStats
+     * const publisherDailyStat = await prisma.publisherDailyStat.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PublisherDailyStatCreateManyArgs>(args?: SelectSubset<T, PublisherDailyStatCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PublisherDailyStats and returns the data saved in the database.
+     * @param {PublisherDailyStatCreateManyAndReturnArgs} args - Arguments to create many PublisherDailyStats.
+     * @example
+     * // Create many PublisherDailyStats
+     * const publisherDailyStat = await prisma.publisherDailyStat.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PublisherDailyStats and only return the `id`
+     * const publisherDailyStatWithIdOnly = await prisma.publisherDailyStat.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PublisherDailyStatCreateManyAndReturnArgs>(args?: SelectSubset<T, PublisherDailyStatCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a PublisherDailyStat.
+     * @param {PublisherDailyStatDeleteArgs} args - Arguments to delete one PublisherDailyStat.
+     * @example
+     * // Delete one PublisherDailyStat
+     * const PublisherDailyStat = await prisma.publisherDailyStat.delete({
+     *   where: {
+     *     // ... filter to delete one PublisherDailyStat
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PublisherDailyStatDeleteArgs>(args: SelectSubset<T, PublisherDailyStatDeleteArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one PublisherDailyStat.
+     * @param {PublisherDailyStatUpdateArgs} args - Arguments to update one PublisherDailyStat.
+     * @example
+     * // Update one PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PublisherDailyStatUpdateArgs>(args: SelectSubset<T, PublisherDailyStatUpdateArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more PublisherDailyStats.
+     * @param {PublisherDailyStatDeleteManyArgs} args - Arguments to filter PublisherDailyStats to delete.
+     * @example
+     * // Delete a few PublisherDailyStats
+     * const { count } = await prisma.publisherDailyStat.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PublisherDailyStatDeleteManyArgs>(args?: SelectSubset<T, PublisherDailyStatDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PublisherDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PublisherDailyStats
+     * const publisherDailyStat = await prisma.publisherDailyStat.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PublisherDailyStatUpdateManyArgs>(args: SelectSubset<T, PublisherDailyStatUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PublisherDailyStats and returns the data updated in the database.
+     * @param {PublisherDailyStatUpdateManyAndReturnArgs} args - Arguments to update many PublisherDailyStats.
+     * @example
+     * // Update many PublisherDailyStats
+     * const publisherDailyStat = await prisma.publisherDailyStat.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more PublisherDailyStats and only return the `id`
+     * const publisherDailyStatWithIdOnly = await prisma.publisherDailyStat.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends PublisherDailyStatUpdateManyAndReturnArgs>(args: SelectSubset<T, PublisherDailyStatUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one PublisherDailyStat.
+     * @param {PublisherDailyStatUpsertArgs} args - Arguments to update or create a PublisherDailyStat.
+     * @example
+     * // Update or create a PublisherDailyStat
+     * const publisherDailyStat = await prisma.publisherDailyStat.upsert({
+     *   create: {
+     *     // ... data to create a PublisherDailyStat
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PublisherDailyStat we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PublisherDailyStatUpsertArgs>(args: SelectSubset<T, PublisherDailyStatUpsertArgs<ExtArgs>>): Prisma__PublisherDailyStatClient<$Result.GetResult<Prisma.$PublisherDailyStatPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of PublisherDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatCountArgs} args - Arguments to filter PublisherDailyStats to count.
+     * @example
+     * // Count the number of PublisherDailyStats
+     * const count = await prisma.publisherDailyStat.count({
+     *   where: {
+     *     // ... the filter for the PublisherDailyStats we want to count
+     *   }
+     * })
+    **/
+    count<T extends PublisherDailyStatCountArgs>(
+      args?: Subset<T, PublisherDailyStatCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PublisherDailyStatCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PublisherDailyStat.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PublisherDailyStatAggregateArgs>(args: Subset<T, PublisherDailyStatAggregateArgs>): Prisma.PrismaPromise<GetPublisherDailyStatAggregateType<T>>
+
+    /**
+     * Group by PublisherDailyStat.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PublisherDailyStatGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PublisherDailyStatGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PublisherDailyStatGroupByArgs['orderBy'] }
+        : { orderBy?: PublisherDailyStatGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PublisherDailyStatGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPublisherDailyStatGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PublisherDailyStat model
+   */
+  readonly fields: PublisherDailyStatFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PublisherDailyStat.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PublisherDailyStatClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PublisherDailyStat model
+   */
+  interface PublisherDailyStatFieldRefs {
+    readonly id: FieldRef<"PublisherDailyStat", 'String'>
+    readonly date: FieldRef<"PublisherDailyStat", 'DateTime'>
+    readonly publisher: FieldRef<"PublisherDailyStat", 'String'>
+    readonly clicks: FieldRef<"PublisherDailyStat", 'Int'>
+    readonly impressions: FieldRef<"PublisherDailyStat", 'Int'>
+    readonly opens: FieldRef<"PublisherDailyStat", 'Int'>
+    readonly uniqueSessions: FieldRef<"PublisherDailyStat", 'Int'>
+    readonly uniqueUsers: FieldRef<"PublisherDailyStat", 'Int'>
+    readonly createdAt: FieldRef<"PublisherDailyStat", 'DateTime'>
+    readonly updatedAt: FieldRef<"PublisherDailyStat", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PublisherDailyStat findUnique
+   */
+  export type PublisherDailyStatFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter, which PublisherDailyStat to fetch.
+     */
+    where: PublisherDailyStatWhereUniqueInput
+  }
+
+  /**
+   * PublisherDailyStat findUniqueOrThrow
+   */
+  export type PublisherDailyStatFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter, which PublisherDailyStat to fetch.
+     */
+    where: PublisherDailyStatWhereUniqueInput
+  }
+
+  /**
+   * PublisherDailyStat findFirst
+   */
+  export type PublisherDailyStatFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter, which PublisherDailyStat to fetch.
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PublisherDailyStats to fetch.
+     */
+    orderBy?: PublisherDailyStatOrderByWithRelationInput | PublisherDailyStatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PublisherDailyStats.
+     */
+    cursor?: PublisherDailyStatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PublisherDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PublisherDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PublisherDailyStats.
+     */
+    distinct?: PublisherDailyStatScalarFieldEnum | PublisherDailyStatScalarFieldEnum[]
+  }
+
+  /**
+   * PublisherDailyStat findFirstOrThrow
+   */
+  export type PublisherDailyStatFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter, which PublisherDailyStat to fetch.
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PublisherDailyStats to fetch.
+     */
+    orderBy?: PublisherDailyStatOrderByWithRelationInput | PublisherDailyStatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PublisherDailyStats.
+     */
+    cursor?: PublisherDailyStatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PublisherDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PublisherDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PublisherDailyStats.
+     */
+    distinct?: PublisherDailyStatScalarFieldEnum | PublisherDailyStatScalarFieldEnum[]
+  }
+
+  /**
+   * PublisherDailyStat findMany
+   */
+  export type PublisherDailyStatFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter, which PublisherDailyStats to fetch.
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PublisherDailyStats to fetch.
+     */
+    orderBy?: PublisherDailyStatOrderByWithRelationInput | PublisherDailyStatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PublisherDailyStats.
+     */
+    cursor?: PublisherDailyStatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PublisherDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PublisherDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PublisherDailyStats.
+     */
+    distinct?: PublisherDailyStatScalarFieldEnum | PublisherDailyStatScalarFieldEnum[]
+  }
+
+  /**
+   * PublisherDailyStat create
+   */
+  export type PublisherDailyStatCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * The data needed to create a PublisherDailyStat.
+     */
+    data: XOR<PublisherDailyStatCreateInput, PublisherDailyStatUncheckedCreateInput>
+  }
+
+  /**
+   * PublisherDailyStat createMany
+   */
+  export type PublisherDailyStatCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PublisherDailyStats.
+     */
+    data: PublisherDailyStatCreateManyInput | PublisherDailyStatCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PublisherDailyStat createManyAndReturn
+   */
+  export type PublisherDailyStatCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * The data used to create many PublisherDailyStats.
+     */
+    data: PublisherDailyStatCreateManyInput | PublisherDailyStatCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PublisherDailyStat update
+   */
+  export type PublisherDailyStatUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * The data needed to update a PublisherDailyStat.
+     */
+    data: XOR<PublisherDailyStatUpdateInput, PublisherDailyStatUncheckedUpdateInput>
+    /**
+     * Choose, which PublisherDailyStat to update.
+     */
+    where: PublisherDailyStatWhereUniqueInput
+  }
+
+  /**
+   * PublisherDailyStat updateMany
+   */
+  export type PublisherDailyStatUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PublisherDailyStats.
+     */
+    data: XOR<PublisherDailyStatUpdateManyMutationInput, PublisherDailyStatUncheckedUpdateManyInput>
+    /**
+     * Filter which PublisherDailyStats to update
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * Limit how many PublisherDailyStats to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PublisherDailyStat updateManyAndReturn
+   */
+  export type PublisherDailyStatUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * The data used to update PublisherDailyStats.
+     */
+    data: XOR<PublisherDailyStatUpdateManyMutationInput, PublisherDailyStatUncheckedUpdateManyInput>
+    /**
+     * Filter which PublisherDailyStats to update
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * Limit how many PublisherDailyStats to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PublisherDailyStat upsert
+   */
+  export type PublisherDailyStatUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * The filter to search for the PublisherDailyStat to update in case it exists.
+     */
+    where: PublisherDailyStatWhereUniqueInput
+    /**
+     * In case the PublisherDailyStat found by the `where` argument doesn't exist, create a new PublisherDailyStat with this data.
+     */
+    create: XOR<PublisherDailyStatCreateInput, PublisherDailyStatUncheckedCreateInput>
+    /**
+     * In case the PublisherDailyStat was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PublisherDailyStatUpdateInput, PublisherDailyStatUncheckedUpdateInput>
+  }
+
+  /**
+   * PublisherDailyStat delete
+   */
+  export type PublisherDailyStatDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+    /**
+     * Filter which PublisherDailyStat to delete.
+     */
+    where: PublisherDailyStatWhereUniqueInput
+  }
+
+  /**
+   * PublisherDailyStat deleteMany
+   */
+  export type PublisherDailyStatDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PublisherDailyStats to delete
+     */
+    where?: PublisherDailyStatWhereInput
+    /**
+     * Limit how many PublisherDailyStats to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * PublisherDailyStat without action
+   */
+  export type PublisherDailyStatDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PublisherDailyStat
+     */
+    select?: PublisherDailyStatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PublisherDailyStat
+     */
+    omit?: PublisherDailyStatOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -12177,12 +18378,117 @@ export namespace Prisma {
   export type StoryClusterScalarFieldEnum = (typeof StoryClusterScalarFieldEnum)[keyof typeof StoryClusterScalarFieldEnum]
 
 
+  export const AnalyticsEventScalarFieldEnum: {
+    id: 'id',
+    type: 'type',
+    sessionId: 'sessionId',
+    userId: 'userId',
+    anonymous: 'anonymous',
+    articleId: 'articleId',
+    clusterId: 'clusterId',
+    source: 'source',
+    category: 'category',
+    language: 'language',
+    country: 'country',
+    region: 'region',
+    device: 'device',
+    referrer: 'referrer',
+    query: 'query',
+    resultCount: 'resultCount',
+    durationMs: 'durationMs',
+    metadata: 'metadata',
+    createdAt: 'createdAt'
+  };
+
+  export type AnalyticsEventScalarFieldEnum = (typeof AnalyticsEventScalarFieldEnum)[keyof typeof AnalyticsEventScalarFieldEnum]
+
+
+  export const UserSessionScalarFieldEnum: {
+    id: 'id',
+    anonId: 'anonId',
+    userId: 'userId',
+    device: 'device',
+    country: 'country',
+    region: 'region',
+    referrer: 'referrer',
+    language: 'language',
+    startedAt: 'startedAt',
+    lastSeenAt: 'lastSeenAt',
+    endedAt: 'endedAt',
+    durationMs: 'durationMs',
+    eventCount: 'eventCount',
+    pageviews: 'pageviews'
+  };
+
+  export type UserSessionScalarFieldEnum = (typeof UserSessionScalarFieldEnum)[keyof typeof UserSessionScalarFieldEnum]
+
+
+  export const StoryImpressionScalarFieldEnum: {
+    id: 'id',
+    clusterId: 'clusterId',
+    articleId: 'articleId',
+    sessionId: 'sessionId',
+    userId: 'userId',
+    source: 'source',
+    category: 'category',
+    language: 'language',
+    country: 'country',
+    device: 'device',
+    createdAt: 'createdAt'
+  };
+
+  export type StoryImpressionScalarFieldEnum = (typeof StoryImpressionScalarFieldEnum)[keyof typeof StoryImpressionScalarFieldEnum]
+
+
+  export const ExternalClickScalarFieldEnum: {
+    id: 'id',
+    articleId: 'articleId',
+    clusterId: 'clusterId',
+    source: 'source',
+    targetUrl: 'targetUrl',
+    sessionId: 'sessionId',
+    userId: 'userId',
+    anonymous: 'anonymous',
+    device: 'device',
+    country: 'country',
+    region: 'region',
+    referrer: 'referrer',
+    createdAt: 'createdAt'
+  };
+
+  export type ExternalClickScalarFieldEnum = (typeof ExternalClickScalarFieldEnum)[keyof typeof ExternalClickScalarFieldEnum]
+
+
+  export const PublisherDailyStatScalarFieldEnum: {
+    id: 'id',
+    date: 'date',
+    publisher: 'publisher',
+    clicks: 'clicks',
+    impressions: 'impressions',
+    opens: 'opens',
+    uniqueSessions: 'uniqueSessions',
+    uniqueUsers: 'uniqueUsers',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type PublisherDailyStatScalarFieldEnum = (typeof PublisherDailyStatScalarFieldEnum)[keyof typeof PublisherDailyStatScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
   };
 
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+  export const NullableJsonNullValueInput: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull
+  };
+
+  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
   export const QueryMode: {
@@ -12199,6 +18505,15 @@ export namespace Prisma {
   };
 
   export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+  export const JsonNullValueFilter: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull,
+    AnyNull: typeof AnyNull
+  };
+
+  export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
   /**
@@ -12280,6 +18595,48 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'AnalyticsEventType'
+   */
+  export type EnumAnalyticsEventTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnalyticsEventType'>
+    
+
+
+  /**
+   * Reference to a field of type 'AnalyticsEventType[]'
+   */
+  export type ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnalyticsEventType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'DeviceType'
+   */
+  export type EnumDeviceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DeviceType'>
+    
+
+
+  /**
+   * Reference to a field of type 'DeviceType[]'
+   */
+  export type ListEnumDeviceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DeviceType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 
@@ -12963,6 +19320,483 @@ export namespace Prisma {
     latestPublishedAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"StoryCluster"> | Date | string
+  }
+
+  export type AnalyticsEventWhereInput = {
+    AND?: AnalyticsEventWhereInput | AnalyticsEventWhereInput[]
+    OR?: AnalyticsEventWhereInput[]
+    NOT?: AnalyticsEventWhereInput | AnalyticsEventWhereInput[]
+    id?: StringFilter<"AnalyticsEvent"> | string
+    type?: EnumAnalyticsEventTypeFilter<"AnalyticsEvent"> | $Enums.AnalyticsEventType
+    sessionId?: StringFilter<"AnalyticsEvent"> | string
+    userId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    anonymous?: BoolFilter<"AnalyticsEvent"> | boolean
+    articleId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    clusterId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    source?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    category?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    language?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    country?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    region?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    device?: EnumDeviceTypeFilter<"AnalyticsEvent"> | $Enums.DeviceType
+    referrer?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    query?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    resultCount?: IntNullableFilter<"AnalyticsEvent"> | number | null
+    durationMs?: IntNullableFilter<"AnalyticsEvent"> | number | null
+    metadata?: JsonNullableFilter<"AnalyticsEvent">
+    createdAt?: DateTimeFilter<"AnalyticsEvent"> | Date | string
+  }
+
+  export type AnalyticsEventOrderByWithRelationInput = {
+    id?: SortOrder
+    type?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    anonymous?: SortOrder
+    articleId?: SortOrderInput | SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    source?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    device?: SortOrder
+    referrer?: SortOrderInput | SortOrder
+    query?: SortOrderInput | SortOrder
+    resultCount?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AnalyticsEventWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: AnalyticsEventWhereInput | AnalyticsEventWhereInput[]
+    OR?: AnalyticsEventWhereInput[]
+    NOT?: AnalyticsEventWhereInput | AnalyticsEventWhereInput[]
+    type?: EnumAnalyticsEventTypeFilter<"AnalyticsEvent"> | $Enums.AnalyticsEventType
+    sessionId?: StringFilter<"AnalyticsEvent"> | string
+    userId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    anonymous?: BoolFilter<"AnalyticsEvent"> | boolean
+    articleId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    clusterId?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    source?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    category?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    language?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    country?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    region?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    device?: EnumDeviceTypeFilter<"AnalyticsEvent"> | $Enums.DeviceType
+    referrer?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    query?: StringNullableFilter<"AnalyticsEvent"> | string | null
+    resultCount?: IntNullableFilter<"AnalyticsEvent"> | number | null
+    durationMs?: IntNullableFilter<"AnalyticsEvent"> | number | null
+    metadata?: JsonNullableFilter<"AnalyticsEvent">
+    createdAt?: DateTimeFilter<"AnalyticsEvent"> | Date | string
+  }, "id">
+
+  export type AnalyticsEventOrderByWithAggregationInput = {
+    id?: SortOrder
+    type?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    anonymous?: SortOrder
+    articleId?: SortOrderInput | SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    source?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    device?: SortOrder
+    referrer?: SortOrderInput | SortOrder
+    query?: SortOrderInput | SortOrder
+    resultCount?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: AnalyticsEventCountOrderByAggregateInput
+    _avg?: AnalyticsEventAvgOrderByAggregateInput
+    _max?: AnalyticsEventMaxOrderByAggregateInput
+    _min?: AnalyticsEventMinOrderByAggregateInput
+    _sum?: AnalyticsEventSumOrderByAggregateInput
+  }
+
+  export type AnalyticsEventScalarWhereWithAggregatesInput = {
+    AND?: AnalyticsEventScalarWhereWithAggregatesInput | AnalyticsEventScalarWhereWithAggregatesInput[]
+    OR?: AnalyticsEventScalarWhereWithAggregatesInput[]
+    NOT?: AnalyticsEventScalarWhereWithAggregatesInput | AnalyticsEventScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AnalyticsEvent"> | string
+    type?: EnumAnalyticsEventTypeWithAggregatesFilter<"AnalyticsEvent"> | $Enums.AnalyticsEventType
+    sessionId?: StringWithAggregatesFilter<"AnalyticsEvent"> | string
+    userId?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    anonymous?: BoolWithAggregatesFilter<"AnalyticsEvent"> | boolean
+    articleId?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    clusterId?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    source?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    category?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    language?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    country?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    region?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    device?: EnumDeviceTypeWithAggregatesFilter<"AnalyticsEvent"> | $Enums.DeviceType
+    referrer?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    query?: StringNullableWithAggregatesFilter<"AnalyticsEvent"> | string | null
+    resultCount?: IntNullableWithAggregatesFilter<"AnalyticsEvent"> | number | null
+    durationMs?: IntNullableWithAggregatesFilter<"AnalyticsEvent"> | number | null
+    metadata?: JsonNullableWithAggregatesFilter<"AnalyticsEvent">
+    createdAt?: DateTimeWithAggregatesFilter<"AnalyticsEvent"> | Date | string
+  }
+
+  export type UserSessionWhereInput = {
+    AND?: UserSessionWhereInput | UserSessionWhereInput[]
+    OR?: UserSessionWhereInput[]
+    NOT?: UserSessionWhereInput | UserSessionWhereInput[]
+    id?: StringFilter<"UserSession"> | string
+    anonId?: StringFilter<"UserSession"> | string
+    userId?: StringNullableFilter<"UserSession"> | string | null
+    device?: EnumDeviceTypeFilter<"UserSession"> | $Enums.DeviceType
+    country?: StringNullableFilter<"UserSession"> | string | null
+    region?: StringNullableFilter<"UserSession"> | string | null
+    referrer?: StringNullableFilter<"UserSession"> | string | null
+    language?: StringNullableFilter<"UserSession"> | string | null
+    startedAt?: DateTimeFilter<"UserSession"> | Date | string
+    lastSeenAt?: DateTimeFilter<"UserSession"> | Date | string
+    endedAt?: DateTimeNullableFilter<"UserSession"> | Date | string | null
+    durationMs?: IntFilter<"UserSession"> | number
+    eventCount?: IntFilter<"UserSession"> | number
+    pageviews?: IntFilter<"UserSession"> | number
+  }
+
+  export type UserSessionOrderByWithRelationInput = {
+    id?: SortOrder
+    anonId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    device?: SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    referrer?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    startedAt?: SortOrder
+    lastSeenAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type UserSessionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: UserSessionWhereInput | UserSessionWhereInput[]
+    OR?: UserSessionWhereInput[]
+    NOT?: UserSessionWhereInput | UserSessionWhereInput[]
+    anonId?: StringFilter<"UserSession"> | string
+    userId?: StringNullableFilter<"UserSession"> | string | null
+    device?: EnumDeviceTypeFilter<"UserSession"> | $Enums.DeviceType
+    country?: StringNullableFilter<"UserSession"> | string | null
+    region?: StringNullableFilter<"UserSession"> | string | null
+    referrer?: StringNullableFilter<"UserSession"> | string | null
+    language?: StringNullableFilter<"UserSession"> | string | null
+    startedAt?: DateTimeFilter<"UserSession"> | Date | string
+    lastSeenAt?: DateTimeFilter<"UserSession"> | Date | string
+    endedAt?: DateTimeNullableFilter<"UserSession"> | Date | string | null
+    durationMs?: IntFilter<"UserSession"> | number
+    eventCount?: IntFilter<"UserSession"> | number
+    pageviews?: IntFilter<"UserSession"> | number
+  }, "id">
+
+  export type UserSessionOrderByWithAggregationInput = {
+    id?: SortOrder
+    anonId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    device?: SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    referrer?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    startedAt?: SortOrder
+    lastSeenAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+    _count?: UserSessionCountOrderByAggregateInput
+    _avg?: UserSessionAvgOrderByAggregateInput
+    _max?: UserSessionMaxOrderByAggregateInput
+    _min?: UserSessionMinOrderByAggregateInput
+    _sum?: UserSessionSumOrderByAggregateInput
+  }
+
+  export type UserSessionScalarWhereWithAggregatesInput = {
+    AND?: UserSessionScalarWhereWithAggregatesInput | UserSessionScalarWhereWithAggregatesInput[]
+    OR?: UserSessionScalarWhereWithAggregatesInput[]
+    NOT?: UserSessionScalarWhereWithAggregatesInput | UserSessionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"UserSession"> | string
+    anonId?: StringWithAggregatesFilter<"UserSession"> | string
+    userId?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
+    device?: EnumDeviceTypeWithAggregatesFilter<"UserSession"> | $Enums.DeviceType
+    country?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
+    region?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
+    referrer?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
+    language?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
+    startedAt?: DateTimeWithAggregatesFilter<"UserSession"> | Date | string
+    lastSeenAt?: DateTimeWithAggregatesFilter<"UserSession"> | Date | string
+    endedAt?: DateTimeNullableWithAggregatesFilter<"UserSession"> | Date | string | null
+    durationMs?: IntWithAggregatesFilter<"UserSession"> | number
+    eventCount?: IntWithAggregatesFilter<"UserSession"> | number
+    pageviews?: IntWithAggregatesFilter<"UserSession"> | number
+  }
+
+  export type StoryImpressionWhereInput = {
+    AND?: StoryImpressionWhereInput | StoryImpressionWhereInput[]
+    OR?: StoryImpressionWhereInput[]
+    NOT?: StoryImpressionWhereInput | StoryImpressionWhereInput[]
+    id?: StringFilter<"StoryImpression"> | string
+    clusterId?: StringNullableFilter<"StoryImpression"> | string | null
+    articleId?: StringNullableFilter<"StoryImpression"> | string | null
+    sessionId?: StringFilter<"StoryImpression"> | string
+    userId?: StringNullableFilter<"StoryImpression"> | string | null
+    source?: StringNullableFilter<"StoryImpression"> | string | null
+    category?: StringNullableFilter<"StoryImpression"> | string | null
+    language?: StringNullableFilter<"StoryImpression"> | string | null
+    country?: StringNullableFilter<"StoryImpression"> | string | null
+    device?: EnumDeviceTypeFilter<"StoryImpression"> | $Enums.DeviceType
+    createdAt?: DateTimeFilter<"StoryImpression"> | Date | string
+  }
+
+  export type StoryImpressionOrderByWithRelationInput = {
+    id?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    articleId?: SortOrderInput | SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    source?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    device?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type StoryImpressionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: StoryImpressionWhereInput | StoryImpressionWhereInput[]
+    OR?: StoryImpressionWhereInput[]
+    NOT?: StoryImpressionWhereInput | StoryImpressionWhereInput[]
+    clusterId?: StringNullableFilter<"StoryImpression"> | string | null
+    articleId?: StringNullableFilter<"StoryImpression"> | string | null
+    sessionId?: StringFilter<"StoryImpression"> | string
+    userId?: StringNullableFilter<"StoryImpression"> | string | null
+    source?: StringNullableFilter<"StoryImpression"> | string | null
+    category?: StringNullableFilter<"StoryImpression"> | string | null
+    language?: StringNullableFilter<"StoryImpression"> | string | null
+    country?: StringNullableFilter<"StoryImpression"> | string | null
+    device?: EnumDeviceTypeFilter<"StoryImpression"> | $Enums.DeviceType
+    createdAt?: DateTimeFilter<"StoryImpression"> | Date | string
+  }, "id">
+
+  export type StoryImpressionOrderByWithAggregationInput = {
+    id?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    articleId?: SortOrderInput | SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    source?: SortOrderInput | SortOrder
+    category?: SortOrderInput | SortOrder
+    language?: SortOrderInput | SortOrder
+    country?: SortOrderInput | SortOrder
+    device?: SortOrder
+    createdAt?: SortOrder
+    _count?: StoryImpressionCountOrderByAggregateInput
+    _max?: StoryImpressionMaxOrderByAggregateInput
+    _min?: StoryImpressionMinOrderByAggregateInput
+  }
+
+  export type StoryImpressionScalarWhereWithAggregatesInput = {
+    AND?: StoryImpressionScalarWhereWithAggregatesInput | StoryImpressionScalarWhereWithAggregatesInput[]
+    OR?: StoryImpressionScalarWhereWithAggregatesInput[]
+    NOT?: StoryImpressionScalarWhereWithAggregatesInput | StoryImpressionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"StoryImpression"> | string
+    clusterId?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    articleId?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    sessionId?: StringWithAggregatesFilter<"StoryImpression"> | string
+    userId?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    source?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    category?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    language?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    country?: StringNullableWithAggregatesFilter<"StoryImpression"> | string | null
+    device?: EnumDeviceTypeWithAggregatesFilter<"StoryImpression"> | $Enums.DeviceType
+    createdAt?: DateTimeWithAggregatesFilter<"StoryImpression"> | Date | string
+  }
+
+  export type ExternalClickWhereInput = {
+    AND?: ExternalClickWhereInput | ExternalClickWhereInput[]
+    OR?: ExternalClickWhereInput[]
+    NOT?: ExternalClickWhereInput | ExternalClickWhereInput[]
+    id?: StringFilter<"ExternalClick"> | string
+    articleId?: StringFilter<"ExternalClick"> | string
+    clusterId?: StringNullableFilter<"ExternalClick"> | string | null
+    source?: StringFilter<"ExternalClick"> | string
+    targetUrl?: StringFilter<"ExternalClick"> | string
+    sessionId?: StringNullableFilter<"ExternalClick"> | string | null
+    userId?: StringNullableFilter<"ExternalClick"> | string | null
+    anonymous?: BoolFilter<"ExternalClick"> | boolean
+    device?: EnumDeviceTypeFilter<"ExternalClick"> | $Enums.DeviceType
+    country?: StringNullableFilter<"ExternalClick"> | string | null
+    region?: StringNullableFilter<"ExternalClick"> | string | null
+    referrer?: StringNullableFilter<"ExternalClick"> | string | null
+    createdAt?: DateTimeFilter<"ExternalClick"> | Date | string
+  }
+
+  export type ExternalClickOrderByWithRelationInput = {
+    id?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    source?: SortOrder
+    targetUrl?: SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    userId?: SortOrderInput | SortOrder
+    anonymous?: SortOrder
+    device?: SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    referrer?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ExternalClickWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: ExternalClickWhereInput | ExternalClickWhereInput[]
+    OR?: ExternalClickWhereInput[]
+    NOT?: ExternalClickWhereInput | ExternalClickWhereInput[]
+    articleId?: StringFilter<"ExternalClick"> | string
+    clusterId?: StringNullableFilter<"ExternalClick"> | string | null
+    source?: StringFilter<"ExternalClick"> | string
+    targetUrl?: StringFilter<"ExternalClick"> | string
+    sessionId?: StringNullableFilter<"ExternalClick"> | string | null
+    userId?: StringNullableFilter<"ExternalClick"> | string | null
+    anonymous?: BoolFilter<"ExternalClick"> | boolean
+    device?: EnumDeviceTypeFilter<"ExternalClick"> | $Enums.DeviceType
+    country?: StringNullableFilter<"ExternalClick"> | string | null
+    region?: StringNullableFilter<"ExternalClick"> | string | null
+    referrer?: StringNullableFilter<"ExternalClick"> | string | null
+    createdAt?: DateTimeFilter<"ExternalClick"> | Date | string
+  }, "id">
+
+  export type ExternalClickOrderByWithAggregationInput = {
+    id?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrderInput | SortOrder
+    source?: SortOrder
+    targetUrl?: SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    userId?: SortOrderInput | SortOrder
+    anonymous?: SortOrder
+    device?: SortOrder
+    country?: SortOrderInput | SortOrder
+    region?: SortOrderInput | SortOrder
+    referrer?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: ExternalClickCountOrderByAggregateInput
+    _max?: ExternalClickMaxOrderByAggregateInput
+    _min?: ExternalClickMinOrderByAggregateInput
+  }
+
+  export type ExternalClickScalarWhereWithAggregatesInput = {
+    AND?: ExternalClickScalarWhereWithAggregatesInput | ExternalClickScalarWhereWithAggregatesInput[]
+    OR?: ExternalClickScalarWhereWithAggregatesInput[]
+    NOT?: ExternalClickScalarWhereWithAggregatesInput | ExternalClickScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ExternalClick"> | string
+    articleId?: StringWithAggregatesFilter<"ExternalClick"> | string
+    clusterId?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    source?: StringWithAggregatesFilter<"ExternalClick"> | string
+    targetUrl?: StringWithAggregatesFilter<"ExternalClick"> | string
+    sessionId?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    userId?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    anonymous?: BoolWithAggregatesFilter<"ExternalClick"> | boolean
+    device?: EnumDeviceTypeWithAggregatesFilter<"ExternalClick"> | $Enums.DeviceType
+    country?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    region?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    referrer?: StringNullableWithAggregatesFilter<"ExternalClick"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"ExternalClick"> | Date | string
+  }
+
+  export type PublisherDailyStatWhereInput = {
+    AND?: PublisherDailyStatWhereInput | PublisherDailyStatWhereInput[]
+    OR?: PublisherDailyStatWhereInput[]
+    NOT?: PublisherDailyStatWhereInput | PublisherDailyStatWhereInput[]
+    id?: StringFilter<"PublisherDailyStat"> | string
+    date?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+    publisher?: StringFilter<"PublisherDailyStat"> | string
+    clicks?: IntFilter<"PublisherDailyStat"> | number
+    impressions?: IntFilter<"PublisherDailyStat"> | number
+    opens?: IntFilter<"PublisherDailyStat"> | number
+    uniqueSessions?: IntFilter<"PublisherDailyStat"> | number
+    uniqueUsers?: IntFilter<"PublisherDailyStat"> | number
+    createdAt?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+    updatedAt?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+  }
+
+  export type PublisherDailyStatOrderByWithRelationInput = {
+    id?: SortOrder
+    date?: SortOrder
+    publisher?: SortOrder
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PublisherDailyStatWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    date_publisher?: PublisherDailyStatDatePublisherCompoundUniqueInput
+    AND?: PublisherDailyStatWhereInput | PublisherDailyStatWhereInput[]
+    OR?: PublisherDailyStatWhereInput[]
+    NOT?: PublisherDailyStatWhereInput | PublisherDailyStatWhereInput[]
+    date?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+    publisher?: StringFilter<"PublisherDailyStat"> | string
+    clicks?: IntFilter<"PublisherDailyStat"> | number
+    impressions?: IntFilter<"PublisherDailyStat"> | number
+    opens?: IntFilter<"PublisherDailyStat"> | number
+    uniqueSessions?: IntFilter<"PublisherDailyStat"> | number
+    uniqueUsers?: IntFilter<"PublisherDailyStat"> | number
+    createdAt?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+    updatedAt?: DateTimeFilter<"PublisherDailyStat"> | Date | string
+  }, "id" | "date_publisher">
+
+  export type PublisherDailyStatOrderByWithAggregationInput = {
+    id?: SortOrder
+    date?: SortOrder
+    publisher?: SortOrder
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: PublisherDailyStatCountOrderByAggregateInput
+    _avg?: PublisherDailyStatAvgOrderByAggregateInput
+    _max?: PublisherDailyStatMaxOrderByAggregateInput
+    _min?: PublisherDailyStatMinOrderByAggregateInput
+    _sum?: PublisherDailyStatSumOrderByAggregateInput
+  }
+
+  export type PublisherDailyStatScalarWhereWithAggregatesInput = {
+    AND?: PublisherDailyStatScalarWhereWithAggregatesInput | PublisherDailyStatScalarWhereWithAggregatesInput[]
+    OR?: PublisherDailyStatScalarWhereWithAggregatesInput[]
+    NOT?: PublisherDailyStatScalarWhereWithAggregatesInput | PublisherDailyStatScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PublisherDailyStat"> | string
+    date?: DateTimeWithAggregatesFilter<"PublisherDailyStat"> | Date | string
+    publisher?: StringWithAggregatesFilter<"PublisherDailyStat"> | string
+    clicks?: IntWithAggregatesFilter<"PublisherDailyStat"> | number
+    impressions?: IntWithAggregatesFilter<"PublisherDailyStat"> | number
+    opens?: IntWithAggregatesFilter<"PublisherDailyStat"> | number
+    uniqueSessions?: IntWithAggregatesFilter<"PublisherDailyStat"> | number
+    uniqueUsers?: IntWithAggregatesFilter<"PublisherDailyStat"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"PublisherDailyStat"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"PublisherDailyStat"> | Date | string
   }
 
   export type UserCreateInput = {
@@ -13681,6 +20515,580 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type AnalyticsEventCreateInput = {
+    id?: string
+    type: $Enums.AnalyticsEventType
+    sessionId: string
+    userId?: string | null
+    anonymous?: boolean
+    articleId?: string | null
+    clusterId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    region?: string | null
+    device?: $Enums.DeviceType
+    referrer?: string | null
+    query?: string | null
+    resultCount?: number | null
+    durationMs?: number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+  }
+
+  export type AnalyticsEventUncheckedCreateInput = {
+    id?: string
+    type: $Enums.AnalyticsEventType
+    sessionId: string
+    userId?: string | null
+    anonymous?: boolean
+    articleId?: string | null
+    clusterId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    region?: string | null
+    device?: $Enums.DeviceType
+    referrer?: string | null
+    query?: string | null
+    resultCount?: number | null
+    durationMs?: number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+  }
+
+  export type AnalyticsEventUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumAnalyticsEventTypeFieldUpdateOperationsInput | $Enums.AnalyticsEventType
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    query?: NullableStringFieldUpdateOperationsInput | string | null
+    resultCount?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AnalyticsEventUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumAnalyticsEventTypeFieldUpdateOperationsInput | $Enums.AnalyticsEventType
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    query?: NullableStringFieldUpdateOperationsInput | string | null
+    resultCount?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AnalyticsEventCreateManyInput = {
+    id?: string
+    type: $Enums.AnalyticsEventType
+    sessionId: string
+    userId?: string | null
+    anonymous?: boolean
+    articleId?: string | null
+    clusterId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    region?: string | null
+    device?: $Enums.DeviceType
+    referrer?: string | null
+    query?: string | null
+    resultCount?: number | null
+    durationMs?: number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+  }
+
+  export type AnalyticsEventUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumAnalyticsEventTypeFieldUpdateOperationsInput | $Enums.AnalyticsEventType
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    query?: NullableStringFieldUpdateOperationsInput | string | null
+    resultCount?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AnalyticsEventUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumAnalyticsEventTypeFieldUpdateOperationsInput | $Enums.AnalyticsEventType
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    query?: NullableStringFieldUpdateOperationsInput | string | null
+    resultCount?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserSessionCreateInput = {
+    id?: string
+    anonId: string
+    userId?: string | null
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    language?: string | null
+    startedAt?: Date | string
+    lastSeenAt?: Date | string
+    endedAt?: Date | string | null
+    durationMs?: number
+    eventCount?: number
+    pageviews?: number
+  }
+
+  export type UserSessionUncheckedCreateInput = {
+    id?: string
+    anonId: string
+    userId?: string | null
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    language?: string | null
+    startedAt?: Date | string
+    lastSeenAt?: Date | string
+    endedAt?: Date | string | null
+    durationMs?: number
+    eventCount?: number
+    pageviews?: number
+  }
+
+  export type UserSessionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    anonId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationMs?: IntFieldUpdateOperationsInput | number
+    eventCount?: IntFieldUpdateOperationsInput | number
+    pageviews?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type UserSessionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    anonId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationMs?: IntFieldUpdateOperationsInput | number
+    eventCount?: IntFieldUpdateOperationsInput | number
+    pageviews?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type UserSessionCreateManyInput = {
+    id?: string
+    anonId: string
+    userId?: string | null
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    language?: string | null
+    startedAt?: Date | string
+    lastSeenAt?: Date | string
+    endedAt?: Date | string | null
+    durationMs?: number
+    eventCount?: number
+    pageviews?: number
+  }
+
+  export type UserSessionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    anonId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationMs?: IntFieldUpdateOperationsInput | number
+    eventCount?: IntFieldUpdateOperationsInput | number
+    pageviews?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type UserSessionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    anonId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationMs?: IntFieldUpdateOperationsInput | number
+    eventCount?: IntFieldUpdateOperationsInput | number
+    pageviews?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type StoryImpressionCreateInput = {
+    id?: string
+    clusterId?: string | null
+    articleId?: string | null
+    sessionId: string
+    userId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    device?: $Enums.DeviceType
+    createdAt?: Date | string
+  }
+
+  export type StoryImpressionUncheckedCreateInput = {
+    id?: string
+    clusterId?: string | null
+    articleId?: string | null
+    sessionId: string
+    userId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    device?: $Enums.DeviceType
+    createdAt?: Date | string
+  }
+
+  export type StoryImpressionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type StoryImpressionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type StoryImpressionCreateManyInput = {
+    id?: string
+    clusterId?: string | null
+    articleId?: string | null
+    sessionId: string
+    userId?: string | null
+    source?: string | null
+    category?: string | null
+    language?: string | null
+    country?: string | null
+    device?: $Enums.DeviceType
+    createdAt?: Date | string
+  }
+
+  export type StoryImpressionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type StoryImpressionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    articleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionId?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    language?: NullableStringFieldUpdateOperationsInput | string | null
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExternalClickCreateInput = {
+    id?: string
+    articleId: string
+    clusterId?: string | null
+    source: string
+    targetUrl: string
+    sessionId?: string | null
+    userId?: string | null
+    anonymous?: boolean
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    createdAt?: Date | string
+  }
+
+  export type ExternalClickUncheckedCreateInput = {
+    id?: string
+    articleId: string
+    clusterId?: string | null
+    source: string
+    targetUrl: string
+    sessionId?: string | null
+    userId?: string | null
+    anonymous?: boolean
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    createdAt?: Date | string
+  }
+
+  export type ExternalClickUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    articleId?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    targetUrl?: StringFieldUpdateOperationsInput | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExternalClickUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    articleId?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    targetUrl?: StringFieldUpdateOperationsInput | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExternalClickCreateManyInput = {
+    id?: string
+    articleId: string
+    clusterId?: string | null
+    source: string
+    targetUrl: string
+    sessionId?: string | null
+    userId?: string | null
+    anonymous?: boolean
+    device?: $Enums.DeviceType
+    country?: string | null
+    region?: string | null
+    referrer?: string | null
+    createdAt?: Date | string
+  }
+
+  export type ExternalClickUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    articleId?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    targetUrl?: StringFieldUpdateOperationsInput | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExternalClickUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    articleId?: StringFieldUpdateOperationsInput | string
+    clusterId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    targetUrl?: StringFieldUpdateOperationsInput | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    anonymous?: BoolFieldUpdateOperationsInput | boolean
+    device?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    region?: NullableStringFieldUpdateOperationsInput | string | null
+    referrer?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PublisherDailyStatCreateInput = {
+    id?: string
+    date: Date | string
+    publisher: string
+    clicks?: number
+    impressions?: number
+    opens?: number
+    uniqueSessions?: number
+    uniqueUsers?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PublisherDailyStatUncheckedCreateInput = {
+    id?: string
+    date: Date | string
+    publisher: string
+    clicks?: number
+    impressions?: number
+    opens?: number
+    uniqueSessions?: number
+    uniqueUsers?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PublisherDailyStatUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    date?: DateTimeFieldUpdateOperationsInput | Date | string
+    publisher?: StringFieldUpdateOperationsInput | string
+    clicks?: IntFieldUpdateOperationsInput | number
+    impressions?: IntFieldUpdateOperationsInput | number
+    opens?: IntFieldUpdateOperationsInput | number
+    uniqueSessions?: IntFieldUpdateOperationsInput | number
+    uniqueUsers?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PublisherDailyStatUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    date?: DateTimeFieldUpdateOperationsInput | Date | string
+    publisher?: StringFieldUpdateOperationsInput | string
+    clicks?: IntFieldUpdateOperationsInput | number
+    impressions?: IntFieldUpdateOperationsInput | number
+    opens?: IntFieldUpdateOperationsInput | number
+    uniqueSessions?: IntFieldUpdateOperationsInput | number
+    uniqueUsers?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PublisherDailyStatCreateManyInput = {
+    id?: string
+    date: Date | string
+    publisher: string
+    clicks?: number
+    impressions?: number
+    opens?: number
+    uniqueSessions?: number
+    uniqueUsers?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PublisherDailyStatUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    date?: DateTimeFieldUpdateOperationsInput | Date | string
+    publisher?: StringFieldUpdateOperationsInput | string
+    clicks?: IntFieldUpdateOperationsInput | number
+    impressions?: IntFieldUpdateOperationsInput | number
+    opens?: IntFieldUpdateOperationsInput | number
+    uniqueSessions?: IntFieldUpdateOperationsInput | number
+    uniqueUsers?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PublisherDailyStatUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    date?: DateTimeFieldUpdateOperationsInput | Date | string
+    publisher?: StringFieldUpdateOperationsInput | string
+    clicks?: IntFieldUpdateOperationsInput | number
+    impressions?: IntFieldUpdateOperationsInput | number
+    opens?: IntFieldUpdateOperationsInput | number
+    uniqueSessions?: IntFieldUpdateOperationsInput | number
+    uniqueUsers?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -14283,6 +21691,403 @@ export namespace Prisma {
     _sum?: NestedIntFilter<$PrismaModel>
     _min?: NestedIntFilter<$PrismaModel>
     _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type EnumAnalyticsEventTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.AnalyticsEventType | EnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel> | $Enums.AnalyticsEventType
+  }
+
+  export type EnumDeviceTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeFilter<$PrismaModel> | $Enums.DeviceType
+  }
+
+  export type IntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type AnalyticsEventCountOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    device?: SortOrder
+    referrer?: SortOrder
+    query?: SortOrder
+    resultCount?: SortOrder
+    durationMs?: SortOrder
+    metadata?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AnalyticsEventAvgOrderByAggregateInput = {
+    resultCount?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type AnalyticsEventMaxOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    device?: SortOrder
+    referrer?: SortOrder
+    query?: SortOrder
+    resultCount?: SortOrder
+    durationMs?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AnalyticsEventMinOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    device?: SortOrder
+    referrer?: SortOrder
+    query?: SortOrder
+    resultCount?: SortOrder
+    durationMs?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AnalyticsEventSumOrderByAggregateInput = {
+    resultCount?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type EnumAnalyticsEventTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AnalyticsEventType | EnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAnalyticsEventTypeWithAggregatesFilter<$PrismaModel> | $Enums.AnalyticsEventType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel>
+    _max?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel>
+  }
+
+  export type EnumDeviceTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel> | $Enums.DeviceType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumDeviceTypeFilter<$PrismaModel>
+    _max?: NestedEnumDeviceTypeFilter<$PrismaModel>
+  }
+
+  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
+
+  export type UserSessionCountOrderByAggregateInput = {
+    id?: SortOrder
+    anonId?: SortOrder
+    userId?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    language?: SortOrder
+    startedAt?: SortOrder
+    lastSeenAt?: SortOrder
+    endedAt?: SortOrder
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type UserSessionAvgOrderByAggregateInput = {
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type UserSessionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    anonId?: SortOrder
+    userId?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    language?: SortOrder
+    startedAt?: SortOrder
+    lastSeenAt?: SortOrder
+    endedAt?: SortOrder
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type UserSessionMinOrderByAggregateInput = {
+    id?: SortOrder
+    anonId?: SortOrder
+    userId?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    language?: SortOrder
+    startedAt?: SortOrder
+    lastSeenAt?: SortOrder
+    endedAt?: SortOrder
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type UserSessionSumOrderByAggregateInput = {
+    durationMs?: SortOrder
+    eventCount?: SortOrder
+    pageviews?: SortOrder
+  }
+
+  export type StoryImpressionCountOrderByAggregateInput = {
+    id?: SortOrder
+    clusterId?: SortOrder
+    articleId?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    device?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type StoryImpressionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    clusterId?: SortOrder
+    articleId?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    device?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type StoryImpressionMinOrderByAggregateInput = {
+    id?: SortOrder
+    clusterId?: SortOrder
+    articleId?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    source?: SortOrder
+    category?: SortOrder
+    language?: SortOrder
+    country?: SortOrder
+    device?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ExternalClickCountOrderByAggregateInput = {
+    id?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    targetUrl?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ExternalClickMaxOrderByAggregateInput = {
+    id?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    targetUrl?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ExternalClickMinOrderByAggregateInput = {
+    id?: SortOrder
+    articleId?: SortOrder
+    clusterId?: SortOrder
+    source?: SortOrder
+    targetUrl?: SortOrder
+    sessionId?: SortOrder
+    userId?: SortOrder
+    anonymous?: SortOrder
+    device?: SortOrder
+    country?: SortOrder
+    region?: SortOrder
+    referrer?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PublisherDailyStatDatePublisherCompoundUniqueInput = {
+    date: Date | string
+    publisher: string
+  }
+
+  export type PublisherDailyStatCountOrderByAggregateInput = {
+    id?: SortOrder
+    date?: SortOrder
+    publisher?: SortOrder
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PublisherDailyStatAvgOrderByAggregateInput = {
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+  }
+
+  export type PublisherDailyStatMaxOrderByAggregateInput = {
+    id?: SortOrder
+    date?: SortOrder
+    publisher?: SortOrder
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PublisherDailyStatMinOrderByAggregateInput = {
+    id?: SortOrder
+    date?: SortOrder
+    publisher?: SortOrder
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PublisherDailyStatSumOrderByAggregateInput = {
+    clicks?: SortOrder
+    impressions?: SortOrder
+    opens?: SortOrder
+    uniqueSessions?: SortOrder
+    uniqueUsers?: SortOrder
   }
 
   export type UserCreatefavoriteTopicsInput = {
@@ -14919,6 +22724,22 @@ export namespace Prisma {
     deleteMany?: ArticleScalarWhereInput | ArticleScalarWhereInput[]
   }
 
+  export type EnumAnalyticsEventTypeFieldUpdateOperationsInput = {
+    set?: $Enums.AnalyticsEventType
+  }
+
+  export type EnumDeviceTypeFieldUpdateOperationsInput = {
+    set?: $Enums.DeviceType
+  }
+
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -15125,6 +22946,90 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type NestedEnumAnalyticsEventTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.AnalyticsEventType | EnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel> | $Enums.AnalyticsEventType
+  }
+
+  export type NestedEnumDeviceTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeFilter<$PrismaModel> | $Enums.DeviceType
+  }
+
+  export type NestedEnumAnalyticsEventTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AnalyticsEventType | EnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AnalyticsEventType[] | ListEnumAnalyticsEventTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAnalyticsEventTypeWithAggregatesFilter<$PrismaModel> | $Enums.AnalyticsEventType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel>
+    _max?: NestedEnumAnalyticsEventTypeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel> | $Enums.DeviceType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumDeviceTypeFilter<$PrismaModel>
+    _max?: NestedEnumDeviceTypeFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
   export type SavedArticleCreateWithoutUserInput = {

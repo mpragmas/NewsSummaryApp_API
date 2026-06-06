@@ -218,9 +218,96 @@ exports.Prisma.StoryClusterScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.AnalyticsEventScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  sessionId: 'sessionId',
+  userId: 'userId',
+  anonymous: 'anonymous',
+  articleId: 'articleId',
+  clusterId: 'clusterId',
+  source: 'source',
+  category: 'category',
+  language: 'language',
+  country: 'country',
+  region: 'region',
+  device: 'device',
+  referrer: 'referrer',
+  query: 'query',
+  resultCount: 'resultCount',
+  durationMs: 'durationMs',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.UserSessionScalarFieldEnum = {
+  id: 'id',
+  anonId: 'anonId',
+  userId: 'userId',
+  device: 'device',
+  country: 'country',
+  region: 'region',
+  referrer: 'referrer',
+  language: 'language',
+  startedAt: 'startedAt',
+  lastSeenAt: 'lastSeenAt',
+  endedAt: 'endedAt',
+  durationMs: 'durationMs',
+  eventCount: 'eventCount',
+  pageviews: 'pageviews'
+};
+
+exports.Prisma.StoryImpressionScalarFieldEnum = {
+  id: 'id',
+  clusterId: 'clusterId',
+  articleId: 'articleId',
+  sessionId: 'sessionId',
+  userId: 'userId',
+  source: 'source',
+  category: 'category',
+  language: 'language',
+  country: 'country',
+  device: 'device',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ExternalClickScalarFieldEnum = {
+  id: 'id',
+  articleId: 'articleId',
+  clusterId: 'clusterId',
+  source: 'source',
+  targetUrl: 'targetUrl',
+  sessionId: 'sessionId',
+  userId: 'userId',
+  anonymous: 'anonymous',
+  device: 'device',
+  country: 'country',
+  region: 'region',
+  referrer: 'referrer',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PublisherDailyStatScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  publisher: 'publisher',
+  clicks: 'clicks',
+  impressions: 'impressions',
+  opens: 'opens',
+  uniqueSessions: 'uniqueSessions',
+  uniqueUsers: 'uniqueUsers',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -232,6 +319,12 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
 exports.AppLocale = exports.$Enums.AppLocale = {
   en: 'en',
   fr: 'fr',
@@ -240,6 +333,30 @@ exports.AppLocale = exports.$Enums.AppLocale = {
 
 exports.AuthProvider = exports.$Enums.AuthProvider = {
   google: 'google'
+};
+
+exports.AnalyticsEventType = exports.$Enums.AnalyticsEventType = {
+  STORY_IMPRESSION: 'STORY_IMPRESSION',
+  ARTICLE_OPEN: 'ARTICLE_OPEN',
+  SOURCE_SWITCH: 'SOURCE_SWITCH',
+  EXTERNAL_CLICK: 'EXTERNAL_CLICK',
+  BOOKMARK: 'BOOKMARK',
+  UNBOOKMARK: 'UNBOOKMARK',
+  SHARE: 'SHARE',
+  SEARCH: 'SEARCH',
+  SESSION_START: 'SESSION_START',
+  SESSION_HEARTBEAT: 'SESSION_HEARTBEAT',
+  LANGUAGE_USAGE: 'LANGUAGE_USAGE',
+  CATEGORY_INTEREST: 'CATEGORY_INTEREST',
+  REGION_INTEREST: 'REGION_INTEREST'
+};
+
+exports.DeviceType = exports.$Enums.DeviceType = {
+  mobile: 'mobile',
+  tablet: 'tablet',
+  desktop: 'desktop',
+  bot: 'bot',
+  unknown: 'unknown'
 };
 
 exports.Prisma.ModelName = {
@@ -251,7 +368,12 @@ exports.Prisma.ModelName = {
   SavedArticle: 'SavedArticle',
   ReadingHistory: 'ReadingHistory',
   Article: 'Article',
-  StoryCluster: 'StoryCluster'
+  StoryCluster: 'StoryCluster',
+  AnalyticsEvent: 'AnalyticsEvent',
+  UserSession: 'UserSession',
+  StoryImpression: 'StoryImpression',
+  ExternalClick: 'ExternalClick',
+  PublisherDailyStat: 'PublisherDailyStat'
 };
 
 /**

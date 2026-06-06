@@ -21,6 +21,7 @@ import { UsersModule } from './users/users.module';
 import { QueueModule } from './queue/queue.module';
 import { HealthModule } from './health/health.module';
 import { GuestModule } from './guest/guest.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 const cacheLogger = new Logger('CacheModule');
 
@@ -99,6 +100,7 @@ const cacheLogger = new Logger('CacheModule');
     AuthModule,
     UsersModule,
     GuestModule,
+    AnalyticsModule,
     HealthModule,
   ],
 })

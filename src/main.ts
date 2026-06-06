@@ -43,7 +43,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
+    // `out/:articleId` is the public outbound-click tracker — kept at the root
+    // so it's a clean, shareable URL (records the click, then 302-redirects).
+    exclude: ['health', 'out/:articleId'],
   });
 
   // Swagger — disabled in production unless SWAGGER_ENABLED=true
