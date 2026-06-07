@@ -131,7 +131,7 @@ export class ArticlesService {
     } = query;
     const skip = (page - 1) * limit;
 
-    const effectiveLang = lang ?? personal?.preferredLanguage;
+    const effectiveLang = lang ?? personal?.preferredNewsLanguage;
 
     // Filter the feed by originalLanguage so users only see news actually written
     // in their chosen language. Without this, titles (which we don't translate)

@@ -64,7 +64,7 @@ export class StoriesService {
       region,
     } = query;
     const skip = (page - 1) * limit;
-    const effectiveLang = (lang ?? personal?.preferredLanguage) as
+    const effectiveLang = (lang ?? personal?.preferredNewsLanguage) as
       | Lang
       | undefined;
 
@@ -147,7 +147,7 @@ export class StoriesService {
       lang ??
       (userId
         ? (await this.usersService.getPersonalizationForFeed(userId))
-            ?.preferredLanguage
+            ?.preferredNewsLanguage
         : undefined);
 
     const cacheKey = `${CACHE_PREFIX}:one:${id}:${effectiveLang ?? 'default'}`;

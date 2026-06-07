@@ -52,7 +52,8 @@ model User {
   email             String?   @unique
   name              String?
   avatarUrl         String?
-  preferredLanguage AppLocale @default(en)
+  preferredNewsLanguage AppLocale @default(en) @map("preferredLanguage")
+  preferredAppLanguage  AppLocale @default(en)
   favoriteTopics    String[]  @default([])
   dailyDigest       Boolean   @default(false)
   breakingNews      Boolean   @default(false)

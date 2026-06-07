@@ -11,7 +11,8 @@ export interface AuthTokenResponse {
     id: string;
     email: string;
     name: string | null;
-    preferredLanguage: string;
+    preferredAppLanguage: string;
+    preferredNewsLanguage: string;
   };
   guestMerge?: { mergedSaves: number; mergedReads: number };
 }
@@ -62,7 +63,8 @@ export class AuthService {
     id: string;
     email: string | null;
     name: string | null;
-    preferredLanguage: string;
+    preferredAppLanguage: string;
+    preferredNewsLanguage: string;
   }): AuthTokenResponse {
     const accessToken = this.jwt.sign({
       sub: user.id,
@@ -74,7 +76,8 @@ export class AuthService {
         id: user.id,
         email: user.email ?? '',
         name: user.name,
-        preferredLanguage: user.preferredLanguage,
+        preferredAppLanguage: user.preferredAppLanguage,
+        preferredNewsLanguage: user.preferredNewsLanguage,
       },
     };
   }

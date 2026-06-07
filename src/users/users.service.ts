@@ -21,7 +21,8 @@ export class UsersService {
         email: true,
         name: true,
         avatarUrl: true,
-        preferredLanguage: true,
+        preferredAppLanguage: true,
+        preferredNewsLanguage: true,
         favoriteTopics: true,
         dailyDigest: true,
         breakingNews: true,
@@ -38,15 +39,15 @@ export class UsersService {
 
   /** Default feed language when the client omits `lang` (topics are not server-filtered). */
   async getPersonalizationForFeed(userId: string): Promise<{
-    preferredLanguage: 'en' | 'fr' | 'rw';
+    preferredNewsLanguage: 'en' | 'fr' | 'rw';
   } | null> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { preferredLanguage: true },
+      select: { preferredNewsLanguage: true },
     });
     if (!row) return null;
     return {
-      preferredLanguage: row.preferredLanguage as 'en' | 'fr' | 'rw',
+      preferredNewsLanguage: row.preferredNewsLanguage as 'en' | 'fr' | 'rw',
     };
   }
 
@@ -60,7 +61,8 @@ export class UsersService {
         email: true,
         name: true,
         avatarUrl: true,
-        preferredLanguage: true,
+        preferredAppLanguage: true,
+        preferredNewsLanguage: true,
         favoriteTopics: true,
         dailyDigest: true,
         breakingNews: true,

@@ -18,7 +18,11 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsIn(['en', 'fr', 'rw'])
-  preferredLanguage?: 'en' | 'fr' | 'rw';
+  preferredAppLanguage?: 'en' | 'fr' | 'rw';
+
+  @IsOptional()
+  @IsIn(['en', 'fr', 'rw'])
+  preferredNewsLanguage?: 'en' | 'fr' | 'rw';
 
   @IsOptional()
   @IsArray()
