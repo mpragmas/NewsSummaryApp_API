@@ -18,7 +18,7 @@ import { BatchTrackDto, TrackEventDto } from './dto/track-event.dto';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { getRequestContext } from './request-context.util';
 import { OptionalJwtGuard } from '../auth/guards/optional-jwt.guard';
-import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
+import { AdminAccessGuard } from '../common/guards/admin-access.guard';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 
 interface AuthRequest extends Request {
@@ -60,54 +60,54 @@ export class AnalyticsController {
     });
   }
 
-  // ── Admin dashboards (protected by X-Admin-Key) ──────────────────────────────
+  // ── Admin dashboards (protected by X-Admin-Key or an admin Google JWT) ───────
 
   @Get('overview')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   overview(@Query() q: AnalyticsQueryDto) {
     return this.analytics.getOverview(q);
   }
 
   @Get('publishers')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   publishers(@Query() q: AnalyticsQueryDto) {
     return this.analytics.getPublishers(q);
   }
 
   @Get('publishers/:source')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   publisherDetail(@Param('source') source: string, @Query() q: AnalyticsQueryDto) {
     return this.analytics.getPublisherDetail(source, q);
   }
 
   @Get('users')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   users(@Query() q: AnalyticsQueryDto) {
     return this.analytics.getUsers(q);
   }
 
   @Get('stories')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   stories(@Query() q: AnalyticsQueryDto) {
     return this.analytics.getStories(q);
   }
 
   @Get('search')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   search(@Query() q: AnalyticsQueryDto) {
     return this.analytics.getSearch(q);
   }
 
   /** Lightweight check the admin UI uses to validate the entered key. */
   @Get('verify')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   verify() {
     return { ok: true };
   }
 
   /** Force a publisher daily-stat rebuild over the trailing window. */
   @Post('rebuild')
-  @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminAccessGuard)
   @HttpCode(HttpStatus.OK)
   rebuild(@Query('days') days?: number) {
     return this.aggregation.rebuildRange(days ? Number(days) : 30);

@@ -112,6 +112,14 @@ export const AuthProvider: {
 export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider]
 
 
+export const Role: {
+  user: 'user',
+  admin: 'admin'
+};
+
+export type Role = (typeof Role)[keyof typeof Role]
+
+
 export const AnalyticsEventType: {
   STORY_IMPRESSION: 'STORY_IMPRESSION',
   ARTICLE_OPEN: 'ARTICLE_OPEN',
@@ -150,6 +158,10 @@ export const AppLocale: typeof $Enums.AppLocale
 export type AuthProvider = $Enums.AuthProvider
 
 export const AuthProvider: typeof $Enums.AuthProvider
+
+export type Role = $Enums.Role
+
+export const Role: typeof $Enums.Role
 
 export type AnalyticsEventType = $Enums.AnalyticsEventType
 
@@ -2314,9 +2326,13 @@ export namespace Prisma {
   export type UserMinAggregateOutputType = {
     id: string | null
     email: string | null
+    username: string | null
+    passwordHash: string | null
     name: string | null
     avatarUrl: string | null
-    preferredLanguage: $Enums.AppLocale | null
+    preferredNewsLanguage: $Enums.AppLocale | null
+    preferredAppLanguage: $Enums.AppLocale | null
+    role: $Enums.Role | null
     dailyDigest: boolean | null
     breakingNews: boolean | null
     createdAt: Date | null
@@ -2326,9 +2342,13 @@ export namespace Prisma {
   export type UserMaxAggregateOutputType = {
     id: string | null
     email: string | null
+    username: string | null
+    passwordHash: string | null
     name: string | null
     avatarUrl: string | null
-    preferredLanguage: $Enums.AppLocale | null
+    preferredNewsLanguage: $Enums.AppLocale | null
+    preferredAppLanguage: $Enums.AppLocale | null
+    role: $Enums.Role | null
     dailyDigest: boolean | null
     breakingNews: boolean | null
     createdAt: Date | null
@@ -2338,9 +2358,13 @@ export namespace Prisma {
   export type UserCountAggregateOutputType = {
     id: number
     email: number
+    username: number
+    passwordHash: number
     name: number
     avatarUrl: number
-    preferredLanguage: number
+    preferredNewsLanguage: number
+    preferredAppLanguage: number
+    role: number
     favoriteTopics: number
     dailyDigest: number
     breakingNews: number
@@ -2353,9 +2377,13 @@ export namespace Prisma {
   export type UserMinAggregateInputType = {
     id?: true
     email?: true
+    username?: true
+    passwordHash?: true
     name?: true
     avatarUrl?: true
-    preferredLanguage?: true
+    preferredNewsLanguage?: true
+    preferredAppLanguage?: true
+    role?: true
     dailyDigest?: true
     breakingNews?: true
     createdAt?: true
@@ -2365,9 +2393,13 @@ export namespace Prisma {
   export type UserMaxAggregateInputType = {
     id?: true
     email?: true
+    username?: true
+    passwordHash?: true
     name?: true
     avatarUrl?: true
-    preferredLanguage?: true
+    preferredNewsLanguage?: true
+    preferredAppLanguage?: true
+    role?: true
     dailyDigest?: true
     breakingNews?: true
     createdAt?: true
@@ -2377,9 +2409,13 @@ export namespace Prisma {
   export type UserCountAggregateInputType = {
     id?: true
     email?: true
+    username?: true
+    passwordHash?: true
     name?: true
     avatarUrl?: true
-    preferredLanguage?: true
+    preferredNewsLanguage?: true
+    preferredAppLanguage?: true
+    role?: true
     favoriteTopics?: true
     dailyDigest?: true
     breakingNews?: true
@@ -2463,9 +2499,13 @@ export namespace Prisma {
   export type UserGroupByOutputType = {
     id: string
     email: string | null
+    username: string | null
+    passwordHash: string | null
     name: string | null
     avatarUrl: string | null
-    preferredLanguage: $Enums.AppLocale
+    preferredNewsLanguage: $Enums.AppLocale
+    preferredAppLanguage: $Enums.AppLocale
+    role: $Enums.Role
     favoriteTopics: string[]
     dailyDigest: boolean
     breakingNews: boolean
@@ -2493,9 +2533,13 @@ export namespace Prisma {
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     email?: boolean
+    username?: boolean
+    passwordHash?: boolean
     name?: boolean
     avatarUrl?: boolean
-    preferredLanguage?: boolean
+    preferredNewsLanguage?: boolean
+    preferredAppLanguage?: boolean
+    role?: boolean
     favoriteTopics?: boolean
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -2510,9 +2554,13 @@ export namespace Prisma {
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     email?: boolean
+    username?: boolean
+    passwordHash?: boolean
     name?: boolean
     avatarUrl?: boolean
-    preferredLanguage?: boolean
+    preferredNewsLanguage?: boolean
+    preferredAppLanguage?: boolean
+    role?: boolean
     favoriteTopics?: boolean
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -2523,9 +2571,13 @@ export namespace Prisma {
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     email?: boolean
+    username?: boolean
+    passwordHash?: boolean
     name?: boolean
     avatarUrl?: boolean
-    preferredLanguage?: boolean
+    preferredNewsLanguage?: boolean
+    preferredAppLanguage?: boolean
+    role?: boolean
     favoriteTopics?: boolean
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -2536,9 +2588,13 @@ export namespace Prisma {
   export type UserSelectScalar = {
     id?: boolean
     email?: boolean
+    username?: boolean
+    passwordHash?: boolean
     name?: boolean
     avatarUrl?: boolean
-    preferredLanguage?: boolean
+    preferredNewsLanguage?: boolean
+    preferredAppLanguage?: boolean
+    role?: boolean
     favoriteTopics?: boolean
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -2546,7 +2602,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "avatarUrl" | "preferredLanguage" | "favoriteTopics" | "dailyDigest" | "breakingNews" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "username" | "passwordHash" | "name" | "avatarUrl" | "preferredNewsLanguage" | "preferredAppLanguage" | "role" | "favoriteTopics" | "dailyDigest" | "breakingNews" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     savedArticles?: boolean | User$savedArticlesArgs<ExtArgs>
     readingHistory?: boolean | User$readingHistoryArgs<ExtArgs>
@@ -2569,9 +2625,19 @@ export namespace Prisma {
        * Nullable — may be absent for anonymous-origin accounts.
        */
       email: string | null
+      /**
+       * Credentials login handle — set only for pre-provisioned admin accounts (no self-signup).
+       */
+      username: string | null
+      /**
+       * bcrypt hash — set only for credentials-login (admin) accounts; Google accounts have none.
+       */
+      passwordHash: string | null
       name: string | null
       avatarUrl: string | null
-      preferredLanguage: $Enums.AppLocale
+      preferredNewsLanguage: $Enums.AppLocale
+      preferredAppLanguage: $Enums.AppLocale
+      role: $Enums.Role
       favoriteTopics: string[]
       dailyDigest: boolean
       breakingNews: boolean
@@ -3005,9 +3071,13 @@ export namespace Prisma {
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
+    readonly username: FieldRef<"User", 'String'>
+    readonly passwordHash: FieldRef<"User", 'String'>
     readonly name: FieldRef<"User", 'String'>
     readonly avatarUrl: FieldRef<"User", 'String'>
-    readonly preferredLanguage: FieldRef<"User", 'AppLocale'>
+    readonly preferredNewsLanguage: FieldRef<"User", 'AppLocale'>
+    readonly preferredAppLanguage: FieldRef<"User", 'AppLocale'>
+    readonly role: FieldRef<"User", 'Role'>
     readonly favoriteTopics: FieldRef<"User", 'String[]'>
     readonly dailyDigest: FieldRef<"User", 'Boolean'>
     readonly breakingNews: FieldRef<"User", 'Boolean'>
@@ -18256,9 +18326,13 @@ export namespace Prisma {
   export const UserScalarFieldEnum: {
     id: 'id',
     email: 'email',
+    username: 'username',
+    passwordHash: 'passwordHash',
     name: 'name',
     avatarUrl: 'avatarUrl',
-    preferredLanguage: 'preferredLanguage',
+    preferredNewsLanguage: 'preferredNewsLanguage',
+    preferredAppLanguage: 'preferredAppLanguage',
+    role: 'role',
     favoriteTopics: 'favoriteTopics',
     dailyDigest: 'dailyDigest',
     breakingNews: 'breakingNews',
@@ -18550,6 +18624,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Role'
+   */
+  export type EnumRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Role'>
+    
+
+
+  /**
+   * Reference to a field of type 'Role[]'
+   */
+  export type ListEnumRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Role[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Boolean'
    */
   export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
@@ -18663,9 +18751,13 @@ export namespace Prisma {
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
     email?: StringNullableFilter<"User"> | string | null
+    username?: StringNullableFilter<"User"> | string | null
+    passwordHash?: StringNullableFilter<"User"> | string | null
     name?: StringNullableFilter<"User"> | string | null
     avatarUrl?: StringNullableFilter<"User"> | string | null
-    preferredLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    role?: EnumRoleFilter<"User"> | $Enums.Role
     favoriteTopics?: StringNullableListFilter<"User">
     dailyDigest?: BoolFilter<"User"> | boolean
     breakingNews?: BoolFilter<"User"> | boolean
@@ -18679,9 +18771,13 @@ export namespace Prisma {
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
     email?: SortOrderInput | SortOrder
+    username?: SortOrderInput | SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     name?: SortOrderInput | SortOrder
     avatarUrl?: SortOrderInput | SortOrder
-    preferredLanguage?: SortOrder
+    preferredNewsLanguage?: SortOrder
+    preferredAppLanguage?: SortOrder
+    role?: SortOrder
     favoriteTopics?: SortOrder
     dailyDigest?: SortOrder
     breakingNews?: SortOrder
@@ -18695,12 +18791,16 @@ export namespace Prisma {
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
     email?: string
+    username?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
+    passwordHash?: StringNullableFilter<"User"> | string | null
     name?: StringNullableFilter<"User"> | string | null
     avatarUrl?: StringNullableFilter<"User"> | string | null
-    preferredLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFilter<"User"> | $Enums.AppLocale
+    role?: EnumRoleFilter<"User"> | $Enums.Role
     favoriteTopics?: StringNullableListFilter<"User">
     dailyDigest?: BoolFilter<"User"> | boolean
     breakingNews?: BoolFilter<"User"> | boolean
@@ -18709,14 +18809,18 @@ export namespace Prisma {
     savedArticles?: SavedArticleListRelationFilter
     readingHistory?: ReadingHistoryListRelationFilter
     oauthAccounts?: OAuthAccountListRelationFilter
-  }, "id" | "email">
+  }, "id" | "email" | "username">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
     email?: SortOrderInput | SortOrder
+    username?: SortOrderInput | SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     name?: SortOrderInput | SortOrder
     avatarUrl?: SortOrderInput | SortOrder
-    preferredLanguage?: SortOrder
+    preferredNewsLanguage?: SortOrder
+    preferredAppLanguage?: SortOrder
+    role?: SortOrder
     favoriteTopics?: SortOrder
     dailyDigest?: SortOrder
     breakingNews?: SortOrder
@@ -18733,9 +18837,13 @@ export namespace Prisma {
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
     email?: StringNullableWithAggregatesFilter<"User"> | string | null
+    username?: StringNullableWithAggregatesFilter<"User"> | string | null
+    passwordHash?: StringNullableWithAggregatesFilter<"User"> | string | null
     name?: StringNullableWithAggregatesFilter<"User"> | string | null
     avatarUrl?: StringNullableWithAggregatesFilter<"User"> | string | null
-    preferredLanguage?: EnumAppLocaleWithAggregatesFilter<"User"> | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleWithAggregatesFilter<"User"> | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleWithAggregatesFilter<"User"> | $Enums.AppLocale
+    role?: EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
     favoriteTopics?: StringNullableListFilter<"User">
     dailyDigest?: BoolWithAggregatesFilter<"User"> | boolean
     breakingNews?: BoolWithAggregatesFilter<"User"> | boolean
@@ -19802,9 +19910,13 @@ export namespace Prisma {
   export type UserCreateInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -19818,9 +19930,13 @@ export namespace Prisma {
   export type UserUncheckedCreateInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -19834,9 +19950,13 @@ export namespace Prisma {
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -19850,9 +19970,13 @@ export namespace Prisma {
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -19866,9 +19990,13 @@ export namespace Prisma {
   export type UserCreateManyInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -19879,9 +20007,13 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -19892,9 +20024,13 @@ export namespace Prisma {
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -21126,6 +21262,13 @@ export namespace Prisma {
     not?: NestedEnumAppLocaleFilter<$PrismaModel> | $Enums.AppLocale
   }
 
+  export type EnumRoleFilter<$PrismaModel = never> = {
+    equals?: $Enums.Role | EnumRoleFieldRefInput<$PrismaModel>
+    in?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    notIn?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoleFilter<$PrismaModel> | $Enums.Role
+  }
+
   export type StringNullableListFilter<$PrismaModel = never> = {
     equals?: string[] | ListStringFieldRefInput<$PrismaModel> | null
     has?: string | StringFieldRefInput<$PrismaModel> | null
@@ -21188,9 +21331,13 @@ export namespace Prisma {
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
+    username?: SortOrder
+    passwordHash?: SortOrder
     name?: SortOrder
     avatarUrl?: SortOrder
-    preferredLanguage?: SortOrder
+    preferredNewsLanguage?: SortOrder
+    preferredAppLanguage?: SortOrder
+    role?: SortOrder
     favoriteTopics?: SortOrder
     dailyDigest?: SortOrder
     breakingNews?: SortOrder
@@ -21201,9 +21348,13 @@ export namespace Prisma {
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
+    username?: SortOrder
+    passwordHash?: SortOrder
     name?: SortOrder
     avatarUrl?: SortOrder
-    preferredLanguage?: SortOrder
+    preferredNewsLanguage?: SortOrder
+    preferredAppLanguage?: SortOrder
+    role?: SortOrder
     dailyDigest?: SortOrder
     breakingNews?: SortOrder
     createdAt?: SortOrder
@@ -21213,9 +21364,13 @@ export namespace Prisma {
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
+    username?: SortOrder
+    passwordHash?: SortOrder
     name?: SortOrder
     avatarUrl?: SortOrder
-    preferredLanguage?: SortOrder
+    preferredNewsLanguage?: SortOrder
+    preferredAppLanguage?: SortOrder
+    role?: SortOrder
     dailyDigest?: SortOrder
     breakingNews?: SortOrder
     createdAt?: SortOrder
@@ -21266,6 +21421,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumAppLocaleFilter<$PrismaModel>
     _max?: NestedEnumAppLocaleFilter<$PrismaModel>
+  }
+
+  export type EnumRoleWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.Role | EnumRoleFieldRefInput<$PrismaModel>
+    in?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    notIn?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoleWithAggregatesFilter<$PrismaModel> | $Enums.Role
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRoleFilter<$PrismaModel>
+    _max?: NestedEnumRoleFilter<$PrismaModel>
   }
 
   export type BoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -22148,6 +22313,10 @@ export namespace Prisma {
     set?: $Enums.AppLocale
   }
 
+  export type EnumRoleFieldUpdateOperationsInput = {
+    set?: $Enums.Role
+  }
+
   export type UserUpdatefavoriteTopicsInput = {
     set?: string[]
     push?: string | string[]
@@ -22775,6 +22944,13 @@ export namespace Prisma {
     not?: NestedEnumAppLocaleFilter<$PrismaModel> | $Enums.AppLocale
   }
 
+  export type NestedEnumRoleFilter<$PrismaModel = never> = {
+    equals?: $Enums.Role | EnumRoleFieldRefInput<$PrismaModel>
+    in?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    notIn?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoleFilter<$PrismaModel> | $Enums.Role
+  }
+
   export type NestedBoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -22855,6 +23031,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumAppLocaleFilter<$PrismaModel>
     _max?: NestedEnumAppLocaleFilter<$PrismaModel>
+  }
+
+  export type NestedEnumRoleWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.Role | EnumRoleFieldRefInput<$PrismaModel>
+    in?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    notIn?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoleWithAggregatesFilter<$PrismaModel> | $Enums.Role
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRoleFilter<$PrismaModel>
+    _max?: NestedEnumRoleFilter<$PrismaModel>
   }
 
   export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -23185,9 +23371,13 @@ export namespace Prisma {
   export type UserCreateWithoutOauthAccountsInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23200,9 +23390,13 @@ export namespace Prisma {
   export type UserUncheckedCreateWithoutOauthAccountsInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23231,9 +23425,13 @@ export namespace Prisma {
   export type UserUpdateWithoutOauthAccountsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -23246,9 +23444,13 @@ export namespace Prisma {
   export type UserUncheckedUpdateWithoutOauthAccountsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -23669,9 +23871,13 @@ export namespace Prisma {
   export type UserCreateWithoutSavedArticlesInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23684,9 +23890,13 @@ export namespace Prisma {
   export type UserUncheckedCreateWithoutSavedArticlesInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23768,9 +23978,13 @@ export namespace Prisma {
   export type UserUpdateWithoutSavedArticlesInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -23783,9 +23997,13 @@ export namespace Prisma {
   export type UserUncheckedUpdateWithoutSavedArticlesInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -23857,9 +24075,13 @@ export namespace Prisma {
   export type UserCreateWithoutReadingHistoryInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23872,9 +24094,13 @@ export namespace Prisma {
   export type UserUncheckedCreateWithoutReadingHistoryInput = {
     id?: string
     email?: string | null
+    username?: string | null
+    passwordHash?: string | null
     name?: string | null
     avatarUrl?: string | null
-    preferredLanguage?: $Enums.AppLocale
+    preferredNewsLanguage?: $Enums.AppLocale
+    preferredAppLanguage?: $Enums.AppLocale
+    role?: $Enums.Role
     favoriteTopics?: UserCreatefavoriteTopicsInput | string[]
     dailyDigest?: boolean
     breakingNews?: boolean
@@ -23956,9 +24182,13 @@ export namespace Prisma {
   export type UserUpdateWithoutReadingHistoryInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean
@@ -23971,9 +24201,13 @@ export namespace Prisma {
   export type UserUncheckedUpdateWithoutReadingHistoryInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     name?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    preferredLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredNewsLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    preferredAppLanguage?: EnumAppLocaleFieldUpdateOperationsInput | $Enums.AppLocale
+    role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     favoriteTopics?: UserUpdatefavoriteTopicsInput | string[]
     dailyDigest?: BoolFieldUpdateOperationsInput | boolean
     breakingNews?: BoolFieldUpdateOperationsInput | boolean

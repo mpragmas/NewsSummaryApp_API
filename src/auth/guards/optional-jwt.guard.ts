@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser, JwtPayload } from '../strategies/jwt.strategy';
+import { Role } from '../../generated/prisma';
 
 /**
  * Sets req.user when a valid Bearer token is present; otherwise leaves the
@@ -32,7 +33,11 @@ export class OptionalJwtGuard implements CanActivate {
     try {
       const secret = this.config.get<string>('jwt.secret') ?? 'changeme-in-production';
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret });
-      req.user = { userId: payload.sub, email: payload.email };
+      req.user = {
+        userId: payload.sub,
+        email: payload.email,
+        role: payload.role ?? Role.user,
+      };
     } catch {
       req.user = undefined;
     }

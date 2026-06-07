@@ -18,6 +18,13 @@ enum AuthProvider {
   google
 }
 
+/// Access level for an account. `admin` unlocks the analytics dashboard.
+/// Promotion is driven by the ADMIN_EMAILS allowlist at sign-in time.
+enum Role {
+  user
+  admin
+}
+
 /// Kinds of analytics events tracked across the platform. Append new variants
 /// via migration — never reorder or remove (historical rows reference them).
 enum AnalyticsEventType {
@@ -50,10 +57,15 @@ model User {
   id                String    @id @default(uuid())
   /// Nullable — may be absent for anonymous-origin accounts.
   email             String?   @unique
+  /// Credentials login handle — set only for pre-provisioned admin accounts (no self-signup).
+  username          String?   @unique
+  /// bcrypt hash — set only for credentials-login (admin) accounts; Google accounts have none.
+  passwordHash      String?
   name              String?
   avatarUrl         String?
   preferredNewsLanguage AppLocale @default(en) @map("preferredLanguage")
   preferredAppLanguage  AppLocale @default(en)
+  role              Role      @default(user)
   favoriteTopics    String[]  @default([])
   dailyDigest       Boolean   @default(false)
   breakingNews      Boolean   @default(false)

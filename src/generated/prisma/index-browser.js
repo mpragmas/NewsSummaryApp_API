@@ -123,9 +123,13 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
+  username: 'username',
+  passwordHash: 'passwordHash',
   name: 'name',
   avatarUrl: 'avatarUrl',
-  preferredLanguage: 'preferredLanguage',
+  preferredNewsLanguage: 'preferredNewsLanguage',
+  preferredAppLanguage: 'preferredAppLanguage',
+  role: 'role',
   favoriteTopics: 'favoriteTopics',
   dailyDigest: 'dailyDigest',
   breakingNews: 'breakingNews',
@@ -329,6 +333,11 @@ exports.AppLocale = exports.$Enums.AppLocale = {
   en: 'en',
   fr: 'fr',
   rw: 'rw'
+};
+
+exports.Role = exports.$Enums.Role = {
+  user: 'user',
+  admin: 'admin'
 };
 
 exports.AuthProvider = exports.$Enums.AuthProvider = {

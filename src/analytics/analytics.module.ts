@@ -6,7 +6,7 @@ import { RedirectController } from './redirect.controller';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsRepository } from './analytics.repository';
 import { AnalyticsAggregationService } from './analytics-aggregation.service';
-import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
+import { AdminAccessGuard } from '../common/guards/admin-access.guard';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -15,7 +15,7 @@ import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
     AnalyticsService,
     AnalyticsRepository,
     AnalyticsAggregationService,
-    AdminApiKeyGuard,
+    AdminAccessGuard,
   ],
   exports: [AnalyticsService],
 })

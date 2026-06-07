@@ -21,7 +21,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "seed:admin": "ts-node -r dotenv/config --transpile-only scripts/seed-admin.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -41,6 +42,7 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@types/pg": "^8.20.0",
+    "bcryptjs": "^3.0.3",
     "bottleneck": "^2.19.5",
     "bullmq": "^5.76.5",
     "cache-manager": "^7.2.8",
@@ -64,6 +66,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
