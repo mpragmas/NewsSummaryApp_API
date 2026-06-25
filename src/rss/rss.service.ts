@@ -30,7 +30,14 @@ export class RssService {
   private readonly logger = new Logger(RssService.name);
   private readonly parser = new RssParser({
     timeout: 10000,
-    headers: { 'User-Agent': 'NewsAggregator/1.0' },
+    // Use a real browser User-Agent: Igihe's SPIP backend feed returns an empty
+    // body to a generic/bot UA, which would silently starve RW news. Mainstream
+    // feeds (BBC, RFI, …) are unaffected by this.
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 NewsSummary/1.0',
+    },
     customFields: {
       item: [
         ['media:content', 'media:content', { keepArray: true }],

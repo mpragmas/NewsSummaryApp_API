@@ -51,6 +51,10 @@ function fetchHtml(url: string, logger: Logger): Promise<string | null> {
     maxRetries: 2,
     curlFallback: true,
     preferCurl: true,
+    // KigaliToday is behind a full Cloudflare JS challenge that fetch/curl
+    // cannot solve. Route through the scraping API when SCRAPER_API_KEY is set;
+    // no-op (direct fetch) otherwise.
+    useScraperApi: true,
     extraHeaders: BROWSER_HEADERS,
   });
 }

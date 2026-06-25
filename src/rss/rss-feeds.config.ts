@@ -128,6 +128,23 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     country: 'Rwanda',
   },
 
+  // ── Kinyarwanda — Rwanda ────────────────────────────────────────────────────
+  // Igihe's SPIP backend RSS feed. The igihe.com *HTML* pages are Cloudflare-
+  // challenged from datacenter IPs (Render), which silently starves the HTML
+  // scraper — but this backend endpoint returns plain RSS (real dc:date, ~170
+  // fresh items) and is not behind the JS challenge. This is the primary source
+  // of fresh RW news; the HTML scraper is kept as a best-effort supplement and
+  // dedup drops any overlap. NOTE: send a real browser User-Agent (see
+  // rss.service.ts) — a generic/bot UA can get an empty body from this endpoint.
+  {
+    name: 'Igihe',
+    url: 'https://igihe.com/spip.php?page=backend',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
+
   // ── French — Global ─────────────────────────────────────────────────────────
   {
     name: 'RFI',

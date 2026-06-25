@@ -22,6 +22,46 @@ export interface FetchHtmlOptions {
   curlFallback?: boolean;
   /** Skip Node fetch and use curl immediately (for Cloudflare-only sites). */
   preferCurl?: boolean;
+  /**
+   * Route the request through a JS-rendering scraping API (ScraperAPI /
+   * ScrapingBee) when `SCRAPER_API_KEY` is configured. Required for sites behind
+   * a full Cloudflare JS challenge (e.g. kigalitoday.com) that fetch/curl cannot
+   * solve. No-op (falls back to direct fetch) when no key is set.
+   */
+  useScraperApi?: boolean;
+}
+
+type ScraperApiProvider = 'scraperapi' | 'scrapingbee';
+
+/**
+ * Read the scraping-API credentials from the environment.
+ * `SCRAPER_API_KEY` enables it; `SCRAPER_API_PROVIDER` selects the vendor
+ * (default `scraperapi`). Returns null when unconfigured.
+ */
+function getScraperApiConfig(): {
+  key: string;
+  provider: ScraperApiProvider;
+} | null {
+  const key = process.env.SCRAPER_API_KEY?.trim();
+  if (!key) return null;
+  const raw = process.env.SCRAPER_API_PROVIDER?.trim().toLowerCase();
+  const provider: ScraperApiProvider =
+    raw === 'scrapingbee' ? 'scrapingbee' : 'scraperapi';
+  return { key, provider };
+}
+
+/** Build the proxied URL that renders JS server-side and returns final HTML. */
+function buildScraperApiUrl(
+  provider: ScraperApiProvider,
+  key: string,
+  targetUrl: string,
+): string {
+  const u = encodeURIComponent(targetUrl);
+  if (provider === 'scrapingbee') {
+    return `https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${u}&render_js=true`;
+  }
+  // ScraperAPI: render=true solves the JS challenge; the proxy handles UA/cookies.
+  return `https://api.scraperapi.com/?api_key=${key}&url=${u}&render=true`;
 }
 
 const CLOUDFLARE_MARKERS = [
@@ -195,7 +235,47 @@ export async function fetchHtml(
   const maxRetries = opts.maxRetries ?? 2;
   const userAgent = opts.userAgent ?? DEFAULT_UA;
 
+  const scraperApi = opts.useScraperApi ? getScraperApiConfig() : null;
+  if (opts.useScraperApi && !scraperApi) {
+    logger.warn(
+      `${source}: useScraperApi requested but SCRAPER_API_KEY is not set — ` +
+        `falling back to direct fetch (will likely be blocked by Cloudflare).`,
+    );
+  }
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Strategy 0: JS-rendering scraping API (only when a key is configured).
+    if (scraperApi) {
+      const proxied = buildScraperApiUrl(
+        scraperApi.provider,
+        scraperApi.key,
+        url,
+      );
+      // Server-side JS rendering is slow — give it a generous ceiling.
+      const apiRes = await nativeFetch(proxied, {
+        timeoutMs: Math.max(timeoutMs, 60_000),
+        userAgent,
+      });
+      if (
+        apiRes &&
+        apiRes.status >= 200 &&
+        apiRes.status < 300 &&
+        !isCloudflareChallenge(apiRes.body)
+      ) {
+        logger.debug?.(
+          `${source}: fetched via ${scraperApi.provider} (status=${apiRes.status})`,
+        );
+        return apiRes.body;
+      }
+      logger.warn(
+        `${source}: scraper-API (${scraperApi.provider}) attempt ${attempt}/${maxRetries} failed ` +
+          `(status=${apiRes?.status ?? 'n/a'}, url=${url})`,
+      );
+      if (attempt === maxRetries) return null;
+      await new Promise((r) => setTimeout(r, 750 * attempt));
+      continue;
+    }
+
     if (opts.preferCurl && opts.curlFallback) {
       const viaCurl = await curlFetch(url, {
         timeoutMs,

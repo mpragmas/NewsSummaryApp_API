@@ -35,3 +35,9 @@ services:
         sync: false
       - key: SWAGGER_ENABLED
         value: "true"
+      # JS-rendering scraping API for Cloudflare-blocked sources (KigaliToday).
+      # Leave unset to disable. Set the key in the dashboard to enable.
+      - key: SCRAPER_API_KEY
+        sync: false
+      - key: SCRAPER_API_PROVIDER
+        value: "scraperapi" # or "scrapingbee"
