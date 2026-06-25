@@ -11,8 +11,8 @@ import {
   ClusterTarget,
   SIMILARITY_THRESHOLD,
   TIME_WINDOW_HOURS,
+  buildLexicalTokens,
   extractEntityKeys,
-  normalizeTitleTokens,
   scoreSimilarity,
 } from './text-signature.util';
 
@@ -120,8 +120,9 @@ export class StoryClusteringService {
 
   private buildSignature(article: ClusterableArticle): ArticleSignature {
     return {
-      titleTokens: normalizeTitleTokens(
+      titleTokens: buildLexicalTokens(
         article.title,
+        article.content,
         article.originalLanguage,
       ),
       entityKeys: extractEntityKeys(article.title, article.content),
@@ -161,10 +162,12 @@ export class StoryClusteringService {
   ): Promise<{ id: string } | null> {
     const since = new Date(Date.now() - TIME_WINDOW_HOURS * 3_600_000);
 
-    // Bounded candidate retrieval: same language, recent, entity-overlapping
-    // (GIN index on entityKeys). Category/region narrow further when present.
+    // Bounded candidate retrieval: recent + entity-overlapping (GIN index on
+    // entityKeys). Language is intentionally NOT filtered here — cross-language
+    // coverage of the same story bridges through shared named entities, and
+    // scoreSimilarity() applies the stricter cross-language guard. Category
+    // narrows further when present (categories are language-agnostic keys).
     const where: Prisma.StoryClusterWhereInput = {
-      language: this.toLang(article.originalLanguage),
       latestPublishedAt: { gte: since },
       entityKeys: { hasSome: sig.entityKeys },
     };
@@ -269,8 +272,10 @@ export class StoryClusteringService {
       40,
     );
     const titleTokens = this.mergeCapped(
-      members.flatMap((m) => normalizeTitleTokens(m.title, m.originalLanguage)),
-      60,
+      members.flatMap((m) =>
+        buildLexicalTokens(m.title, m.content, m.originalLanguage),
+      ),
+      80,
     );
 
     const latestPublishedAt = members.reduce(
@@ -290,6 +295,9 @@ export class StoryClusteringService {
         continent: lead.continent,
         region: lead.region,
         country: lead.country,
+        // Keep the scalar language aligned with the lead (canonicalTitle); the
+        // full set of member languages lives in `languages[]`.
+        language: this.toLang(lead.originalLanguage),
         entityKeys,
         titleTokens,
         sourceCount: sources.size,

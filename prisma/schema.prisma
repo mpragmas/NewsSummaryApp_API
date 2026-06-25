@@ -213,7 +213,8 @@ model StoryCluster {
   continent         String?
   region            String?
   country           String?
-  /// Language of the cluster — grouping never crosses languages.
+  /// Language of the cluster's lead/canonical article. A cluster MAY contain
+  /// members in other languages (same story across EN/FR/RW) — see `languages`.
   language          String   @default("en")
   /// Top entities/keywords used for bounded candidate retrieval (GIN-indexed).
   entityKeys        String[] @default([])

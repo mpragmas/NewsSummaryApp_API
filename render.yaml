@@ -19,6 +19,11 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: "3000"
+      # Keeps the free-tier dyno awake (self-ping every 14m) so the 20-minute
+      # ingestion cron actually fires — otherwise the dyno sleeps and Kinyarwanda
+      # news only refreshes on manual hits. Falls back to RENDER_EXTERNAL_URL.
+      - key: PUBLIC_URL
+        value: "https://newssummaryapp-api.onrender.com"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL

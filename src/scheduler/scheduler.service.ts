@@ -78,7 +78,10 @@ export class SchedulerService implements OnModuleInit {
    */
   @Cron('0 */14 * * * *')
   async handleKeepAlive() {
-    const publicUrl = this.config.get<string>('publicUrl') ?? process.env.PUBLIC_URL;
+    const publicUrl =
+      this.config.get<string>('publicUrl') ||
+      process.env.PUBLIC_URL ||
+      process.env.RENDER_EXTERNAL_URL;
     if (!publicUrl) return;
 
     try {

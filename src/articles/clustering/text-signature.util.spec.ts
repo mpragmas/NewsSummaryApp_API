@@ -94,21 +94,50 @@ describe('Kinyarwanda story clustering', () => {
     expect(scoreSimilarity(a, target)).toBeLessThan(SIMILARITY_THRESHOLD);
   });
 
-  it('never merges across languages', () => {
+  it('groups the SAME story across languages via shared entities', () => {
+    // EN + RW coverage of one event must land in the same cluster so the
+    // "Other Sources Covering This Story" panel can surface both.
     const t = new Date('2026-06-25T08:00:00Z');
-    const rw = sig('Amavubi yatsinze Nigeria', 'umukino.', t);
+    const rw = sig('Amavubi yatsinze Nigeria', 'Amavubi yatsinze Nigeria.', t);
     const enTarget: ClusterTarget = {
       titleTokens: normalizeTitleTokens(
         'Amavubi beat Nigeria in friendly',
         'en',
       ),
-      entityKeys: extractEntityKeys('Amavubi beat Nigeria', 'match report'),
+      entityKeys: extractEntityKeys(
+        'Amavubi beat Nigeria',
+        'Rwanda national team Amavubi beat Nigeria.',
+      ),
       category: 'Sports',
       region: 'East Africa',
       country: 'Rwanda',
       latestPublishedAt: t,
       language: 'en',
     };
-    expect(scoreSimilarity(rw, enTarget)).toBe(0);
+    expect(scoreSimilarity(rw, enTarget)).toBeGreaterThanOrEqual(
+      SIMILARITY_THRESHOLD,
+    );
+  });
+
+  it('does NOT merge different cross-language stories sharing one common name', () => {
+    const t = new Date('2026-06-25T08:00:00Z');
+    const rw = sig(
+      'Amavubi yatsinze Nigeria',
+      'umukino w’umupira mu Rwanda.',
+      t,
+    );
+    const enTarget: ClusterTarget = {
+      titleTokens: normalizeTitleTokens('Rwanda launches health drive', 'en'),
+      entityKeys: extractEntityKeys(
+        'Rwanda launches health drive',
+        'Rwanda new health programme.',
+      ),
+      category: 'Health',
+      region: 'East Africa',
+      country: 'Rwanda',
+      latestPublishedAt: t,
+      language: 'en',
+    };
+    expect(scoreSimilarity(rw, enTarget)).toBeLessThan(SIMILARITY_THRESHOLD);
   });
 });

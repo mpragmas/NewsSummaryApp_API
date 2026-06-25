@@ -29,7 +29,11 @@ export interface NormalizedArticle {
 export class RssService {
   private readonly logger = new Logger(RssService.name);
   private readonly parser = new RssParser({
-    timeout: 10000,
+    // Some Rwandan feeds (e.g. imvahonshya.co.rw) respond in ~15-20s. Feeds are
+    // fetched in parallel (Promise.allSettled), so a generous per-feed timeout
+    // only bounds the worst-case completion of this background job — it does not
+    // slow down the fast feeds. 10s was dropping Imvaho Nshya entirely.
+    timeout: 30000,
     // Use a real browser User-Agent: Igihe's SPIP backend feed returns an empty
     // body to a generic/bot UA, which would silently starve RW news. Mainstream
     // feeds (BBC, RFI, …) are unaffected by this.

@@ -144,6 +144,33 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     region: 'East Africa',
     country: 'Rwanda',
   },
+  // Umuseke — WordPress feed (real pubDate + content:encoded + categories).
+  {
+    name: 'Umuseke',
+    url: 'https://umuseke.rw/feed/',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
+  // Imvaho Nshya — WordPress feed.
+  {
+    name: 'Imvaho Nshya',
+    url: 'https://imvahonshya.co.rw/feed/',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
+  // Umuryango — SPIP backend feed (the WordPress-style /feed/ path 404s here).
+  {
+    name: 'Umuryango',
+    url: 'https://umuryango.rw/spip.php?page=backend',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
 
   // ── French — Global ─────────────────────────────────────────────────────────
   {

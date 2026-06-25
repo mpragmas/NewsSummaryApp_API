@@ -254,6 +254,57 @@ export function extractEntityKeys(title: string, content: string): string[] {
   return Array.from(keys).slice(0, 24);
 }
 
+/**
+ * Salient body tokens from the first ~1000 chars: stopword-stripped, length ≥ 4,
+ * ranked by frequency then length. Folding content into the lexical signature
+ * (alongside the title) means two outlets that phrase a headline differently but
+ * share the same body vocabulary still match — "title + content + entities"
+ * instead of title-only.
+ */
+export function extractContentTokens(
+  content: string,
+  language: string,
+  cap = 12,
+): string[] {
+  const lang = toClusterLang(language);
+  const stop = STOPWORDS[lang];
+  const folded = foldDiacritics((content ?? '').slice(0, 1000));
+  const raw = folded
+    .replace(/['’`]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const freq = new Map<string, number>();
+  for (const tok of raw) {
+    if (tok.length < 4) continue;
+    if (stop.has(tok)) continue;
+    freq.set(tok, (freq.get(tok) ?? 0) + 1);
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, cap)
+    .map(([t]) => t);
+}
+
+/**
+ * Lexical signature = title tokens + top salient content tokens (deduped).
+ * Stored in `StoryCluster.titleTokens`; the display headline lives in
+ * `canonicalTitle`, so widening this set does not affect what users see.
+ */
+export function buildLexicalTokens(
+  title: string,
+  content: string,
+  language: string,
+): string[] {
+  return Array.from(
+    new Set([
+      ...normalizeTitleTokens(title, language),
+      ...extractContentTokens(content, language),
+    ]),
+  );
+}
+
 function jaccard(a: string[], b: string[]): number {
   if (a.length === 0 || b.length === 0) return 0;
   const setB = new Set(b);
@@ -269,6 +320,14 @@ function overlapRatio(a: string[], b: string[]): number {
   let inter = 0;
   for (const x of new Set(a)) if (setB.has(x)) inter++;
   return inter / Math.min(new Set(a).size, setB.size);
+}
+
+/** Number of entity keys shared by both signatures. */
+function sharedCount(a: string[], b: string[]): number {
+  const setB = new Set(b);
+  let n = 0;
+  for (const x of new Set(a)) if (setB.has(x)) n++;
+  return n;
 }
 
 export interface ClusterTarget {
@@ -288,19 +347,22 @@ export const TIME_WINDOW_HOURS = 48;
 
 /**
  * Weighted 0..1 similarity between an incoming article and an existing cluster.
- * Same-language only — callers must pre-filter candidates by language, but we
- * also hard-zero a cross-language pair as a safety net.
+ *
+ * Cross-language aware: an EN/FR/RW article about the same event groups with the
+ * cluster when they share enough *named entities* (proper nouns / numbers, which
+ * survive translation), since title/content tokens themselves do not translate.
+ * Cross-language matches require stricter, more specific agreement to avoid
+ * merging unrelated stories that merely share a common name.
  */
 export function scoreSimilarity(
   article: ArticleSignature,
   cluster: ClusterTarget,
 ): number {
-  if (toClusterLang(article.language) !== toClusterLang(cluster.language)) {
-    return 0;
-  }
+  const sameLang =
+    toClusterLang(article.language) === toClusterLang(cluster.language);
 
-  const titleJaccard = jaccard(article.titleTokens, cluster.titleTokens);
   const entityOverlap = overlapRatio(article.entityKeys, cluster.entityKeys);
+  const sharedEntities = sharedCount(article.entityKeys, cluster.entityKeys);
 
   // Time proximity: linear decay from 1 (same time) to 0 at the window edge.
   const hoursApart =
@@ -323,6 +385,29 @@ export function scoreSimilarity(
     (article.region && cluster.region && article.region === cluster.region)
       ? 1
       : 0;
+
+  // ── Cross-language path: entities carry the whole lexical load ─────────────
+  if (!sameLang) {
+    // Require multiple shared entities + solid overlap + same time window +
+    // agreeing region or category. A single shared common name (e.g. "Rwanda")
+    // is never enough to merge two different stories across languages.
+    const strongAgreement =
+      sharedEntities >= 2 &&
+      entityOverlap >= 0.5 &&
+      timeProximity > 0 &&
+      (regionMatch === 1 || categoryMatch === 1);
+    if (!strongAgreement) return 0;
+
+    const score =
+      0.6 * entityOverlap +
+      0.22 * timeProximity +
+      0.1 * categoryMatch +
+      0.08 * regionMatch;
+    return Math.max(score, SIMILARITY_THRESHOLD);
+  }
+
+  // ── Same-language path: lexical (title+content) + entity signals ───────────
+  const titleJaccard = jaccard(article.titleTokens, cluster.titleTokens);
 
   // Weights: lexical + entity signals dominate; time/category/region refine.
   const score =

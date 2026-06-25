@@ -1,8 +1,13 @@
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  /** Public base URL of this service — used for keep-alive self-pings on free-tier hosts. */
-  publicUrl: process.env.PUBLIC_URL ?? '',
+  /**
+   * Public base URL of this service — used for keep-alive self-pings that stop
+   * Render's free tier from sleeping (which would halt the ingestion cron).
+   * Falls back to `RENDER_EXTERNAL_URL`, which Render injects automatically, so
+   * the keep-alive works with zero manual config.
+   */
+  publicUrl: process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL ?? '',
   database: {
     url: process.env.DATABASE_URL,
   },
