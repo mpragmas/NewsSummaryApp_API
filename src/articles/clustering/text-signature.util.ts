@@ -146,7 +146,7 @@ const STOPWORDS: Record<ClusterLang, ReadonlySet<string>> = {
     'bya',
     'cya',
     'rya',
-    ' rwa',
+    'rwa',
     'kwa',
     'iyo',
     'uyu',
@@ -235,6 +235,20 @@ export function extractEntityKeys(title: string, content: string): string[] {
   // Years and standalone numbers (counts, scores) from the title — very stable.
   const numbers = (title ?? '').match(/\b\d{2,4}\b/g) ?? [];
   for (const n of numbers) keys.add(n);
+
+  // Fallback for headlines with little/inconsistent capitalization (common in
+  // scraped Kinyarwanda titles): seed entity keys from the longest salient title
+  // tokens so the article can still be matched to a cluster by `hasSome`.
+  if (keys.size < 2) {
+    const salient = foldDiacritics(title ?? '')
+      .replace(/['’`]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length >= 6)
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 4);
+    for (const t of salient) keys.add(t);
+  }
 
   // Cap to the most informative keys to keep arrays small + indexes fast.
   return Array.from(keys).slice(0, 24);

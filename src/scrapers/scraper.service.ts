@@ -2,7 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { NormalizedArticle } from '../rss/rss.service';
 import { scrapeIgihe, type RwScrapeResult } from './igihe.scraper';
 import { scrapeKigaliToday } from './kigalitoday.scraper';
-import { getRwPipelineMetrics, recordRwScrapeBatch } from '../common/util/rw-pipeline-metrics';
+import {
+  getRwPipelineMetrics,
+  recordRwScrapeBatch,
+} from '../common/util/rw-pipeline-metrics';
+import {
+  emptyDropReport,
+  formatDropReport,
+  mergeDropReports,
+} from './scrape-report';
 
 const CACHE_TTL_MS = 20 * 60 * 1000; // 20-minute page cache per source
 
@@ -26,7 +34,8 @@ export class ScraperService {
     ]);
 
     const merged = [...igiheResult.articles, ...kigaliTodayResult.articles];
-    const scrapedTotal = igiheResult.scrapedTotal + kigaliTodayResult.scrapedTotal;
+    const scrapedTotal =
+      igiheResult.scrapedTotal + kigaliTodayResult.scrapedTotal;
     const rejectedInvalid =
       igiheResult.rejectedInvalid + kigaliTodayResult.rejectedInvalid;
     const rejectedLowQuality =
@@ -42,6 +51,22 @@ export class ScraperService {
     this.logger.log(
       `🕷️  Scrapers done: ${igiheResult.articles.length} Igihe + ${kigaliTodayResult.articles.length} KigaliToday accepted`,
     );
+
+    // Consolidated drop report: every discovered RW candidate is accounted for.
+    const combinedReport = mergeDropReports([
+      igiheResult.report,
+      kigaliTodayResult.report,
+    ]);
+    this.logger.log(
+      `[RW DROP REPORT] ${formatDropReport('Igihe', igiheResult.report)}`,
+    );
+    this.logger.log(
+      `[RW DROP REPORT] ${formatDropReport('Kigali Today', kigaliTodayResult.report)}`,
+    );
+    this.logger.log(
+      `[RW DROP REPORT] ${formatDropReport('TOTAL', combinedReport)}`,
+    );
+
     this.logger.log(
       `[RW PIPELINE] scraped=${snapshot.rwScrapedTotal}, rejected=${snapshot.rwRejectedInvalid + snapshot.rwRejectedLowQuality}, ai=${snapshot.rwAIEnhanced}, fallback=${snapshot.rwFallbackUsed} (batchRejected=${rejected}, lowQuality=${rejectedLowQuality})`,
     );
@@ -55,12 +80,19 @@ export class ScraperService {
   ): Promise<RwScrapeResult> {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-      this.logger.debug(`🕷️  ${key}: serving ${cached.articles.length} articles from cache`);
+      this.logger.debug(
+        `🕷️  ${key}: serving ${cached.articles.length} articles from cache`,
+      );
       return {
         articles: cached.articles,
         scrapedTotal: cached.articles.length,
         rejectedInvalid: 0,
         rejectedLowQuality: 0,
+        report: {
+          ...emptyDropReport(),
+          discovered: cached.articles.length,
+          inserted: cached.articles.length,
+        },
       };
     }
 
@@ -76,6 +108,7 @@ export class ScraperService {
         scrapedTotal: 0,
         rejectedInvalid: 0,
         rejectedLowQuality: 0,
+        report: { ...emptyDropReport(), listingFailed: 1 },
       };
     }
   }

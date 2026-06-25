@@ -13,19 +13,40 @@ import {
 } from '../common/util/article-validation';
 import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
 import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util';
+import {
+  type ScrapeDropReport,
+  emptyDropReport,
+  formatDropReport,
+  mergeDropReports,
+} from './scrape-report';
 
 const SOURCE = 'Igihe';
 const BASE_URL = 'https://igihe.com';
+const IGIHE_HOST_RE = /(^|\.)igihe\.com$/i;
+/** Detail pages fetched in parallel per section (keeps each run well under the cron window). */
+const DETAIL_CONCURRENCY = 4;
 
-// Each section maps to one of Igihe's three language editions.
+// Each section maps to a language edition / topic listing. Broader coverage than
+// before: the RW homepage alone publishes ~20+ items, and topic sections surface
+// articles that never reach the homepage rail. Cross-section URL duplicates are
+// removed downstream by the deduplication stage.
 const LANGUAGE_SECTIONS: Array<{
   listingUrl: string;
   lang: SupportedLanguage;
   limit: number;
 }> = [
-  { listingUrl: 'https://igihe.com/amakuru/', lang: 'rw', limit: 15 },
-  { listingUrl: 'https://igihe.com/en/', lang: 'en', limit: 12 },
-  { listingUrl: 'https://igihe.com/fr/', lang: 'fr', limit: 12 },
+  { listingUrl: 'https://igihe.com/amakuru/', lang: 'rw', limit: 25 },
+  { listingUrl: 'https://igihe.com/amakuru/u-rwanda/', lang: 'rw', limit: 15 },
+  { listingUrl: 'https://igihe.com/amakuru/politiki/', lang: 'rw', limit: 12 },
+  { listingUrl: 'https://igihe.com/amakuru/ubukungu/', lang: 'rw', limit: 12 },
+  { listingUrl: 'https://igihe.com/imikino/', lang: 'rw', limit: 12 },
+  {
+    listingUrl: 'https://igihe.com/amakuru/mu-mahanga/',
+    lang: 'rw',
+    limit: 12,
+  },
+  { listingUrl: 'https://igihe.com/en/', lang: 'en', limit: 15 },
+  { listingUrl: 'https://igihe.com/fr/', lang: 'fr', limit: 15 },
 ];
 
 export interface RwScrapeResult {
@@ -33,6 +54,8 @@ export interface RwScrapeResult {
   scrapedTotal: number;
   rejectedInvalid: number;
   rejectedLowQuality: number;
+  /** Where every discovered candidate ended up (discovered → inserted/dropped). */
+  report: ScrapeDropReport;
 }
 
 function fetchHtml(url: string, logger: Logger): Promise<string | null> {
@@ -48,6 +71,28 @@ function resolveUrl(href: string): string {
   if (href.startsWith('http')) return href;
   if (href.startsWith('//')) return `https:${href}`;
   return `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
+}
+
+/** Accept both igihe.com and www.igihe.com (the site canonicalizes to www). */
+function isIgiheUrl(url: string): boolean {
+  try {
+    return IGIHE_HOST_RE.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Drop non-editorial links that share the `/article/` shape: the advertising
+ * service (`/serivisi/kwamamaza/`) and sponsor banners. These otherwise burn a
+ * detail fetch and show up as fetch failures in the drop report.
+ */
+function isEditorialUrl(url: string): boolean {
+  const path = url.toLowerCase();
+  if (/\/serivisi\//.test(path)) return false;
+  if (/kwamamaza/.test(path)) return false;
+  if (/[-/]banner(-|\/|$|\d)/.test(path)) return false;
+  return true;
 }
 
 /**
@@ -77,8 +122,29 @@ function isArticleHref(href: string, lang: SupportedLanguage): boolean {
   return false;
 }
 
+/** Run an async mapper over items with a bounded concurrency pool. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (cursor < items.length) {
+        const idx = cursor++;
+        results[idx] = await fn(items[idx]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
-  // Scrape all language sections concurrently.
+  // Scrape all language/topic sections concurrently.
   const sectionResults = await Promise.all(
     LANGUAGE_SECTIONS.map((sec) =>
       scrapeSection(sec.listingUrl, sec.lang, sec.limit, logger),
@@ -86,25 +152,17 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
   );
 
   const articles = sectionResults.flatMap((r) => r.articles);
-  const scrapedTotal = sectionResults.reduce(
-    (acc, r) => acc + r.scrapedTotal,
-    0,
-  );
-  const rejectedInvalid = sectionResults.reduce(
-    (acc, r) => acc + r.rejectedInvalid,
-    0,
-  );
-  const rejectedLowQuality = sectionResults.reduce(
-    (acc, r) => acc + r.rejectedLowQuality,
-    0,
-  );
+  const report = mergeDropReports(sectionResults.map((r) => r.report));
 
-  const [rw, en, fr] = sectionResults.map((r) => r.articles.length);
-  logger.log(
-    `${SOURCE}: accepted rw=${rw} en=${en} fr=${fr} total=${articles.length}`,
-  );
+  logger.log(`${SOURCE}: ${formatDropReport(SOURCE, report)}`);
 
-  return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
+  return {
+    articles,
+    scrapedTotal: report.discovered,
+    rejectedInvalid: report.fetchFailed + report.rejectedInvalid,
+    rejectedLowQuality: report.rejectedLowQuality,
+    report,
+  };
 }
 
 async function scrapeSection(
@@ -112,24 +170,19 @@ async function scrapeSection(
   lang: SupportedLanguage,
   limit: number,
   logger: Logger,
-): Promise<RwScrapeResult> {
+): Promise<{ articles: NormalizedArticle[]; report: ScrapeDropReport }> {
+  const report = emptyDropReport();
   const html = await fetchHtml(listingUrl, logger);
   if (!html) {
-    logger.warn(`${SOURCE} [${lang}]: could not fetch listing page ${listingUrl}`);
-    return {
-      articles: [],
-      scrapedTotal: 0,
-      rejectedInvalid: 0,
-      rejectedLowQuality: 0,
-    };
+    report.listingFailed = 1;
+    logger.warn(
+      `${SOURCE} [${lang}] ${listingUrl}: listing fetch FAILED (blocked/offline) — 0 articles from this section`,
+    );
+    return { articles: [], report };
   }
 
   const $ = cheerio.load(html);
-  const articles: NormalizedArticle[] = [];
   const seenUrls = new Set<string>();
-  let scrapedTotal = 0;
-  let rejectedInvalid = 0;
-  let rejectedLowQuality = 0;
 
   const selectors = [
     '.homenews',
@@ -156,54 +209,77 @@ async function scrapeSection(
       .filter((el): el is NonNullable<typeof el> => el != null);
   }
 
-  for (const el of elements.slice(0, limit)) {
-    try {
-      const $el = $(el);
+  // ── Phase 1: collect unique candidate URLs from the listing ──────────────
+  interface Candidate {
+    url: string;
+    listingTitle: string;
+  }
+  const candidates: Candidate[] = [];
 
-      // Prefer a link that matches the article URL pattern, then any link.
-      let linkEl = $el.find(`a[href*="/article/"]`).first();
-      if (!linkEl.length) {
-        // For EN/FR sections the path may not include /article/
-        linkEl = $el.find('a[href]').filter((_, a) => {
+  for (const el of elements) {
+    if (candidates.length >= limit) break;
+    const $el = $(el);
+
+    let linkEl = $el.find(`a[href*="/article/"]`).first();
+    if (!linkEl.length) {
+      linkEl = $el
+        .find('a[href]')
+        .filter((_, a) => {
           const h = $(a).attr('href') ?? '';
           return isArticleHref(h, lang) && !h.includes('#');
-        }).first();
-      }
-      if (!linkEl.length) {
-        linkEl = $el.find('a[href]').first();
-      }
+        })
+        .first();
+    }
+    if (!linkEl.length) {
+      linkEl = $el.find('a[href]').first();
+    }
 
-      const href = linkEl.attr('href') ?? '';
-      if (!href) continue;
+    const href = linkEl.attr('href') ?? '';
+    if (!href) continue;
 
-      const articleUrl = resolveUrl(href);
-      if (!articleUrl.startsWith(BASE_URL)) continue;
-      if (!isArticleHref(href, lang) && !/\/article\//.test(href)) continue;
-      if (seenUrls.has(articleUrl)) continue;
-      seenUrls.add(articleUrl);
-      scrapedTotal++;
+    const articleUrl = resolveUrl(href);
+    if (!isIgiheUrl(articleUrl) || !isEditorialUrl(articleUrl)) {
+      report.skippedNonArticle++;
+      continue;
+    }
+    if (!isArticleHref(href, lang) && !/\/article\//.test(href)) {
+      report.skippedNonArticle++;
+      continue;
+    }
+    if (seenUrls.has(articleUrl)) {
+      report.skippedDuplicate++;
+      continue;
+    }
+    seenUrls.add(articleUrl);
+    report.discovered++;
 
-      const listingFallbackTitle = normalizeText(
+    candidates.push({
+      url: articleUrl,
+      listingTitle: normalizeText(
         $el.find('h1, h2, h3, h4').first().text() || linkEl.text(),
-      );
+      ),
+    });
+  }
 
+  // ── Phase 2: fetch + validate detail pages (bounded concurrency) ─────────
+  const built = await mapPool(candidates, DETAIL_CONCURRENCY, async (cand) => {
+    try {
       const detail = await scrapeArticleDetail(
-        articleUrl,
+        cand.url,
         logger,
-        listingFallbackTitle,
+        cand.listingTitle,
       );
       if (!detail) {
-        rejectedInvalid++;
-        continue;
+        report.fetchFailed++;
+        return null;
       }
 
-      const articleLang = detectLang(articleUrl, lang);
-
+      const articleLang = detectLang(cand.url, lang);
       const candidate: NormalizedArticle = {
         title: detail.title.substring(0, 500),
         content: sanitizeContentForAI(detail.content),
         imageUrl: detail.imageUrl,
-        url: articleUrl,
+        url: cand.url,
         source: SOURCE,
         originalLanguage: articleLang,
         publishedAt: detail.publishedAt,
@@ -213,38 +289,59 @@ async function scrapeSection(
       };
 
       if (!isValidArticle(candidate, { minContentLength: 250 })) {
-        logger.warn(
-          `${SOURCE} [${articleLang}]: skipped invalid article (${articleUrl}) contentLen=${candidate.content.length}`,
+        report.rejectedInvalid++;
+        logger.debug(
+          `${SOURCE} [${articleLang}]: rejected invalid (len=${candidate.content.length}) ${cand.url}`,
         );
-        rejectedInvalid++;
-        continue;
+        return null;
       }
 
-      const quality = getContentQualityScore(candidate.title, candidate.content, {
-        minContentLength: 250,
-      });
+      const quality = getContentQualityScore(
+        candidate.title,
+        candidate.content,
+        {
+          minContentLength: 250,
+        },
+      );
       if (!quality.ok) {
-        rejectedLowQuality++;
-        continue;
+        report.rejectedLowQuality++;
+        logger.debug(
+          `${SOURCE} [${articleLang}]: rejected lowQuality (${quality.code}) ${cand.url}`,
+        );
+        return null;
       }
 
       if (candidate.content.length < 300) {
-        rejectedLowQuality++;
-        continue;
+        report.rejectedLowQuality++;
+        return null;
       }
 
       if (!hasRealJournalisticContent(candidate.content, candidate.title)) {
-        rejectedLowQuality++;
-        continue;
+        report.rejectedLowQuality++;
+        logger.debug(
+          `${SOURCE} [${articleLang}]: rejected notJournalistic ${cand.url}`,
+        );
+        return null;
       }
 
-      articles.push(candidate);
+      report.inserted++;
+      return candidate;
     } catch (err) {
-      logger.warn(`${SOURCE} [${lang}]: failed to parse element — ${(err as Error).message}`);
+      report.fetchFailed++;
+      logger.warn(
+        `${SOURCE} [${lang}]: failed to parse ${cand.url} — ${(err as Error).message}`,
+      );
+      return null;
     }
-  }
+  });
 
-  return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
+  const articles = built.filter((a): a is NormalizedArticle => a !== null);
+
+  logger.debug(
+    `${SOURCE} [${lang}] ${listingUrl}: ${formatDropReport(`${lang}`, report)}`,
+  );
+
+  return { articles, report };
 }
 
 async function scrapeArticleDetail(
@@ -278,7 +375,9 @@ async function scrapeArticleDetail(
   ];
   const title = titleCandidates.find((v) => isMeaningfulTitle(v));
   if (!title) {
-    logger.warn(`${SOURCE}: rejected detail page with no valid title (${articleUrl})`);
+    logger.debug(
+      `${SOURCE}: rejected detail page with no valid title (${articleUrl})`,
+    );
     return null;
   }
 

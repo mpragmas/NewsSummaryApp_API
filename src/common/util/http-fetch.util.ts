@@ -24,7 +24,16 @@ export interface FetchHtmlOptions {
   preferCurl?: boolean;
 }
 
-const CLOUDFLARE_MARKERS = ['Just a moment', 'cf_chl_opt', '__cf_chl_'];
+const CLOUDFLARE_MARKERS = [
+  'Just a moment',
+  'cf_chl_opt',
+  '__cf_chl_',
+  'challenges.cloudflare.com',
+  'cf-mitigated',
+  'Attention Required',
+  'Checking your browser',
+  '/cdn-cgi/challenge-platform',
+];
 const CURL_TIMEOUT_BUFFER_MS = 5_000;
 
 function isCloudflareChallenge(body: string): boolean {
@@ -72,6 +81,9 @@ function curlFetch(
   const args: string[] = [
     '-sS',
     '-L',
+    // Decode gzip/deflate/br so callers (and Cloudflare-challenge detection) see
+    // plain HTML even when an Accept-Encoding header is forwarded.
+    '--compressed',
     '--max-time',
     String(timeoutSec),
     '-A',
@@ -92,10 +104,13 @@ function curlFetch(
     let stdout = '';
     let stderr = '';
     let killed = false;
-    const killTimer = setTimeout(() => {
-      killed = true;
-      child.kill();
-    }, options.timeoutMs + CURL_TIMEOUT_BUFFER_MS + 2_000);
+    const killTimer = setTimeout(
+      () => {
+        killed = true;
+        child.kill();
+      },
+      options.timeoutMs + CURL_TIMEOUT_BUFFER_MS + 2_000,
+    );
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
@@ -132,6 +147,40 @@ function curlFetch(
   });
 }
 
+export type FetchBlockReason = 'cloudflare' | 'http_error' | 'network' | null;
+
+export interface FetchDiagnostic {
+  ok: boolean;
+  status: number;
+  reason: FetchBlockReason;
+}
+
+/**
+ * One-shot diagnostic probe (curl) used to explain *why* a source is failing —
+ * notably to distinguish a Cloudflare bot-challenge (needs a headless browser /
+ * scraping API to bypass) from a transient network/HTTP error.
+ */
+export async function probeFetch(
+  url: string,
+  opts: FetchHtmlOptions = {},
+): Promise<FetchDiagnostic> {
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+  const userAgent = opts.userAgent ?? DEFAULT_UA;
+  const res = await curlFetch(url, {
+    timeoutMs,
+    userAgent,
+    extraHeaders: opts.extraHeaders,
+  });
+  if (!res) return { ok: false, status: 0, reason: 'network' };
+  if (isCloudflareChallenge(res.body)) {
+    return { ok: false, status: res.status, reason: 'cloudflare' };
+  }
+  if (res.status >= 200 && res.status < 300) {
+    return { ok: true, status: res.status, reason: null };
+  }
+  return { ok: false, status: res.status, reason: 'http_error' };
+}
+
 /**
  * Resilient HTML fetcher with optional curl fallback for Cloudflare-protected
  * pages (e.g. kigalitoday.com).
@@ -155,7 +204,9 @@ export async function fetchHtml(
       });
       if (viaCurl && viaCurl.status >= 200 && viaCurl.status < 300) {
         if (!isCloudflareChallenge(viaCurl.body)) {
-          logger.debug?.(`${source}: fetched via curl (status=${viaCurl.status})`);
+          logger.debug?.(
+            `${source}: fetched via curl (status=${viaCurl.status})`,
+          );
           return viaCurl.body;
         }
       }
@@ -177,7 +228,12 @@ export async function fetchHtml(
       (fetched.status === 403 || fetched.status === 503) &&
       isCloudflareChallenge(fetched.body);
 
-    if (fetched && fetched.status >= 200 && fetched.status < 300 && !blockedByCf) {
+    if (
+      fetched &&
+      fetched.status >= 200 &&
+      fetched.status < 300 &&
+      !blockedByCf
+    ) {
       return fetched.body;
     }
 
@@ -188,7 +244,9 @@ export async function fetchHtml(
         extraHeaders: opts.extraHeaders,
       });
       if (viaCurl && viaCurl.status >= 200 && viaCurl.status < 300) {
-        logger.debug?.(`${source}: served via curl fallback (status=${viaCurl.status})`);
+        logger.debug?.(
+          `${source}: served via curl fallback (status=${viaCurl.status})`,
+        );
         return viaCurl.body;
       }
       logger.warn(

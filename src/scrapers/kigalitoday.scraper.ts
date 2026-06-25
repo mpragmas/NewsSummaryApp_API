@@ -12,13 +12,18 @@ import {
 } from '../common/util/article-validation';
 import type { RwScrapeResult } from './igihe.scraper';
 import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
-import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util';
+import {
+  fetchHtml as resilientFetchHtml,
+  probeFetch,
+} from '../common/util/http-fetch.util';
+import { emptyDropReport, formatDropReport } from './scrape-report';
 
 const SOURCE = 'Kigali Today';
 const BASE_URL = 'https://www.kigalitoday.com';
-const SCRAPE_LIMIT = 20;
+const SCRAPE_LIMIT = 24;
+const DETAIL_CONCURRENCY = 4;
 
-// Try multiple listing paths — KigaliToday uses Joomla SEF URLs;
+// Try multiple listing paths — KigaliToday uses Joomla/SPIP SEF URLs;
 // which one responds depends on their server config.
 const LISTING_CANDIDATES = [
   'https://www.kigalitoday.com/',
@@ -65,8 +70,33 @@ function isArticleUrl(href: string): boolean {
   // Reject root, single-segment paths, and obvious non-article paths
   const segments = path.split('/').filter(Boolean);
   if (segments.length < 2) return false;
-  if (['tag', 'tags', 'category', 'author', 'search', 'component', 'rss'].some((s) => segments[0] === s)) return false;
+  if (
+    ['tag', 'tags', 'category', 'author', 'search', 'component', 'rss'].some(
+      (s) => segments[0] === s,
+    )
+  )
+    return false;
   return true;
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (cursor < items.length) {
+        const idx = cursor++;
+        results[idx] = await fn(items[idx]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 /** Try each listing URL candidate and return the first that yields usable HTML. */
@@ -90,19 +120,43 @@ async function fetchListingHtml(logger: Logger): Promise<string | null> {
   return null;
 }
 
-export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult> {
+export async function scrapeKigaliToday(
+  logger: Logger,
+): Promise<RwScrapeResult> {
+  const report = emptyDropReport();
   const html = await fetchListingHtml(logger);
   if (!html) {
-    logger.warn(`${SOURCE}: all listing URL candidates failed`);
-    return { articles: [], scrapedTotal: 0, rejectedInvalid: 0, rejectedLowQuality: 0 };
+    report.listingFailed = 1;
+    // Explain *why* — Cloudflare's JS challenge cannot be solved by fetch/curl
+    // and is the long-standing reason this source goes stale. Surfacing it makes
+    // the failure actionable (needs a headless browser or scraping API).
+    const diag = await probeFetch(LISTING_CANDIDATES[0], {
+      timeoutMs: 20_000,
+      extraHeaders: BROWSER_HEADERS,
+    });
+    if (diag.reason === 'cloudflare') {
+      logger.error(
+        `${SOURCE}: BLOCKED by Cloudflare bot-challenge (status=${diag.status}). ` +
+          `Server-side fetch/curl cannot bypass this — needs a headless browser ` +
+          `or scraping API. 0 articles ingested this run.`,
+      );
+    } else {
+      logger.warn(
+        `${SOURCE}: all listing URL candidates failed (reason=${diag.reason ?? 'unknown'}, status=${diag.status})`,
+      );
+    }
+    logger.log(`${SOURCE}: ${formatDropReport(SOURCE, report)}`);
+    return {
+      articles: [],
+      scrapedTotal: 0,
+      rejectedInvalid: 0,
+      rejectedLowQuality: 0,
+      report,
+    };
   }
 
   const $ = cheerio.load(html);
-  const articles: NormalizedArticle[] = [];
   const seenUrls = new Set<string>();
-  let scrapedTotal = 0;
-  let rejectedInvalid = 0;
-  let rejectedLowQuality = 0;
 
   // Joomla listing selectors in priority order — first match with 2+ items wins.
   const selectors = [
@@ -129,54 +183,83 @@ export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult>
       .filter((el): el is NonNullable<typeof el> => el != null);
   }
 
-  for (const el of elements.slice(0, SCRAPE_LIMIT)) {
-    try {
-      const $el = $(el);
+  interface Candidate {
+    url: string;
+    listingTitle: string;
+    listingTeaser: string;
+    listingImage: string | null;
+  }
+  const candidates: Candidate[] = [];
 
-      // Prefer specific headline links, then any article-shaped link
-      let linkEl = $el.find('h3.headline a[href], h2 a[href], h3 a[href]').first();
-      if (!linkEl.length) {
-        linkEl = $el.find('a[href]').filter((_, a) => isArticleUrl($(a).attr('href') ?? '')).first();
-      }
-      if (!linkEl.length) linkEl = $el.find('a[href]').first();
+  for (const el of elements) {
+    if (candidates.length >= SCRAPE_LIMIT) break;
+    const $el = $(el);
 
-      const href = linkEl.attr('href') ?? '';
-      if (!href) continue;
+    let linkEl = $el
+      .find('h3.headline a[href], h2 a[href], h3 a[href]')
+      .first();
+    if (!linkEl.length) {
+      linkEl = $el
+        .find('a[href]')
+        .filter((_, a) => isArticleUrl($(a).attr('href') ?? ''))
+        .first();
+    }
+    if (!linkEl.length) linkEl = $el.find('a[href]').first();
 
-      const articleUrl = resolveUrl(href);
-      if (!isArticleUrl(href) && !/\/article\//.test(href)) continue;
-      if (seenUrls.has(articleUrl)) continue;
-      seenUrls.add(articleUrl);
-      scrapedTotal++;
+    const href = linkEl.attr('href') ?? '';
+    if (!href) continue;
 
-      const listingFallbackTitle = normalizeText(
+    const articleUrl = resolveUrl(href);
+    if (!isArticleUrl(href) && !/\/article\//.test(href)) {
+      report.skippedNonArticle++;
+      continue;
+    }
+    if (seenUrls.has(articleUrl)) {
+      report.skippedDuplicate++;
+      continue;
+    }
+    seenUrls.add(articleUrl);
+    report.discovered++;
+
+    candidates.push({
+      url: articleUrl,
+      listingTitle: normalizeText(
         $el.find('h3.headline').first().text() ||
           $el.find('h1, h2, h3, h4').first().text() ||
           linkEl.text(),
-      );
-      const listingTeaser = normalizeText($el.find('.summary-container p, .article-introtext p, p').first().text());
-      const listingImage =
+      ),
+      listingTeaser: normalizeText(
+        $el
+          .find('.summary-container p, .article-introtext p, p')
+          .first()
+          .text(),
+      ),
+      listingImage:
         $el.find('img[src]').first().attr('src') ??
         $el.find('a img').attr('src') ??
-        null;
+        null,
+    });
+  }
 
+  const built = await mapPool(candidates, DETAIL_CONCURRENCY, async (cand) => {
+    try {
       const detail = await scrapeArticleDetail(
-        articleUrl,
+        cand.url,
         logger,
-        listingFallbackTitle,
-        listingTeaser,
-        listingImage,
+        cand.listingTitle,
+        cand.listingTeaser,
+        cand.listingImage,
       );
       if (!detail) {
-        rejectedInvalid++;
-        continue;
+        report.fetchFailed++;
+        return null;
       }
 
       const candidate: NormalizedArticle = {
         title: detail.title.substring(0, 500),
         content: sanitizeContentForAI(detail.content),
         imageUrl: detail.imageUrl,
-        url: articleUrl,
+        url: cand.url,
         source: SOURCE,
         originalLanguage: 'rw',
         publishedAt: detail.publishedAt,
@@ -186,34 +269,48 @@ export async function scrapeKigaliToday(logger: Logger): Promise<RwScrapeResult>
       };
 
       if (!isValidArticle(candidate, { minContentLength: 200 })) {
-        logger.warn(
-          `${SOURCE}: skipped invalid article (${articleUrl}) contentLen=${candidate.content.length}`,
-        );
-        rejectedInvalid++;
-        continue;
+        report.rejectedInvalid++;
+        return null;
       }
 
-      const quality = getContentQualityScore(candidate.title, candidate.content, {
-        minContentLength: 200,
-      });
+      const quality = getContentQualityScore(
+        candidate.title,
+        candidate.content,
+        {
+          minContentLength: 200,
+        },
+      );
       if (!quality.ok) {
-        rejectedLowQuality++;
-        continue;
+        report.rejectedLowQuality++;
+        return null;
       }
 
       if (!hasRealJournalisticContent(candidate.content, candidate.title)) {
-        rejectedLowQuality++;
-        continue;
+        report.rejectedLowQuality++;
+        return null;
       }
 
-      articles.push(candidate);
+      report.inserted++;
+      return candidate;
     } catch (err) {
-      logger.warn(`${SOURCE}: failed to parse element — ${(err as Error).message}`);
+      report.fetchFailed++;
+      logger.warn(
+        `${SOURCE}: failed to parse ${cand.url} — ${(err as Error).message}`,
+      );
+      return null;
     }
-  }
+  });
 
-  logger.log(`${SOURCE}: scraped ${articles.length} accepted articles`);
-  return { articles, scrapedTotal, rejectedInvalid, rejectedLowQuality };
+  const articles = built.filter((a): a is NormalizedArticle => a !== null);
+
+  logger.log(`${SOURCE}: ${formatDropReport(SOURCE, report)}`);
+  return {
+    articles,
+    scrapedTotal: report.discovered,
+    rejectedInvalid: report.fetchFailed + report.rejectedInvalid,
+    rejectedLowQuality: report.rejectedLowQuality,
+    report,
+  };
 }
 
 async function scrapeArticleDetail(
@@ -235,7 +332,9 @@ async function scrapeArticleDetail(
 
   const titleCandidates = [
     normalizeText(
-      $('[itemprop="headline"], h1.article-title, h1.page-header, article h1, .entry-title, h1')
+      $(
+        '[itemprop="headline"], h1.article-title, h1.page-header, article h1, .entry-title, h1',
+      )
         .first()
         .text(),
     ),
@@ -289,11 +388,15 @@ async function scrapeArticleDetail(
 
   // Merge listing teaser when the article body is too thin
   if (content.length < 250 && listingTeaser.length > 60) {
-    content = normalizeText(content.length > 0 ? `${content} ${listingTeaser}` : listingTeaser);
+    content = normalizeText(
+      content.length > 0 ? `${content} ${listingTeaser}` : listingTeaser,
+    );
   }
 
   if (content.length < 100) {
-    logger.warn(`${SOURCE}: detail page too short (${content.length} chars) — ${articleUrl}`);
+    logger.debug(
+      `${SOURCE}: detail page too short (${content.length} chars) — ${articleUrl}`,
+    );
     return null;
   }
 
