@@ -270,6 +270,7 @@ export async function scrapeKigaliToday(
         continent: 'Africa',
         region: 'East Africa',
         country: 'Rwanda',
+        via: 'scrape',
       };
 
       if (!isValidArticle(candidate, { minContentLength: 200 })) {

@@ -286,6 +286,7 @@ async function scrapeSection(
         continent: 'Africa',
         region: 'East Africa',
         country: 'Rwanda',
+        via: 'scrape',
       };
 
       if (!isValidArticle(candidate, { minContentLength: 250 })) {

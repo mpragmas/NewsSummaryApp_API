@@ -847,6 +847,11 @@ export class ArticlesService {
   }
 
   private isScrapedSource(article: NormalizedArticle): boolean {
+    // Key off how the article was fetched, not the source name: "Igihe" now
+    // arrives BOTH as a (short-but-valid) RSS feed item and as HTML-scraped
+    // output. Only the latter needs the strict broken-extraction quality gate.
+    if (article.via) return article.via === 'scrape';
+    // Back-compat for any caller that didn't tag `via`.
     return article.source === 'Igihe' || article.source === 'Kigali Today';
   }
 

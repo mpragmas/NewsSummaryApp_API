@@ -23,6 +23,12 @@ export interface NormalizedArticle {
   continent: string;
   region: string;
   country: string;
+  /**
+   * How the article was fetched. RSS items are short-but-valid by feed contract;
+   * scraped items get a stricter quality gate (broken HTML extraction). Defaults
+   * to undefined for older callers; the insert gate treats that conservatively.
+   */
+  via?: 'rss' | 'scrape';
 }
 
 @Injectable()
@@ -149,6 +155,7 @@ export class RssService {
       continent: feed.continent,
       region: feed.region,
       country: feed.country,
+      via: 'rss',
     };
   }
 
