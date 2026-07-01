@@ -522,7 +522,19 @@ export class ArticlesService {
       });
     }
 
-    const enqueued = await this.summarizationQueue.enqueueBatch(jobs);
+    // Summarization is best-effort background enrichment. A Redis hiccup
+    // (Upstash free tier: connection caps / cold starts) must NOT abort the
+    // whole ingest — otherwise clustering and invalidateListCache() below are
+    // skipped and the served feed keeps returning the stale cache even though
+    // the articles are already saved. Degrade gracefully instead.
+    let enqueued = 0;
+    try {
+      enqueued = await this.summarizationQueue.enqueueBatch(jobs);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to enqueue summarization jobs (non-fatal): ${(err as Error).message}`,
+      );
+    }
 
     // Group newly-persisted articles into multi-source story clusters. Runs in
     // the background worker (never blocks ingest), keeping every source.

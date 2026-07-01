@@ -1,0 +1,33 @@
+name: keep-alive
+
+# Render's free tier sleeps the dyno after ~15 min without inbound traffic.
+# The app's own 14-min self-ping cron canNOT wake a sleeping dyno (the scheduler
+# is suspended while asleep), so a single missed ping leaves it down until a
+# human opens the app — that's what caused the multi-day ingestion outage.
+# This workflow pings /health from GitHub's infrastructure, which runs
+# regardless of the dyno's state, keeping ingestion (the 20-min cron) alive.
+#
+# Note: GitHub disables scheduled workflows after 60 days of repo inactivity,
+# and schedule times can drift a few minutes under load. For a hard guarantee,
+# also add an external monitor (e.g. UptimeRobot / cron-job.org) on the same URL.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # every 10 minutes
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          URL="https://newssummaryapp-api.onrender.com/health"
+          for i in 1 2 3; do
+            code=$(curl -sS -L --max-time 60 -o /dev/null -w "%{http_code}" "$URL" || echo 000)
+            echo "attempt $i → HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "health check did not return 200 after retries"
+          exit 1

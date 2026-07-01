@@ -129,13 +129,14 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   },
 
   // ── Kinyarwanda — Rwanda ────────────────────────────────────────────────────
-  // Igihe's SPIP backend RSS feed. The igihe.com *HTML* pages are Cloudflare-
-  // challenged from datacenter IPs (Render), which silently starves the HTML
-  // scraper — but this backend endpoint returns plain RSS (real dc:date, ~170
-  // fresh items) and is not behind the JS challenge. This is the primary source
-  // of fresh RW news; the HTML scraper is kept as a best-effort supplement and
-  // dedup drops any overlap. NOTE: send a real browser User-Agent (see
-  // rss.service.ts) — a generic/bot UA can get an empty body from this endpoint.
+  // Igihe's legacy SPIP backend feed. NOTE (2026): igihe.com migrated to a
+  // Next.js frontend and this `spip.php?page=backend` endpoint now returns an
+  // EMPTY body (HTTP 200, 0 bytes) — it no longer yields articles. rss.service
+  // handles the empty response gracefully (parse fails → [] → other feeds carry
+  // RW news). It's kept here as a cheap probe in case the endpoint is restored;
+  // fresh RW volume now comes from Umuseke/Imvaho/Umuryango/Intyoza/Rushyashya
+  // below (plus the HTML scraper when SCRAPER_API_KEY is set to bypass the
+  // Cloudflare/JS challenge on datacenter IPs).
   {
     name: 'Igihe',
     url: 'https://igihe.com/spip.php?page=backend',
@@ -166,6 +167,27 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   {
     name: 'Umuryango',
     url: 'https://umuryango.rw/spip.php?page=backend',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
+  // Intyoza — WordPress feed (content:encoded). Regional RW news; publishes a
+  // few times a week rather than daily, but adds real Kinyarwanda coverage.
+  {
+    name: 'Intyoza',
+    url: 'https://intyoza.com/feed/',
+    language: 'rw',
+    continent: 'Africa',
+    region: 'East Africa',
+    country: 'Rwanda',
+  },
+  // Rushyashya — WordPress feed of the Kinyarwanda newspaper (actively updated,
+  // real pubDate + content:encoded). Added to widen RW volume after Igihe's
+  // SPIP backend went dark (see the Igihe note above).
+  {
+    name: 'Rushyashya',
+    url: 'https://rushyashya.net/feed/',
     language: 'rw',
     continent: 'Africa',
     region: 'East Africa',
