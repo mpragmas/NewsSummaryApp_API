@@ -11,7 +11,10 @@ import {
   parsePublishedAt,
   sanitizeContentForAI,
 } from '../common/util/article-validation';
-import { extractBestImageFromCheerioRoot } from '../common/util/image-extractor.util';
+import {
+  extractBestImageFromArticleHtml,
+  extractBestImageFromCheerioRoot,
+} from '../common/util/image-extractor.util';
 import { fetchHtml as resilientFetchHtml } from '../common/util/http-fetch.util';
 import {
   type ScrapeDropReport,
@@ -30,7 +33,7 @@ const DETAIL_CONCURRENCY = 4;
 // before: the RW homepage alone publishes ~20+ items, and topic sections surface
 // articles that never reach the homepage rail. Cross-section URL duplicates are
 // removed downstream by the deduplication stage.
-const LANGUAGE_SECTIONS: Array<{
+const RW_SECTIONS: Array<{
   listingUrl: string;
   lang: SupportedLanguage;
   limit: number;
@@ -45,8 +48,25 @@ const LANGUAGE_SECTIONS: Array<{
     lang: 'rw',
     limit: 12,
   },
-  { listingUrl: 'https://igihe.com/en/', lang: 'en', limit: 15 },
-  { listingUrl: 'https://igihe.com/fr/', lang: 'fr', limit: 15 },
+];
+
+const WP_API_SECTIONS: Array<{
+  apiUrl: string;
+  lang: SupportedLanguage;
+  limit: number;
+}> = [
+  {
+    apiUrl:
+      'https://new.igihe.com/english/wp-json/wp/v2/posts?per_page=20&_embed=1',
+    lang: 'en',
+    limit: 20,
+  },
+  {
+    apiUrl:
+      'https://new.igihe.com/french/wp-json/wp/v2/posts?per_page=20&_embed=1',
+    lang: 'fr',
+    limit: 20,
+  },
 ];
 
 export interface RwScrapeResult {
@@ -64,6 +84,33 @@ function fetchHtml(url: string, logger: Logger): Promise<string | null> {
     maxRetries: 2,
     curlFallback: true,
   });
+}
+
+async function fetchJson<T>(url: string, logger: Logger): Promise<T | null> {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'NewsAggregator/1.0 (+https://newssummary.app)',
+        Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
+      },
+    });
+    if (!res.ok) {
+      logger.warn(`${SOURCE}: JSON fetch ${res.status} for ${url}`);
+      return null;
+    }
+    return (await res.json()) as T;
+  } catch (err) {
+    logger.warn(
+      `${SOURCE}: JSON fetch failed for ${url} — ${(err as Error).message}`,
+    );
+    return null;
+  } finally {
+    clearTimeout(tid);
+  }
 }
 
 function resolveUrl(href: string): string {
@@ -145,11 +192,14 @@ async function mapPool<T, R>(
 
 export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
   // Scrape all language/topic sections concurrently.
-  const sectionResults = await Promise.all(
-    LANGUAGE_SECTIONS.map((sec) =>
+  const sectionResults = await Promise.all([
+    ...RW_SECTIONS.map((sec) =>
       scrapeSection(sec.listingUrl, sec.lang, sec.limit, logger),
     ),
-  );
+    ...WP_API_SECTIONS.map((sec) =>
+      scrapeWordPressApiSection(sec.apiUrl, sec.lang, sec.limit, logger),
+    ),
+  ]);
 
   const articles = sectionResults.flatMap((r) => r.articles);
   const report = mergeDropReports(sectionResults.map((r) => r.report));
@@ -163,6 +213,128 @@ export async function scrapeIgihe(logger: Logger): Promise<RwScrapeResult> {
     rejectedLowQuality: report.rejectedLowQuality,
     report,
   };
+}
+
+interface IgiheWpPost {
+  id?: number;
+  date?: string;
+  link?: string;
+  title?: { rendered?: string };
+  content?: { rendered?: string };
+  excerpt?: { rendered?: string };
+  featured_image?: { url?: string };
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{
+      source_url?: string;
+      media_details?: {
+        sizes?: Record<string, { source_url?: string; url?: string }>;
+      };
+    }>;
+  };
+}
+
+function htmlToText(html: string): string {
+  return normalizeText(cheerio.load(html).root().text());
+}
+
+function bestWpFeaturedImage(post: IgiheWpPost): string | null {
+  const media = post._embedded?.['wp:featuredmedia']?.[0];
+  const sizes = media?.media_details?.sizes;
+  const candidates = [
+    post.featured_image?.url,
+    sizes?.full?.source_url,
+    sizes?.full?.url,
+    sizes?.large?.source_url,
+    sizes?.large?.url,
+    sizes?.medium_large?.source_url,
+    sizes?.medium_large?.url,
+    media?.source_url,
+  ];
+  return candidates.find((url) => url && !isWpPlaceholderImage(url)) ?? null;
+}
+
+function isWpPlaceholderImage(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return (
+      /(^|\.)igihe\.com$/i.test(u.hostname) &&
+      /\/IMG\/logo\/cp-\d+\.jpe?g$/i.test(u.pathname)
+    );
+  } catch {
+    return true;
+  }
+}
+
+async function scrapeWordPressApiSection(
+  apiUrl: string,
+  lang: SupportedLanguage,
+  limit: number,
+  logger: Logger,
+): Promise<{ articles: NormalizedArticle[]; report: ScrapeDropReport }> {
+  const report = emptyDropReport();
+  const posts = await fetchJson<IgiheWpPost[]>(apiUrl, logger);
+  if (!Array.isArray(posts)) {
+    report.listingFailed = 1;
+    return { articles: [], report };
+  }
+
+  const articles: NormalizedArticle[] = [];
+  for (const post of posts.slice(0, limit)) {
+    const url = post.link?.trim();
+    if (!url || !isIgiheUrl(url)) {
+      report.skippedNonArticle++;
+      continue;
+    }
+    report.discovered++;
+
+    const title = htmlToText(post.title?.rendered ?? '');
+    const contentHtml = post.content?.rendered ?? '';
+    let content = htmlToText(contentHtml);
+    const excerpt = htmlToText(post.excerpt?.rendered ?? '');
+    if (content.length < 250 && excerpt.length > content.length)
+      content = excerpt;
+
+    const imageUrl =
+      bestWpFeaturedImage(post) ??
+      extractBestImageFromArticleHtml(contentHtml, url, title);
+
+    const candidate: NormalizedArticle = {
+      title: title.substring(0, 500),
+      content: sanitizeContentForAI(content),
+      imageUrl,
+      url,
+      source: SOURCE,
+      originalLanguage: lang,
+      publishedAt: parsePublishedAt(post.date),
+      continent: 'Africa',
+      region: 'East Africa',
+      country: 'Rwanda',
+      via: 'scrape',
+    };
+
+    if (!isValidArticle(candidate, { minContentLength: 200 })) {
+      report.rejectedInvalid++;
+      continue;
+    }
+    const quality = getContentQualityScore(candidate.title, candidate.content, {
+      minContentLength: 200,
+    });
+    if (
+      !quality.ok ||
+      !hasRealJournalisticContent(candidate.content, candidate.title)
+    ) {
+      report.rejectedLowQuality++;
+      continue;
+    }
+
+    report.inserted++;
+    articles.push(candidate);
+  }
+
+  logger.debug(
+    `${SOURCE} [${lang}] WordPress API: ${formatDropReport(`${lang}`, report)}`,
+  );
+  return { articles, report };
 }
 
 async function scrapeSection(

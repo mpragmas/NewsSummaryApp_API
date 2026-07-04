@@ -42,7 +42,7 @@ export class ArticlesController {
 
   // POST /articles/ingest — declared before @Get(':id') so static segment wins.
   @Post('ingest')
-  // @UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   ingest() {
     return this.articlesService.ingest();
@@ -110,7 +110,7 @@ export class ArticlesController {
 
   /** Backfill missing hero images from article URLs; optional fingerprint dedupe repair. */
   @Post('reindex-images')
-  //@UseGuards(AdminApiKeyGuard)
+  @UseGuards(AdminApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   reindexImages(
     @Query('limit') limit?: number,
