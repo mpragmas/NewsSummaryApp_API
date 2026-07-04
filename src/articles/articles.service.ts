@@ -83,6 +83,7 @@ export interface ReindexImagesResult {
 @Injectable()
 export class ArticlesService {
   private readonly logger = new Logger(ArticlesService.name);
+  private ingestInFlight: Promise<IngestResult> | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -364,6 +365,20 @@ export class ArticlesService {
    * LLMs) and lets the queue absorb backpressure.
    */
   async ingest(): Promise<IngestResult> {
+    if (this.ingestInFlight !== null) {
+      this.logger.warn('Ingestion already in progress, joining existing run');
+      return this.ingestInFlight;
+    }
+
+    this.ingestInFlight = this.runIngest();
+    try {
+      return await this.ingestInFlight;
+    } finally {
+      this.ingestInFlight = null;
+    }
+  }
+
+  private async runIngest(): Promise<IngestResult> {
     const startedAt = Date.now();
     resetImageIngestMetrics();
     this.logger.log('Ingestion pipeline started');
@@ -432,6 +447,13 @@ export class ArticlesService {
         const cleanUrl = article.url.trim();
         if (!cleanUrl) return null;
         const sanitizedContent = sanitizeContentForAI(article.content);
+        const imageUrl = sanitizeImageUrl(article.imageUrl);
+        if (!imageUrl) {
+          this.logger.debug(
+            `Skipping article without image: ${article.source} "${article.title.slice(0, 80)}"`,
+          );
+          return null;
+        }
         return {
           title: normalizeText(article.title).substring(0, 1000),
           content: sanitizedContent || normalizeText(article.title),
@@ -441,7 +463,7 @@ export class ArticlesService {
           originalLanguage: article.originalLanguage,
           source: article.source,
           url: cleanUrl,
-          imageUrl: sanitizeImageUrl(article.imageUrl),
+          imageUrl,
           category: article.category,
           continent: article.continent,
           region: article.region,

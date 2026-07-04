@@ -15,9 +15,10 @@ name: scheduled-ingestion
 
 on:
   schedule:
-    # Stagger away from common :00/:20/:40 boundaries where GitHub scheduled
-    # workflows are more likely to be delayed or dropped under load.
-    - cron: '7,27,47 * * * *' # every 20 minutes
+    # GitHub scheduled workflows are best-effort and sometimes miss a slot.
+    # Run every 5 minutes; ingestion is deduped, so extra runs are cheap and
+    # this gives Render more chances to wake even when GitHub drops a run.
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:

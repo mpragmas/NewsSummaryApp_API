@@ -129,14 +129,9 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   },
 
   // ── Kinyarwanda — Rwanda ────────────────────────────────────────────────────
-  // Igihe's legacy SPIP backend feed. NOTE (2026): igihe.com migrated to a
-  // Next.js frontend and this `spip.php?page=backend` endpoint now returns an
-  // EMPTY body (HTTP 200, 0 bytes) — it no longer yields articles. rss.service
-  // handles the empty response gracefully (parse fails → [] → other feeds carry
-  // RW news). It's kept here as a cheap probe in case the endpoint is restored;
-  // fresh RW volume now comes from Umuseke/Imvaho/Umuryango/Intyoza/Rushyashya
-  // below (plus the HTML scraper when SCRAPER_API_KEY is set to bypass the
-  // Cloudflare/JS challenge on datacenter IPs).
+  // Igihe's legacy SPIP backend feed is currently the cheapest no-paid-API path
+  // for fresh RW volume. If it goes empty again, the HTML scraper and the other
+  // RW feeds below continue carrying Kinyarwanda coverage.
   {
     name: 'Igihe',
     url: 'https://igihe.com/spip.php?page=backend',

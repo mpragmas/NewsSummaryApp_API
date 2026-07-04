@@ -6,7 +6,9 @@ import {
   RssFeedConfig,
   SupportedLanguage,
 } from './rss-feeds.config';
+import { fetchHtml } from '../common/util/http-fetch.util';
 import {
+  extractBestImageFromArticleHtml,
   extractRssItemImageCandidates,
   pickBestImageCandidate,
 } from '../common/util/image-extractor.util';
@@ -77,9 +79,12 @@ export class RssService {
   private async fetchFeed(feed: RssFeedConfig): Promise<NormalizedArticle[]> {
     try {
       const parsed = await this.parser.parseURL(feed.url);
-      const articles = (parsed.items ?? [])
+      const items = (parsed.items ?? [])
         .filter((item) => item.title && (item.link || item.guid))
-        .map((item) => this.normalize(item, feed));
+        .slice(0, 30);
+      const articles = await this.mapPool(items, 5, (item) =>
+        this.normalize(item, feed),
+      );
 
       this.logger.debug(`${feed.name}: ${articles.length} articles fetched`);
       return articles;
@@ -91,17 +96,21 @@ export class RssService {
     }
   }
 
-  private normalize(
+  private async normalize(
     item: RssParser.Item,
     feed: RssFeedConfig,
-  ): NormalizedArticle {
+  ): Promise<NormalizedArticle> {
     // Prefer the richest text available; many feeds only expose a snippet
-    const rawContent =
-      item['content:encoded'] ??
+    const rawContentValue =
+      (item as RssParser.Item & { 'content:encoded'?: unknown })[
+        'content:encoded'
+      ] ??
       item.content ??
       item.contentSnippet ??
       item.summary ??
       '';
+    const rawContent =
+      typeof rawContentValue === 'string' ? rawContentValue : '';
 
     const cleaned = this.stripHtml(rawContent).trim();
 
@@ -119,8 +128,18 @@ export class RssService {
       articleLink || feedOrigin,
       feedOrigin,
     );
-    const picked = pickBestImageCandidate(candidates, (item.title ?? '').trim());
-    const imageUrl = picked?.url ?? null;
+    const picked = pickBestImageCandidate(
+      candidates,
+      (item.title ?? '').trim(),
+    );
+    let imageUrl = picked?.url ?? null;
+
+    if (!imageUrl && articleLink) {
+      imageUrl = await this.extractImageFromArticlePage(
+        articleLink,
+        item.title ?? '',
+      );
+    }
 
     let itemDomain = '';
     try {
@@ -159,11 +178,48 @@ export class RssService {
     };
   }
 
+  private async extractImageFromArticlePage(
+    articleUrl: string,
+    title: string,
+  ): Promise<string | null> {
+    const html = await fetchHtml(
+      articleUrl,
+      'RSS image fallback',
+      this.logger,
+      {
+        timeoutMs: 12_000,
+        maxRetries: 1,
+        curlFallback: true,
+      },
+    );
+    if (!html || html.length < 400) return null;
+    return extractBestImageFromArticleHtml(html, articleUrl, title);
+  }
+
+  private async mapPool<T, R>(
+    items: T[],
+    concurrency: number,
+    fn: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = [];
+    let cursor = 0;
+    const workers = Array.from(
+      { length: Math.min(concurrency, items.length) },
+      async () => {
+        while (cursor < items.length) {
+          const idx = cursor++;
+          results[idx] = await fn(items[idx]);
+        }
+      },
+    );
+    await Promise.all(workers);
+    return results;
+  }
+
   private stripHtml(html: string): string {
     return html
       .replace(/<[^>]*>/g, '')
       .replace(/&[a-z]+;/gi, ' ')
       .trim();
   }
-
 }

@@ -29,4 +29,8 @@ describe('parseImageUrl — embedded/proxied image URLs', () => {
       'https://images.bbc.co.uk/news/photo.jpg',
     );
   });
+
+  it('rejects a site root URL as a non-image', () => {
+    expect(parseImageUrl('https://igihe.com/').url).toBeNull();
+  });
 });

@@ -39,7 +39,9 @@ const REGIONAL_NEWS_HOST_SUFFIXES = [
 
 export function isRegionalNewsHost(hostname: string): boolean {
   const h = hostname.replace(/^www\./i, '').toLowerCase();
-  return REGIONAL_NEWS_HOST_SUFFIXES.some((s) => h === s || h.endsWith(`.${s}`));
+  return REGIONAL_NEWS_HOST_SUFFIXES.some(
+    (s) => h === s || h.endsWith(`.${s}`),
+  );
 }
 
 /**
@@ -48,10 +50,13 @@ export function isRegionalNewsHost(hostname: string): boolean {
  */
 function highConfidenceRejectReason(url: string): string | null {
   try {
-    const u = new URL(url.trim().startsWith('//') ? `https:${url.trim()}` : url.trim());
+    const u = new URL(
+      url.trim().startsWith('//') ? `https:${url.trim()}` : url.trim(),
+    );
     const host = u.hostname.toLowerCase();
     const path = u.pathname.toLowerCase();
 
+    if ((path === '' || path === '/') && !u.search) return 'site_root';
     if (
       /doubleclick\.net|googlesyndication\.com|googleadservices\.com|2mdn\.net/i.test(
         host,
@@ -60,7 +65,8 @@ function highConfidenceRejectReason(url: string): string | null {
       return 'ad_network_host';
     }
     if (path.endsWith('.svg') || path.includes('.svg?')) return 'svg';
-    if (/favicon|browserconfig\.xml|apple-touch-icon/i.test(path)) return 'favicon_path';
+    if (/favicon|browserconfig\.xml|apple-touch-icon/i.test(path))
+      return 'favicon_path';
     if (/\/(ads?|advert)\//i.test(path)) return 'ad_path_segment';
     if (/sprite|spritesheet/i.test(path)) return 'sprite_asset';
     if (
@@ -71,7 +77,9 @@ function highConfidenceRejectReason(url: string): string | null {
       return 'tracking_pixel_filename';
     }
     if (
-      /\/(site-logo|brand-logo|header-logo|navbar-logo|logo-nav)(\/|$)/i.test(path) ||
+      /\/(site-logo|brand-logo|header-logo|navbar-logo|logo-nav)(\/|$)/i.test(
+        path,
+      ) ||
       /logo[_-]?(white|dark|footer|header)\./i.test(path)
     ) {
       return 'brand_logo_path';
@@ -86,7 +94,14 @@ function highConfidenceRejectReason(url: string): string | null {
 
     const w = Number(u.searchParams.get('w') ?? u.searchParams.get('width'));
     const h = Number(u.searchParams.get('h') ?? u.searchParams.get('height'));
-    if (!Number.isNaN(w) && !Number.isNaN(h) && w > 0 && h > 0 && w <= 16 && h <= 16) {
+    if (
+      !Number.isNaN(w) &&
+      !Number.isNaN(h) &&
+      w > 0 &&
+      h > 0 &&
+      w <= 16 &&
+      h <= 16
+    ) {
       return 'tiny_dimensions_query';
     }
 
@@ -170,10 +185,15 @@ export interface ParseImageUrlResult {
 }
 
 /** Parse + clean URL without side effects (used while ranking candidates). */
-export function parseImageUrl(raw: string | null | undefined): ParseImageUrlResult {
+export function parseImageUrl(
+  raw: string | null | undefined,
+): ParseImageUrlResult {
   const trimmed = raw?.trim();
   if (!trimmed) return { url: null };
-  const candidate = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+  const unwrapped = unwrapEmbeddedImageUrl(trimmed);
+  const candidate = upgradeKnownLowResImageUrl(
+    unwrapped.startsWith('//') ? `https:${unwrapped}` : unwrapped,
+  );
 
   try {
     const parsed = new URL(candidate);
@@ -191,7 +211,6 @@ export function parseImageUrl(raw: string | null | undefined): ParseImageUrlResu
     const reject = highConfidenceRejectReason(built);
     if (reject) {
       if (process.env.IMAGE_EXTRACTION_DEBUG === '1') {
-        // eslint-disable-next-line no-console
         console.debug(
           `[image-reject] rule=${reject} domain=${parsed.hostname} url=${built.slice(0, 180)}`,
         );
@@ -202,6 +221,65 @@ export function parseImageUrl(raw: string | null | undefined): ParseImageUrlResu
     return { url: built };
   } catch {
     return { url: null, rejectReason: 'invalid_url' };
+  }
+}
+
+function unwrapEmbeddedImageUrl(url: string): string {
+  const decoded = decodeURIComponent(url);
+  const lastHttp = Math.max(
+    decoded.lastIndexOf('https://'),
+    decoded.lastIndexOf('http://'),
+  );
+  if (lastHttp > 0) {
+    const embedded = decoded.slice(lastHttp);
+    if (/\.(?:jpe?g|png|webp|gif)(?:\?|#|$)/i.test(embedded)) {
+      return embedded;
+    }
+  }
+
+  try {
+    const u = new URL(url);
+    const nested = u.searchParams.get('url');
+    if (nested && /^https?:\/\//i.test(nested)) return nested;
+  } catch {
+    /* ignore */
+  }
+
+  return url;
+}
+
+function upgradeKnownLowResImageUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./i, '').toLowerCase();
+
+    // BBC RSS often sends 240px thumbnails. The same ichef path supports larger
+    // standard widths; keep the asset path but ask for a feed/card-friendly size.
+    if (host === 'ichef.bbci.co.uk') {
+      u.pathname = u.pathname.replace(
+        /\/standard\/(?:240|320|480)\//,
+        '/standard/1024/',
+      );
+    }
+
+    // WordPress/Jetpack style resize query: prefer the original asset where
+    // possible, otherwise bump tiny widths to a useful card size.
+    const resize = u.searchParams.get('resize');
+    if (resize && /^([1-6]\d{1,2}|7[0-5]\d),/.test(resize)) {
+      u.searchParams.delete('resize');
+    }
+
+    const width = Number(
+      u.searchParams.get('width') ?? u.searchParams.get('w'),
+    );
+    if (!Number.isNaN(width) && width > 0 && width < 900) {
+      if (u.searchParams.has('width')) u.searchParams.set('width', '1200');
+      if (u.searchParams.has('w')) u.searchParams.set('w', '1200');
+    }
+
+    return u.toString();
+  } catch {
+    return url;
   }
 }
 
@@ -220,12 +298,16 @@ export function normalizeImageUrlStrict(
   return r.url;
 }
 
-export function resolveToAbsoluteUrl(href: string, baseUrl: string): string | null {
+export function resolveToAbsoluteUrl(
+  href: string,
+  baseUrl: string,
+): string | null {
   const h = href.trim();
   if (!h || h.startsWith('data:') || h.startsWith('javascript:')) return null;
   try {
     const resolved = new URL(h, baseUrl);
-    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null;
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:')
+      return null;
     return resolved.toString();
   } catch {
     return null;
@@ -327,7 +409,7 @@ function flattenOneMediaKey(item: unknown, key: string): unknown[] {
   const row = item as Record<string, unknown>;
   const v = row[key];
   if (v === undefined || v === null) return [];
-  return Array.isArray(v) ? [...v] : [v];
+  return Array.isArray(v) ? (v as unknown[]) : [v];
 }
 
 function enclosureImageUrl(item: Item): string | null {
@@ -336,7 +418,13 @@ function enclosureImageUrl(item: Item): string | null {
   const url = typeof enc.url === 'string' ? enc.url : null;
   const type = typeof enc.type === 'string' ? enc.type.toLowerCase() : '';
   if (!url) return null;
-  if (type && !type.startsWith('image/') && !type.includes('jpeg') && !type.includes('png') && !type.includes('webp')) {
+  if (
+    type &&
+    !type.startsWith('image/') &&
+    !type.includes('jpeg') &&
+    !type.includes('png') &&
+    !type.includes('webp')
+  ) {
     if (!type.includes('octet')) return null;
   }
   return url;
@@ -467,7 +555,8 @@ export function extractRssItemImageCandidates(
     const url = coerceMediaTagUrl(raw);
     if (!url) continue;
     const resolved =
-      resolveToAbsoluteUrl(url, base) ?? resolveToAbsoluteUrl(url, feedSiteOrigin);
+      resolveToAbsoluteUrl(url, base) ??
+      resolveToAbsoluteUrl(url, feedSiteOrigin);
     if (resolved) {
       candidates.push({
         url: resolved,
@@ -480,7 +569,8 @@ export function extractRssItemImageCandidates(
   const encUrl = enclosureImageUrl(item);
   if (encUrl) {
     const resolved =
-      resolveToAbsoluteUrl(encUrl, base) ?? resolveToAbsoluteUrl(encUrl, feedSiteOrigin);
+      resolveToAbsoluteUrl(encUrl, base) ??
+      resolveToAbsoluteUrl(encUrl, feedSiteOrigin);
     if (resolved) {
       candidates.push({
         url: resolved,
@@ -491,14 +581,13 @@ export function extractRssItemImageCandidates(
   }
 
   const rawContent =
-    (item as Record<string, unknown>)['content:encoded'] ??
-    item.content ??
-    '';
+    (item as Record<string, unknown>)['content:encoded'] ?? item.content ?? '';
   const htmlBlob = typeof rawContent === 'string' ? rawContent : '';
 
   // Also check description — some feeds (Nation Africa, AlJazeera) embed images there.
   const rawDesc = (item as Record<string, unknown>)['description'] ?? '';
-  const descBlob = typeof rawDesc === 'string' && rawDesc !== htmlBlob ? rawDesc : '';
+  const descBlob =
+    typeof rawDesc === 'string' && rawDesc !== htmlBlob ? rawDesc : '';
 
   for (const blob of [htmlBlob, descBlob]) {
     if (!blob) continue;
@@ -521,7 +610,8 @@ export function extractRssItemImageCandidates(
     const url = coerceMediaTagUrl(raw);
     if (!url) continue;
     const resolved =
-      resolveToAbsoluteUrl(url, base) ?? resolveToAbsoluteUrl(url, feedSiteOrigin);
+      resolveToAbsoluteUrl(url, base) ??
+      resolveToAbsoluteUrl(url, feedSiteOrigin);
     if (resolved) {
       candidates.push({
         url: resolved,
@@ -548,7 +638,9 @@ function gatherCandidatesFromCheerio(
 
   const og = $('meta[property="og:image"]').attr('content');
   if (og) {
-    const r = resolveToAbsoluteUrl(og, pageUrl) ?? resolveToAbsoluteUrl(og, origin + '/');
+    const r =
+      resolveToAbsoluteUrl(og, pageUrl) ??
+      resolveToAbsoluteUrl(og, origin + '/');
     if (r)
       candidates.push({
         url: r,
@@ -561,7 +653,9 @@ function gatherCandidatesFromCheerio(
     $('meta[name="twitter:image"]').attr('content') ??
     $('meta[name="twitter:image:src"]').attr('content');
   if (tw) {
-    const r = resolveToAbsoluteUrl(tw, pageUrl) ?? resolveToAbsoluteUrl(tw, origin + '/');
+    const r =
+      resolveToAbsoluteUrl(tw, pageUrl) ??
+      resolveToAbsoluteUrl(tw, origin + '/');
     if (r)
       candidates.push({
         url: r,
@@ -708,8 +802,12 @@ function fallbackLargestRasterNearContent(
     let score = 12;
     try {
       const u = new URL(p.url);
-      const sw = Number(u.searchParams.get('w') ?? u.searchParams.get('width') ?? 0);
-      const sh = Number(u.searchParams.get('h') ?? u.searchParams.get('height') ?? 0);
+      const sw = Number(
+        u.searchParams.get('w') ?? u.searchParams.get('width') ?? 0,
+      );
+      const sh = Number(
+        u.searchParams.get('h') ?? u.searchParams.get('height') ?? 0,
+      );
       if (!Number.isNaN(sw) && sw > 0) score += Math.min(sw, 2400) / 40;
       if (!Number.isNaN(sh) && sh > 0) score += Math.min(sh, 2400) / 40;
     } catch {
@@ -794,7 +892,10 @@ export function extractBestImageFromCheerioRoot(
   return null;
 }
 
-export function extractFallbackOgOnly(html: string, pageUrl: string): string | null {
+export function extractFallbackOgOnly(
+  html: string,
+  pageUrl: string,
+): string | null {
   const $ = cheerio.load(html);
   const og = $('meta[property="og:image"]').attr('content');
   if (!og) return null;
