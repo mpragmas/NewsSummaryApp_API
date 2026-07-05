@@ -1,5 +1,5 @@
 import { ArticleResponseDto } from './dto/article-response.dto';
-import { sanitizeImageUrl } from '../common/util/image-quality.util';
+import { articleImageOrFallback } from '../common/util/article-fallback-image.util';
 import { localizeCategory } from './category-i18n.util';
 import { SupportedLang } from '../ai/prompts';
 
@@ -44,7 +44,7 @@ export function normalizeArticleResponse(
 ): ArticleResponseDto {
   return {
     ...article,
-    imageUrl: sanitizeImageUrl(article.imageUrl),
+    imageUrl: articleImageOrFallback(article),
     category: localizeCategory(article.category, lang),
   };
 }

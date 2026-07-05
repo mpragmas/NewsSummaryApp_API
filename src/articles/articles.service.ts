@@ -29,6 +29,7 @@ import {
   dropOverusedImages,
   sanitizeImageUrl,
 } from '../common/util/image-quality.util';
+import { articleImageOrFallback } from '../common/util/article-fallback-image.util';
 import {
   extractBestImageFromArticleHtml,
   fingerprintCanonicalImageUrl,
@@ -448,12 +449,6 @@ export class ArticlesService {
         if (!cleanUrl) return null;
         const sanitizedContent = sanitizeContentForAI(article.content);
         const imageUrl = sanitizeImageUrl(article.imageUrl);
-        if (!imageUrl) {
-          this.logger.debug(
-            `Skipping article without image: ${article.source} "${article.title.slice(0, 80)}"`,
-          );
-          return null;
-        }
         return {
           title: normalizeText(article.title).substring(0, 1000),
           content: sanitizedContent || normalizeText(article.title),
@@ -472,7 +467,10 @@ export class ArticlesService {
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
-    const insertData = dropOverusedImages(insertDataRaw);
+    const insertData = dropOverusedImages(insertDataRaw).map((record) => ({
+      ...record,
+      imageUrl: articleImageOrFallback(record),
+    }));
 
     let saved = 0;
     let failed = 0;

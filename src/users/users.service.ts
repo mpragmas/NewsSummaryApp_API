@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { articleImageOrFallback } from '../common/util/article-fallback-image.util';
 
 @Injectable()
 export class UsersService {
@@ -48,7 +49,7 @@ export class UsersService {
     });
     if (!row) return null;
     return {
-      preferredNewsLanguage: row.preferredNewsLanguage as 'en' | 'fr' | 'rw',
+      preferredNewsLanguage: row.preferredNewsLanguage,
     };
   }
 
@@ -209,30 +210,22 @@ export class UsersService {
     const { summaryFr: _fr, summaryRw: _rw, ...rest } = article;
     void _fr;
     void _rw;
-    return { ...rest, summary, imageUrl: this.normalizeImageUrl(article.imageUrl) };
-  }
-
-  private normalizeImageUrl(url: string | null | undefined): string | null {
-    const trimmed = url?.trim();
-    if (!trimmed) return null;
-    try {
-      const parsed = new URL(trimmed);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return null;
-      }
-      return parsed.toString();
-    } catch {
-      return null;
-    }
+    return { ...rest, summary, imageUrl: articleImageOrFallback(article) };
   }
 
   private async ensureExists(userId: string) {
-    const exists = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    const exists = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException('User not found');
   }
 
   private async ensureArticleExists(articleId: string) {
-    const exists = await this.prisma.article.findUnique({ where: { id: articleId }, select: { id: true } });
+    const exists = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException(`Article ${articleId} not found`);
   }
 }

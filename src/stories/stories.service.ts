@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 
@@ -15,7 +10,7 @@ import { StoryClusteringService } from '../articles/clustering/story-clustering.
 import { ArticleResponseDto } from '../articles/dto/article-response.dto';
 import { toArticleView } from '../articles/article-view.util';
 import { localizeCategory } from '../articles/category-i18n.util';
-import { sanitizeImageUrl } from '../common/util/image-quality.util';
+import { articleImageOrFallback } from '../common/util/article-fallback-image.util';
 import {
   PaginatedStoriesDto,
   StoryDetailDto,
@@ -64,9 +59,7 @@ export class StoriesService {
       region,
     } = query;
     const skip = (page - 1) * limit;
-    const effectiveLang = (lang ?? personal?.preferredNewsLanguage) as
-      | Lang
-      | undefined;
+    const effectiveLang = lang ?? personal?.preferredNewsLanguage;
 
     const andFilters: Prisma.StoryClusterWhereInput[] = [
       { articleCount: { gt: 0 } },
@@ -197,14 +190,19 @@ export class StoriesService {
   }
 
   /** Run a clustering pass synchronously (admin/manual) and also enqueue for background follow-up. */
-  async recluster(rebuild = false): Promise<{ enqueued: boolean; result: unknown }> {
+  async recluster(
+    rebuild = false,
+  ): Promise<{ enqueued: boolean; result: unknown }> {
     const result = rebuild
       ? await this.clusteringService.rebuildAll()
       : await this.clusteringService.clusterUnassigned();
 
     // Also enqueue so any articles that arrive while this run was processing get picked up.
     try {
-      await this.clusteringQueue.enqueueClusterRecent({ trigger: 'manual', rebuild: false });
+      await this.clusteringQueue.enqueueClusterRecent({
+        trigger: 'manual',
+        rebuild: false,
+      });
     } catch {
       // Non-fatal: queue may be unavailable (no Redis), sync run already completed above.
     }
@@ -279,7 +277,7 @@ export class StoriesService {
       id: c.id,
       canonicalTitle: c.canonicalTitle,
       canonicalSummary: c.canonicalSummary,
-      imageUrl: sanitizeImageUrl(c.imageUrl),
+      imageUrl: articleImageOrFallback(c),
       category: localizeCategory(c.category, lang),
       continent: c.continent,
       region: c.region,
