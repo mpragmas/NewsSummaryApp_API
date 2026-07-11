@@ -10,6 +10,7 @@ import { GeminiProvider } from './providers/gemini.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { ProviderName, SummarizeInput } from './providers/ai-provider.interface';
 import { SummaryCacheService } from './summary-cache.service';
+import { normalizeSummary } from './summary-normalize.util';
 
 export interface OrchestratedSummary {
   text: string;
@@ -70,7 +71,7 @@ export class AiOrchestratorService {
       }
 
       try {
-        const text = await withRetry(
+        const rawText = await withRetry(
           () => provider.summarize(input),
           {
             attempts: 2,
@@ -80,6 +81,7 @@ export class AiOrchestratorService {
             logger: this.logger,
           },
         );
+        const text = normalizeSummary(rawText);
 
         await this.cache.set(input.title, input.content, input.language, {
           text,
@@ -122,13 +124,14 @@ export class AiOrchestratorService {
         if (this.isInCooldown(provider.name)) continue;
 
         try {
-          const text = await withRetry(() => provider.summarize(strictInput), {
+          const rawText = await withRetry(() => provider.summarize(strictInput), {
             attempts: 1,
             baseDelayMs: 1_000,
             maxDelayMs: 1_000,
             label: `${provider.name}-rw-strict`,
             logger: this.logger,
           });
+          const text = normalizeSummary(rawText);
 
           await this.cache.set(input.title, input.content, input.language, {
             text,
