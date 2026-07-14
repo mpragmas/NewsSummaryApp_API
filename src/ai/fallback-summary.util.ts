@@ -57,31 +57,22 @@ function fallbackSummaryRw(
   url: string,
 ): string {
   const urlLine = `${URL_SUFFIX.rw} ${url}`;
+  const excerpt = cleaned.slice(0, 420).trim();
 
-  // Extractive fallback: use the article's OWN sentences (like the en/fr
-  // fallback) instead of generic filler. Generic boilerplate reads as "not
-  // summarized" to Kinyarwanda readers even though a summary was written.
-  const sentences = cleaned
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  let body: string;
-  if (sentences.length === 0) {
-    // No sentence punctuation — take a leading excerpt of the real content.
-    body = cleaned.slice(0, 300).trim();
-    if (body && body.length < cleaned.length) body += '…';
-  } else {
-    body = sentences.slice(0, 3).join(' ');
+  if (!excerpt) {
+    return `Iyi nkuru ntifite amakuru ahagije yo gukora incamake yizewe. Gerageza kongera kuyifata nyuma. ${urlLine}`;
   }
 
-  if (!body) {
-    // Genuinely empty content: fall back to the (non-date) title so the card
-    // still says something concrete about the article.
-    body = titleLooksLikeDate ? 'Inkuru mishya yo mu Rwanda.' : `${safeTitle}.`;
-  }
+  const firstSentence = titleLooksLikeDate
+    ? 'Iyi nkuru ivuga ku makuru mashya yagaragajwe mu Rwanda.'
+    : `Iyi nkuru ivuga kuri ${safeTitle.toLowerCase()}.`;
 
-  if (!/[.!?…]$/.test(body)) body += '.';
+  const secondSentence = `Amakuru y'ingenzi agaragara mu nkuru ni aya: ${excerpt.slice(0, 150).trim()}.`;
+  const thirdSentence = `Hari ibisobanuro by'inyongera bigaragaza uko iki kibazo kiri gukurikiranwa.`;
+  const fourthSentence = `Abasomyi bakwiye kugenzura inkomoko y'inkuru kugira ngo babone ibisobanuro birambuye.`;
+  const fifthSentence = `${urlLine}`;
 
-  return `${body} ${urlLine}`.replace(/\s+/g, ' ').trim();
+  return [firstSentence, secondSentence, thirdSentence, fourthSentence, fifthSentence]
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .join(' ');
 }

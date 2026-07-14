@@ -631,19 +631,8 @@ export class ArticlesService {
 
   /** Backfill Kinyarwanda summaries via the queue. */
   async backfillKinyarwanda(): Promise<BackfillResult> {
-    // Re-summarize rows that are either missing a RW summary OR still carry the
-    // old generic-boilerplate fallback (which reads as "not summarized"). The
-    // signature phrase only appeared in the previous non-extractive fallback,
-    // so matching it heals already-degraded rows without touching real summaries.
     const missing = await this.prisma.article.findMany({
-      where: {
-        originalLanguage: 'rw',
-        OR: [
-          { summaryRw: null },
-          { summaryRw: { contains: "Abasomyi bakwiye kugenzura inkomoko" } },
-          { summaryRw: { contains: "Hari ibisobanuro by'inyongera bigaragaza" } },
-        ],
-      },
+      where: { summaryRw: null, originalLanguage: 'rw' },
       select: { id: true, title: true, content: true, url: true },
     });
 
