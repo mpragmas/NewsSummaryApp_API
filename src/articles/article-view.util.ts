@@ -2,6 +2,7 @@ import { ArticleResponseDto } from './dto/article-response.dto';
 import { articleImageOrFallback } from '../common/util/article-fallback-image.util';
 import { localizeCategory } from './category-i18n.util';
 import { SupportedLang } from '../ai/prompts';
+import { normalizeSummary } from '../ai/summary-normalize.util';
 
 /**
  * Pure view mappers shared by ArticlesService and StoriesService.
@@ -34,7 +35,13 @@ export function applyLanguageView(
       article.summary ?? article.summaryFr ?? article.summaryRw ?? null;
   }
 
-  return { ...article, summary: requestedSummary };
+  // Clean any label/markdown noise that older stored summaries still carry
+  // (e.g. "Interuro ya 1:" prefixes) so existing rows read correctly without
+  // needing re-summarization. No-op for already-clean summaries.
+  return {
+    ...article,
+    summary: requestedSummary ? normalizeSummary(requestedSummary) : requestedSummary,
+  };
 }
 
 /** Sanitize the hero image and localize the category label for display. */

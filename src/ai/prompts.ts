@@ -22,9 +22,10 @@ export function buildPrompt(
       : "Irinde gukoresha umutwe umeze nk'itariki (nka '06/05') nk'incamake.";
     return [
       "Andika incamake y'inkuru mu nteruro 5 gusa, mu Kinyarwanda gisanzwe gikoreshwa mu makuru.",
-      "Interuro ya mbere igaragaze igikorwa nyamukuru cy'inkuru; ntusubiremo umutwe nk'uko uri.",
+      "Tangira n'igikorwa nyamukuru cy'inkuru; ntusubiremo umutwe nk'uko uri.",
       strictLine,
-      `Interuro ya 5 igomba kurangira na: "Soma inkuru yose hano: ${url}".`,
+      "Ntukoreshe udomo, imibare, cyangwa inyandiko nka 'Interuro ya 1:' imbere ya buri nteruro; andika interuro zisanzwe gusa.",
+      `Soza n'interuro igira iti: "Soma inkuru yose hano: ${url}".`,
       `Umutwe: ${title}`,
       `Ibikubiye: ${clip}`,
       'Subiza interuro 5 gusa, ntakindi.',
