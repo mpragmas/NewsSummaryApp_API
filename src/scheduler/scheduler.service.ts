@@ -43,6 +43,23 @@ export class SchedulerService implements OnModuleInit {
     } catch (err) {
       this.logger.warn(`Startup clustering failed (non-fatal): ${(err as Error).message}`);
     }
+
+    // Heal any article left without a summary (e.g. saved while enqueueing was
+    // failing, or dropped by a restart of the in-process queue). Running this
+    // at startup matters on Render free tier: the dyno restarts often enough
+    // that the hourly cron alone can miss its slot.
+    try {
+      const result = await this.articlesService.reconcileMissingSummaries();
+      if (result.total > 0) {
+        this.logger.log(
+          `Startup summary reconciliation: enqueued ${result.enqueued}/${result.total}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Startup summary reconciliation failed (non-fatal): ${(err as Error).message}`,
+      );
+    }
   }
 
   /** Ingest every 20 minutes while the server is alive. */
