@@ -653,6 +653,55 @@ export class ArticlesService {
   }
 
   /**
+   * Reconciliation pass — re-enqueue any article still missing its
+   * ORIGINAL-language summary. The job queue runs in-process (no Redis), so a
+   * process restart drops in-flight jobs; this safety net, run on a schedule,
+   * guarantees those articles eventually get summarized. Idempotent: only NULL
+   * summaries are selected and enqueue dedupes by jobId, so it never re-spends
+   * tokens on already-summarized (or fallback-filled) rows.
+   */
+  async reconcileMissingSummaries(): Promise<BackfillResult> {
+    const missing = await this.prisma.article.findMany({
+      where: {
+        OR: [
+          { originalLanguage: 'en', summary: null },
+          { originalLanguage: 'fr', summaryFr: null },
+          { originalLanguage: 'rw', summaryRw: null },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        url: true,
+        originalLanguage: true,
+      },
+    });
+
+    const jobs: SummarizeArticleJobData[] = missing.map((a) => {
+      const lang = this.toSupportedLang(a.originalLanguage);
+      const field =
+        lang === 'fr' ? 'summaryFr' : lang === 'rw' ? 'summaryRw' : 'summary';
+      return {
+        articleId: a.id,
+        title: a.title,
+        content: a.content,
+        url: a.url,
+        language: lang,
+        field,
+      };
+    });
+
+    const enqueued = await this.summarizationQueue.enqueueBatch(jobs);
+    if (missing.length > 0) {
+      this.logger.log(
+        `Reconcile summaries: enqueued ${enqueued}/${missing.length} missing`,
+      );
+    }
+    return { total: missing.length, enqueued };
+  }
+
+  /**
    * Recompute categories for existing rows using the current categorizer.
    * Useful after taxonomy/keyword improvements.
    */

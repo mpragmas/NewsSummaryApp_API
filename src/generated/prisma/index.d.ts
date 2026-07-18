@@ -11703,7 +11703,8 @@ export namespace Prisma {
       region: string | null
       country: string | null
       /**
-       * Language of the cluster — grouping never crosses languages.
+       * Language of the cluster's lead/canonical article. A cluster MAY contain
+       * members in other languages (same story across EN/FR/RW) — see `languages`.
        */
       language: string
       /**

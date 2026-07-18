@@ -1,35 +1,28 @@
-import { Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { StoryClusteringService } from '../articles/clustering/story-clustering.service';
 import {
-  CLUSTERING_QUEUE,
   ClusterRecentJobData,
   ClusterRecentJobResult,
+  JobLike,
 } from './job-types';
 
 /**
- * BullMQ worker for story clustering.
+ * Story clustering job handler.
  *
- * Concurrency is fixed at 1: clustering reads then writes shared cluster rows,
- * so running passes sequentially guarantees two articles of the same event
- * never race to create duplicate clusters. Clustering is pure lexical work
- * (no AI), so a single worker is plenty fast.
+ * Runs on the in-process queue with concurrency 1: clustering reads then writes
+ * shared cluster rows, so running passes sequentially guarantees two articles of
+ * the same event never race to create duplicate clusters. Clustering is pure
+ * lexical work (no AI), so a single worker is plenty fast.
  */
-@Processor(CLUSTERING_QUEUE, {
-  concurrency: 1,
-  lockDuration: 600_000,
-})
-export class ClusteringProcessor extends WorkerHost {
+@Injectable()
+export class ClusteringProcessor {
   private readonly logger = new Logger(ClusteringProcessor.name);
 
-  constructor(private readonly clustering: StoryClusteringService) {
-    super();
-  }
+  constructor(private readonly clustering: StoryClusteringService) {}
 
   async process(
-    job: Job<ClusterRecentJobData, ClusterRecentJobResult>,
+    job: JobLike<ClusterRecentJobData>,
   ): Promise<ClusterRecentJobResult> {
     const { trigger, rebuild } = job.data;
     this.logger.log(

@@ -72,6 +72,25 @@ export class SchedulerService implements OnModuleInit {
   }
 
   /**
+   * Reconciliation safety net for the in-process job queue.
+   *
+   * Jobs run in memory (no Redis), so a restart can drop in-flight
+   * summarizations. Once an hour we re-enqueue any article still missing its
+   * original-language summary. Idempotent and cheap — only NULL summaries are
+   * selected and the queue dedupes by jobId.
+   */
+  @Cron('0 30 * * * *')
+  async handleSummaryReconciliation() {
+    try {
+      await this.articlesService.reconcileMissingSummaries();
+    } catch (err) {
+      this.logger.warn(
+        `Summary reconciliation failed (non-fatal): ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
    * Self-ping every 14 minutes to keep the Render free-tier dyno awake.
    * Render spins down after 15 minutes of inactivity — this prevents that.
    * Only runs when a PUBLIC_URL env var is set.

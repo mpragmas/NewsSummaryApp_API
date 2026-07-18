@@ -1,17 +1,35 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 
-import { CLUSTERING_QUEUE, ClusterRecentJobData } from './job-types';
+import { InProcessQueue } from './in-process-queue';
+import { ClusteringProcessor } from './clustering.processor';
+import {
+  CLUSTERING_QUEUE,
+  ClusterRecentJobData,
+  ClusterRecentJobResult,
+} from './job-types';
 
 @Injectable()
 export class ClusteringQueueService {
   private readonly logger = new Logger(ClusteringQueueService.name);
+  private readonly queue: InProcessQueue<
+    ClusterRecentJobData,
+    ClusterRecentJobResult
+  >;
 
-  constructor(
-    @InjectQueue(CLUSTERING_QUEUE)
-    private readonly queue: Queue<ClusterRecentJobData>,
-  ) {}
+  constructor(processor: ClusteringProcessor) {
+    this.queue = new InProcessQueue(
+      CLUSTERING_QUEUE,
+      (job) => processor.process(job),
+      {
+        concurrency: 1,
+        attempts: 3,
+        backoffMs: 5_000,
+        // A burst of ingests while a pass is running still ends with a fresh
+        // pass over the newly-arrived articles.
+        coalesceRerun: true,
+      },
+    );
+  }
 
   /**
    * Enqueue a clustering pass. Incremental runs are coalesced under a single
@@ -22,11 +40,7 @@ export class ClusteringQueueService {
     const jobId = data.rebuild
       ? `cluster-rebuild-${Date.now()}`
       : 'cluster-recent';
-    await this.queue.add('cluster', data, {
-      jobId,
-      removeOnComplete: { count: 200, age: 24 * 60 * 60 },
-      removeOnFail: { count: 1_000, age: 7 * 24 * 60 * 60 },
-    });
+    this.queue.add(jobId, data);
     this.logger.log(
       `Enqueued clustering job (${data.trigger}, rebuild=${!!data.rebuild})`,
     );
@@ -34,13 +48,6 @@ export class ClusteringQueueService {
   }
 
   async stats() {
-    const counts = await this.queue.getJobCounts(
-      'wait',
-      'active',
-      'delayed',
-      'failed',
-      'completed',
-    );
-    return { queue: CLUSTERING_QUEUE, ...counts };
+    return { queue: CLUSTERING_QUEUE, ...this.queue.counts() };
   }
 }

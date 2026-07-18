@@ -1,5 +1,26 @@
 import { SupportedLang } from '../ai/prompts';
 
+/**
+ * Minimal job shape shared by the in-process queue and the processors.
+ * Mirrors the handful of BullMQ `Job` fields the processors actually read,
+ * so the existing processor logic works unchanged without a Redis-backed queue.
+ */
+export interface JobLike<T> {
+  id: string;
+  data: T;
+  /** 0-based count of attempts already made before the current one. */
+  attemptsMade: number;
+  opts: { attempts: number };
+}
+
+/** Marks a failure that must not be retried (BullMQ-compatible semantics). */
+export class UnrecoverableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnrecoverableError';
+  }
+}
+
 export const SUMMARIZATION_QUEUE = 'summarization';
 
 export interface SummarizeArticleJobData {
