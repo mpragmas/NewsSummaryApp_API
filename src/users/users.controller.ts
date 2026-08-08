@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
+  HttpCode,
   Body,
   UseGuards,
   Request,
@@ -29,6 +31,13 @@ export class UsersController {
   @Patch()
   updateProfile(@Request() req: AuthRequest, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.userId, dto);
+  }
+
+  /** Play Store policy requires an in-app path to permanent account deletion. */
+  @Delete()
+  @HttpCode(200)
+  deleteAccount(@Request() req: AuthRequest) {
+    return this.usersService.deleteAccount(req.user.userId);
   }
 
   @Get('saved-articles')

@@ -178,6 +178,55 @@ export class UsersService {
     }));
   }
 
+  /**
+   * Permanently delete the account and everything personally linked to it.
+   *
+   * Saved articles, reading history and OAuth links go via `onDelete: Cascade`.
+   * Analytics rows are *anonymised* rather than deleted: `userId` is nullable
+   * with no FK, and publisher-facing metrics (impressions, outbound clicks,
+   * daily stats) must stay accurate after a user leaves. Severing `userId`
+   * removes the personal link while preserving the aggregate counts.
+   */
+  async deleteAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Admin accounts are pre-provisioned, not self-signup — deleting one here
+    // would orphan the dashboard. Those are removed out-of-band.
+    if (user.role === 'admin') {
+      throw new ConflictException(
+        'Admin accounts cannot be deleted from the app',
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.analyticsEvent.updateMany({
+        where: { userId },
+        data: { userId: null, anonymous: true },
+      }),
+      this.prisma.userSession.updateMany({
+        where: { userId },
+        data: { userId: null },
+      }),
+      this.prisma.storyImpression.updateMany({
+        where: { userId },
+        data: { userId: null },
+      }),
+      this.prisma.externalClick.updateMany({
+        where: { userId },
+        data: { userId: null },
+      }),
+      // Cascades to savedArticles, readingHistory and oauthAccounts.
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
+
+    this.logger.log(`Account deleted and analytics anonymised for ${userId}`);
+    return { deleted: true };
+  }
+
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   private applyLangView(
